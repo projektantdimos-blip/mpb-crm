@@ -14,114 +14,173 @@
 html{font-size:15px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}
-.wrap{max-width:1500px;margin:0 auto;padding:18px 16px 40px}
-h2.title{margin:0 0 4px;font-size:1.25rem}
-.hint{color:var(--muted);font-size:.85rem;margin:0 0 14px}
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
-.toolbar input[type=search],select,input[type=text],input[type=number]{padding:8px 10px;border:1px solid #b9c4d0;border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
+.wrap{width:100%;padding:14px 18px 30px}
+h2.title{margin:0 0 4px;font-size:1.3rem}
+.hint{color:var(--muted);font-size:.85rem;margin:0 0 12px}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input[type=search],select,input[type=text],input[type=number],input[type=date]{padding:8px 10px;border:1px solid #b9c4d0;border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}
 .toolbar input[type=search]{flex:1;min-width:180px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tab{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:7px 13px;border-radius:8px;cursor:pointer;font:inherit;font-size:.88rem}
+.tab{background:var(--card);border:1px solid var(--line);color:var(--ink);padding:7px 14px;border-radius:8px;cursor:pointer;font:inherit;font-size:.9rem}
 .tab.active{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600}
 button.primary{background:var(--blue);color:#fff;border:0;border-radius:8px;padding:9px 15px;font:inherit;font-weight:700;cursor:pointer}
 button.primary:hover{background:var(--blue-d)}
 button.ghost{background:var(--card);border:1px solid #b9c4d0;color:var(--ink);border-radius:8px;padding:8px 13px;font:inherit;cursor:pointer}
 button.ghost:hover{border-color:var(--blue)}
-button.danger{background:var(--card);border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:8px 13px;font:inherit;cursor:pointer}
-.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.chip{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 14px;font-size:.82rem;color:var(--muted)}
-.chip b{display:block;font-size:1.4rem;color:var(--ink);line-height:1.1}
-.chip.bad b{color:var(--bad)}.chip.ok b{color:var(--ok)}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-bottom:10px}
-.tblwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:72vh}
-table{border-collapse:separate;border-spacing:0;width:100%;font-size:.85rem}
-th,td{padding:6px 8px;border-bottom:1px solid var(--line);border-right:1px solid #eef1f5;white-space:nowrap;text-align:center}
-th{background:var(--blue-l);position:sticky;top:0;z-index:2;color:var(--blue-d);font-weight:700}
-td.l,th.l{text-align:left}
-td.name{position:sticky;left:0;background:var(--card);z-index:1;min-width:220px;max-width:300px;white-space:normal;font-weight:600;text-align:left}
-th.name{position:sticky;left:0;z-index:3;text-align:left}
-tr:hover td.name{background:#f7fafd}
-.m{cursor:pointer;min-width:44px;user-select:none;font-weight:700}
-.m.yes{background:var(--ok-l);color:var(--ok)}
-.m.no{background:var(--bad-l);color:var(--bad)}
-.m.off{background:#eceff3;color:var(--muted)}
-.m.cur{box-shadow:inset 0 0 0 2px var(--orange)}
-.m.empty{color:#b9c4d0}
-.m.late{background:var(--warn-l);color:var(--warn)}
-.pill{display:inline-block;border-radius:12px;padding:2px 9px;font-size:.78rem;font-weight:600}
-.pill.bad{background:var(--bad-l);color:var(--bad)}.pill.ok{background:var(--ok-l);color:var(--ok)}.pill.warn{background:var(--warn-l);color:var(--warn)}
-td input[type=text],td input[type=date],td select{width:100%;min-width:110px;padding:4px 6px;font-size:.82rem}
-.empty-msg{padding:40px;text-align:center;color:var(--muted)}
-.rules{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:14px;font-size:.85rem;color:var(--muted)}
+button.danger{background:var(--card);border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:6px 11px;font:inherit;cursor:pointer}
+button.danger:hover{background:var(--bad-l)}
+.chips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.chip{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:10px;padding:8px 16px;font-size:.82rem;color:var(--muted)}
+.chip b{display:block;font-size:1.5rem;color:var(--ink);line-height:1.1}
+.chip.bad{border-left-color:var(--bad)}.chip.bad b{color:var(--bad)}
+.chip.ok{border-left-color:var(--ok)}.chip.ok b{color:var(--ok)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-bottom:10px;align-items:center}
+.rules{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;color:var(--muted)}
 .rules b{color:var(--ink)}
+
+/* ---- таблицы ---- */
+.tblwrap{background:var(--card);border:1px solid #b9c4d0;border-radius:12px;overflow:auto;max-height:calc(100vh - 250px);min-height:200px;box-shadow:0 1px 4px rgba(20,40,70,.08)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:.88rem}
+th,td{padding:7px 9px;border-bottom:1px solid #dfe5ec;border-right:1px solid #e6ebf1;white-space:nowrap;text-align:center;vertical-align:middle;background:var(--card)}
+thead th{background:var(--blue-d);color:#fff;position:sticky;top:0;z-index:2;font-weight:600;border-right-color:rgba(255,255,255,.18);border-bottom:0;padding:9px}
+thead th small{font-weight:400;opacity:.8}
+thead th.cur{background:var(--orange);color:#1d2733}
+tbody tr:nth-child(even) td{background:#f5f8fb}
+tbody tr:hover td{background:#eaf2fb}
+td.l,th.l{text-align:left}
+td.n,th.n{position:sticky;left:0;z-index:1;width:40px;min-width:40px;color:var(--muted);font-weight:600}
+th.n{z-index:3}
+td.name,th.name{position:sticky;left:40px;min-width:230px;max-width:320px;white-space:normal;text-align:left;font-weight:700;border-right:2px solid #b9c4d0}
+td.name{z-index:1}th.name{z-index:3}
+td.name small{display:block;font-weight:400;color:var(--muted);margin-top:1px}
+tbody tr:nth-child(even) td.n,tbody tr:nth-child(even) td.name{background:#f5f8fb}
+tbody tr:hover td.n,tbody tr:hover td.name{background:#eaf2fb}
+td.cur{box-shadow:inset 0 0 0 2px var(--orange)}
+
+.pill{display:inline-block;border-radius:12px;padding:2px 10px;font-size:.78rem;font-weight:700}
+.pill.bad{background:var(--bad);color:#fff}.pill.ok{background:var(--ok);color:#fff}.pill.warn{background:#e0a100;color:#fff}.pill.grey{background:#dde3ea;color:var(--ink)}
+
+/* выпадающие статусы */
+select.st{appearance:none;-webkit-appearance:none;width:74px;padding:5px 4px;border-radius:8px;border:1px solid transparent;font:inherit;font-weight:700;text-align:center;text-align-last:center;cursor:pointer}
+select.st.yes{background:#2e9d5b;color:#fff}
+select.st.no{background:#d64545;color:#fff}
+select.st.sent{background:#e0a100;color:#fff}
+select.st.empty{background:#fff;color:#7d8896;border:1px dashed #9aa6b4}
+select.st.off{background:#eceff3;color:#8a94a1;border:1px solid #d6dde5}
+select.st.w{width:96px}
+td.offc{background:repeating-linear-gradient(45deg,#f1f3f6,#f1f3f6 6px,#e9ecf0 6px,#e9ecf0 12px)!important}
+td.pair{min-width:215px}
+td.pair select.st{width:100px;font-size:.8rem}
+td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:110px;padding:5px 7px;font-size:.84rem}
+.empty-msg{padding:40px;text-align:center;color:var(--muted)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
-@media(max-width:640px){td.name{min-width:150px}}
 </style>
 </head>
 <body>
 <div class="wrap" id="to-mpb">
   <h2 class="title">Контроль выполнения ТО — <span id="yearLbl"></span> г.</h2>
-  <p class="hint">Клик по ячейке месяца переключает: пусто → Да → Нет → не по графику. Данные за месяц вносятся до 21 числа. Итоги считаются автоматически.</p>
+  <p class="hint">Статус месяца выбирается из списка. Данные за месяц вносятся до 21 числа. Итоги считаются автоматически.</p>
 
   <div class="toolbar">
     <div class="tabs" id="tabs">
       <button class="tab active" data-v="control">Контроль ТО</button>
       <button class="tab" data-v="acc">Бухгалтерия</button>
       <button class="tab" data-v="obj">Объекты</button>
+      <button class="tab" data-v="spec">Специалисты</button>
     </div>
-    <input type="search" id="q" placeholder="Поиск по заказчику…">
-    <select id="spec"><option value="">Все специалисты</option></select>
+    <input type="search" id="q" placeholder="Поиск по заказчику или адресу…">
+    <select id="specf"><option value="">Все специалисты</option></select>
     <select id="year"></select>
     <button class="ghost" id="exp">Экспорт JSON</button>
     <button class="ghost" id="imp">Импорт JSON</button>
     <button class="ghost" id="csv">Экспорт CSV</button>
     <input type="file" id="file" accept=".json" hidden>
+    <span id="me" style="font-weight:600"></span>
+    <span id="sync" style="font-size:.82rem;color:var(--muted)"></span>
+    <button class="ghost" id="logout">Выйти</button>
   </div>
 
   <div id="view"></div>
+</div>
+<div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50">
+  <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px 28px;width:min(340px,92vw);box-shadow:0 4px 20px rgba(20,40,70,.12)">
+    <h2 style="margin:0 0 4px;font-size:1.2rem">Контроль ТО МПБ</h2>
+    <p class="hint">Введите ваш PIN</p>
+    <input type="password" id="pinIn" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" style="width:100%;font-size:1.3rem;text-align:center;letter-spacing:.3em;padding:10px;border:1px solid #b9c4d0;border-radius:8px;margin-bottom:10px">
+    <div id="loginErr" style="color:var(--bad);font-size:.85rem;min-height:1.2em;margin-bottom:8px"></div>
+    <button class="primary" id="pinBtn" style="width:100%">Войти</button>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
 (function(){
 "use strict";
-/* ====== Хранилище ======
-   Сейчас: localStorage. Для CRM замените load()/save() на вызовы Apps Script / API
-   (функции вынесены специально — см. TOMPB.adapter ниже). */
-var KEY="mpb_to_v2";
+/* Данные хранятся на сервере (Apps Script, To.gs), вход по PIN. */
+
 var MONTHS=["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"];
 var MFULL=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
-var ST=["","yes","no"];
-var STL={"":"","yes":"Да","no":"Нет","off":"—"};
-var ACT=["","Отправлен","Подписан"], PAY=["","Не оплачен","Оплачен"];
+var TO_OPTS=[["","·"],["yes","Да"],["no","Нет"]];
+var ACT_OPTS=[["","акт —"],["Отправлен","Отправлен"],["Подписан","Подписан"]];
+var PAY_OPTS=[["","опл. —"],["Не оплачен","Не оплачен"],["Оплачен","Оплачен"]];
 function planned(o,m){var st=o.period==="Квартал"?3:o.period==="Полугодие"?6:o.period==="Год"?12:1,f=o.first||1;return m>=f&&(m-f)%st===0}
 
-var adapter={
-  load:function(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}},
-  save:function(d){try{localStorage.setItem(KEY,JSON.stringify(d))}catch(e){}}
-};
+/* ====== Связь с сервером (Apps Script, файл To.gs) ====== */
+var DEFAULT_API_URL="https://script.google.com/macros/s/AKfycby6jhByQ02pEOiEn1CYeN45o1lDE6d72UNU0Qn2B-09KqzEKxcQLiem5TDJHhkwUfs-/exec";
+function apiUrl(){try{var c=JSON.parse(localStorage.getItem("mpb_api")||"{}");return c.url||DEFAULT_API_URL}catch(e){return DEFAULT_API_URL}}
+var pinMem="";
+function getPin(){if(pinMem)return pinMem;try{return localStorage.getItem("mpb_to_pin")||""}catch(e){return ""}}
+function setPin(p){pinMem=p||"";try{p?localStorage.setItem("mpb_to_pin",p):localStorage.removeItem("mpb_to_pin")}catch(e){}}
+function api(fn){
+  var args=[].slice.call(arguments,1);
+  return fetch(apiUrl(),{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args})})
+    .then(function(r){return r.json()},function(){throw new Error("Нет связи с сервером")})
+    .then(function(j){if(!j||!j.ok)throw new Error((j&&j.error)||"Ошибка сервера");return j.data});
+}
 
 var SEED={"objects": [{"name": "ООО \"Снабтех\"", "kind": "СПС.СОУЭ", "contract": "№ 43-ТО от 02.03.2026", "signed": "Подписан", "period": "Месяц", "first": 1, "cost": 35000, "spec": "Максим", "phone": "8 (920) 790 00 04", "client": "8 (911) 922-35-57 (Надежда Алексеевна)", "code": "-08.23-И-САЛ33-СПС.СОУЭ", "ppkp": "Вектор", "entry": "Нет", "journal": "Нет", "instr": "Да", "note": "В исходной «Бухгалтер» у договора №1 данные только за янв–фев; у договора №43 (строка 13) — с марта. Проверить: один это объект или два.", "id": 1, "years": {"2026": {"to": {"1": "yes", "2": "yes", "3": "yes", "4": "yes", "5": "yes", "6": "yes", "7": "yes", "8": "yes"}, "act": {"1": "Подписан", "2": "Подписан"}, "pay": {"1": "Оплачен", "2": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ИП Джалилов", "kind": "СПС.СОУЭ", "contract": "№ 3/25-ТО от 01.10.2025", "signed": "Подписан", "period": "Квартал", "first": 3, "cost": 13000, "spec": "Дмитрий Ш", "phone": "8-9134225123", "client": "8 (981) 737-92-87", "code": "ПД-АН.Б.1.01/25-СПС.СОУЭ", "ppkp": "Панель 1 ПРО", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "", "id": 2, "years": {"2026": {"to": {"3": "yes", "6": "yes"}, "act": {"1": "Подписан", "3": "Подписан", "6": "Подписан"}, "pay": {"1": "Оплачен", "3": "Оплачен", "6": "Оплачен"}, "deadline": "", "reason": "", "note": "Янв, оплата: «4 квартал 2025 г.» (исходный комментарий к F4)"}}}, {"name": "ИП Сабурова", "kind": "СПС.СОУЭ", "contract": "№ 4/25-ТО от 01.10.2025", "signed": "Подписан", "period": "Квартал", "first": 3, "cost": 14000, "spec": "Дмитрий Ш", "phone": "8-9134225123", "client": "8-952-240-88-43 (Лейла)", "code": "СЛР-02/25-СПС.СОУЭ-ПБ", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "", "id": 3, "years": {"2026": {"to": {"3": "yes", "6": "yes"}, "act": {"3": "Подписан", "6": "Подписан"}, "pay": {"3": "Оплачен", "6": "Оплачен", "9": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ИП Кириченко", "kind": "СПС.СОУЭ", "contract": "№ 2/25-ТО от 01.10.2025", "signed": "Не подписан", "period": "Месяц", "first": 1, "cost": 4000, "spec": "Дмитрий Ш", "phone": "8-9134225123", "client": "8 (952) 097-55-97 (Насиба)", "code": "СПРО-Т.Р.21.04/2024-СПС.СОУЭ", "ppkp": "Панель 2 ПРО", "entry": "Нет", "journal": "Да", "instr": "Да", "note": "", "id": 4, "years": {"2026": {"to": {"1": "yes", "2": "yes", "3": "yes", "4": "yes", "5": "yes", "6": "yes", "7": "yes", "8": "yes"}, "act": {"1": "Отправлен", "2": "Отправлен", "3": "Подписан", "4": "Подписан", "5": "Подписан", "6": "Подписан", "7": "Подписан", "8": "Подписан"}, "pay": {"1": "Оплачен", "2": "Оплачен", "3": "Оплачен", "4": "Оплачен", "5": "Оплачен", "6": "Оплачен", "7": "Оплачен", "8": "Оплачен", "9": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ООО Великоросс", "kind": "СПС.СОУЭ", "contract": "№ 9/25-ТО от 14.10.2025", "signed": "Подписан", "period": "Месяц", "first": 1, "cost": 29000, "spec": "Дмитрий", "phone": "8 (911) 841-48-04", "client": "8 (921) 942-34-08 (Владислав Владимирович)", "code": "-", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "", "id": 5, "years": {"2026": {"to": {"1": "yes", "2": "yes", "3": "yes", "4": "yes", "5": "yes", "6": "yes", "7": "yes", "8": "yes"}, "act": {"1": "Подписан", "2": "Подписан", "3": "Подписан", "4": "Подписан", "5": "Подписан", "6": "Подписан", "7": "Подписан", "8": "Отправлен"}, "pay": {"1": "Оплачен", "2": "Оплачен", "3": "Оплачен", "4": "Оплачен", "5": "Оплачен", "6": "Оплачен", "7": "Оплачен", "8": "Оплачен", "9": "Не оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ИП Дегтярев", "kind": "СПС.СОУЭ", "contract": "№ 01/25ТО от 01.10.2025", "signed": "Подписан", "period": "Месяц", "first": 1, "cost": 85000, "spec": "Сергей", "phone": "8 (921) 411-70-69", "client": "8 (921) 411-70-69 (Сергей)", "code": "-", "ppkp": "С2000М", "entry": "Нет", "journal": "Да", "instr": "Да", "note": "Телефон заказчика и специалиста совпадает (8 (921) 411-70-69) — проверить.", "id": 6, "years": {"2026": {"to": {"1": "yes", "2": "yes", "3": "yes", "4": "yes", "5": "yes", "6": "yes", "7": "yes", "8": "yes"}, "act": {"1": "Подписан", "2": "Подписан", "3": "Подписан", "4": "Подписан", "5": "Подписан", "6": "Подписан", "7": "Подписан", "8": "Отправлен"}, "pay": {"1": "Оплачен", "2": "Оплачен", "3": "Оплачен", "4": "Оплачен", "5": "Оплачен", "6": "Оплачен", "7": "Оплачен", "8": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ФИНСКИЙ ЕВАНГЕЛИЧЕСКО-ЛЮТЕРАНСКИЙ ПРИХОД Г. ПУШКИНА МЕСТНАЯ РЕЛИГИОЗНАЯ ОРГАНИЗАЦИЯ", "kind": "СПС.СОУЭ", "contract": "№ 34-ТО от 20.01.2026", "signed": "Подписан", "period": "Месяц", "first": 1, "cost": 10000, "spec": "Кирилл", "phone": "8-952-213-0280", "client": "8 (911) 199-02-31 (Роман)", "code": "-", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "", "id": 7, "years": {"2026": {"to": {"1": "yes", "2": "yes", "3": "yes", "4": "yes", "5": "yes", "6": "yes", "7": "no", "8": "no"}, "act": {"1": "Подписан", "2": "Подписан", "3": "Подписан", "4": "Отправлен", "5": "Отправлен", "6": "Отправлен", "7": "Отправлен", "8": "Отправлен"}, "pay": {"1": "Оплачен", "2": "Оплачен", "3": "Оплачен", "4": "Не оплачен", "5": "Не оплачен", "6": "Не оплачен", "7": "Не оплачен", "8": "Не оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ООО \"Группа компаний \"АСК\"", "kind": "Огнетушители", "contract": "№ 47-ТО от 27.02.2026", "signed": "Подписан", "period": "Квартал", "first": 3, "cost": 8700, "spec": "Александр", "phone": "8 (952) 282-38-76", "client": "8 (921) 368-69-16 (Сетлана)", "code": "", "ppkp": "", "entry": "", "journal": "", "instr": "", "note": "В исходной «ТО МПБ» отметки есть только за март и июнь (сентябрь и декабрь не заведены).", "id": 8, "years": {"2026": {"to": {"3": "yes", "6": "yes"}, "act": {"3": "Подписан", "6": "Отправлен"}, "pay": {"3": "Оплачен", "6": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ООО \"Детали Дентал\"", "kind": "СПС.СОУЭ", "contract": "№ 49-ТО", "signed": "Подписан", "period": "Квартал", "first": 3, "cost": 12000, "spec": "Дмитрий Ш", "phone": "8-9134225123", "client": "8 (951) 687-23-78 (Александр)", "code": "258-МК91-СПС.СОУЭ-ПБ-02.02", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "Дата договора расходится: «ТО МПБ»!J7 — 20.01.2026; «Бухгалтер»!B13 — 02.03.2026. Проверить по оригиналу.", "id": 9, "years": {"2026": {"to": {"3": "yes", "6": "no"}, "act": {"3": "Отправлен", "6": "Отправлен"}, "pay": {"3": "Не оплачен", "6": "Не оплачен"}, "deadline": "", "reason": "", "note": "На бумаге (исходный комментарий к A13)"}}}, {"name": "АО \"Концерн \"ЦНИИ \"Электроприбор\"", "kind": "Огнетушители", "contract": "№ 48 от 24.02.2026", "signed": "Подписан", "period": "Квартал", "first": 3, "cost": 24875, "spec": "Александр", "phone": "8 (952) 282-38-76", "client": "8 (904) 559-57-55 (Александр)", "code": "", "ppkp": "", "entry": "", "journal": "", "instr": "", "note": "В исходной «ТО МПБ» отметки есть только за март и июнь (сентябрь и декабрь не заведены).", "id": 10, "years": {"2026": {"to": {"3": "yes", "6": "yes"}, "act": {"3": "Отправлен", "6": "Отправлен"}, "pay": {"3": "Оплачен", "6": "Оплачен", "9": "Оплачен"}, "deadline": "", "reason": "", "note": "На бумаге (исходный комментарий к A12)"}}}, {"name": "ООО \"ЕвроГазСтрой\"", "kind": "СПС.СОУЭ", "contract": "№ 64-ТО от 30.04.2026", "signed": "Подписан", "period": "Месяц", "first": 5, "cost": 5000, "spec": "Алексей Х.", "phone": "89117518001", "client": "", "code": "ОБ-133-0126-СПС.СОУЭ", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "", "id": 11, "years": {"2026": {"to": {"5": "yes", "6": "yes", "7": "yes", "8": "yes", "9": "yes"}, "act": {"5": "Подписан", "6": "Подписан", "7": "Подписан", "8": "Отправлен"}, "pay": {"5": "Оплачен", "6": "Не оплачен", "7": "Оплачен", "8": "Не оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ООО \"Кондитерское производство \"Татьяны Николаевой\"", "kind": "СПС.СОУЭ", "contract": "№ 68-ТО от 14.05.2026", "signed": "Подписан", "period": "Месяц", "first": 5, "cost": 6500, "spec": "Максим", "phone": "8 (920) 790 00 04", "client": "89219131204 (Татьяна)", "code": "", "ppkp": "", "entry": "Нет", "journal": "Нет", "instr": "Нет", "note": "В исходной «ТО МПБ» M10 = «Месяц», но отметки есть только за май, июнь, сентябрь, декабрь.", "id": 12, "years": {"2026": {"to": {"5": "yes", "6": "yes", "7": "yes", "8": "yes"}, "act": {"5": "Подписан", "6": "Подписан", "7": "Подписан", "8": "Подписан"}, "pay": {"5": "Оплачен", "6": "Оплачен", "7": "Оплачен", "8": "Оплачен"}, "deadline": "", "reason": "", "note": ""}}}, {"name": "АНО СДЦ Мир Детства", "kind": "Огнетушители", "contract": "90-ТО", "signed": "Подписан", "period": "Квартал", "first": 8, "cost": 5000, "spec": "Алексей Х.", "phone": "89117518001", "client": "", "code": "", "ppkp": "", "entry": "", "journal": "", "instr": "", "note": "Нет в исходной «ТО МПБ». Заполнить вид ТО, специалиста, первый месяц.", "id": 14, "years": {"2026": {"to": {"8": "yes"}, "act": {}, "pay": {}, "deadline": "", "reason": "", "note": ""}}}, {"name": "ООО \"Звёздный\"", "kind": "СПС.СОУЭ", "contract": "№ 108-ТО от 18.09.2026", "signed": "Подписан", "period": "Месяц", "first": 9, "cost": 8000, "spec": "Максим", "phone": "8 (920) 790 00 04", "client": "", "code": "", "ppkp": "", "entry": "", "journal": "", "instr": "", "note": "Нет в исходной «ТО МПБ». Заполнить вид ТО, специалиста, первый месяц.", "id": 15, "years": {"2026": {"to": {}, "act": {}, "pay": {}, "deadline": "", "reason": "Максима отправить", "note": ""}}}], "nextId": 16};
 function emptyYear(){return {to:{},act:{},pay:{},deadline:"",reason:"",note:""}}
-function seed(){return JSON.parse(JSON.stringify(SEED))}
-var data=adapter.load()||seed();
+function migrate(d){
+  d.objects=d.objects||[];d.specialists=d.specialists||[];
+  d.objects.forEach(function(o){if(o.address==null)o.address="";if(!o.years)o.years={}});
+  return d;
+}
+var data={objects:[],specialists:[],nextId:1}, me=null, pins={}, accPin=false;
 var view="control", year=new Date().getFullYear();
+var TABS_BY_ROLE={admin:["control","acc","obj","spec"],spec:["control"],acc:["acc"]};
 
 function Y(o){return o.years[year]||(o.years[year]=emptyYear())}
-function save(){adapter.save(data)}
+
+/* очередь изменений: отправляются на сервер пачками, интерфейс не перерисовывается */
+var pending=[],busy=false,tmr=null;
+function setSync(t,bad){var e=$("sync");e.textContent=t;e.style.color=bad?"var(--bad)":"var(--muted)"}
+function op(o){pending.push(o);setSync("Сохранение…");clearTimeout(tmr);tmr=setTimeout(flush,350)}
+function flush(){
+  if(busy||!pending.length)return;
+  busy=true;var ops=pending.splice(0);
+  api("to_apply",getPin(),ops).then(function(r){
+    busy=false;
+    if(r&&r.errors&&r.errors.length){toast(r.errors[0]);setSync("Часть изменений отклонена",true);loadData(true)}
+    else setSync("Сохранено ✓");
+    if(pending.length)flush();
+  }).catch(function(e){
+    busy=false;pending=ops.concat(pending);setSync("Нет связи — повторю…",true);setTimeout(flush,5000);
+  });
+}
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function toast(t){var e=document.getElementById("toast");e.textContent=t;e.classList.add("show");setTimeout(function(){e.classList.remove("show")},1800)}
 function money(n){return n?Number(n).toLocaleString("ru-RU")+" ₽":""}
+function $(id){return document.getElementById(id)}
 
 var now=new Date(), curM=now.getMonth()+1;
 function isCurYear(){return year===now.getFullYear()}
 
 function filtered(){
-  var q=document.getElementById("q").value.toLowerCase().trim(), sp=document.getElementById("spec").value;
-  return data.objects.filter(function(o){return (!q||o.name.toLowerCase().indexOf(q)>=0)&&(!sp||o.spec===sp)});
+  var q=$("q").value.toLowerCase().trim(), sp=$("specf").value;
+  return data.objects.filter(function(o){return (!q||(o.name+" "+o.address).toLowerCase().indexOf(q)>=0)&&(!sp||o.spec===sp)});
 }
-function unclosed(o){ // месяцы до текущего без «Да» и не «не по графику»
+function unclosed(o){
   var up=isCurYear()?curM-1:(year<now.getFullYear()?12:0),n=0,t=Y(o).to;
   for(var m=1;m<=up;m++){if(planned(o,m)&&t[m]!=="yes")n++}
   return n;
@@ -132,74 +191,82 @@ function status(o){
   for(var m=1;m<=up;m++)if(t[m]==="no")return ["ПРОСРОЧЕНО","bad"];
   return ["НЕТ ОТМЕТКИ","warn"];
 }
+function specPhone(name){var s=data.specialists.filter(function(x){return x.name===name})[0];return s?s.phone:""}
 function fillSpecs(){
-  var sel=document.getElementById("spec"),v=sel.value,set={};
-  data.objects.forEach(function(o){if(o.spec)set[o.spec]=1});
-  sel.innerHTML='<option value="">Все специалисты</option>'+Object.keys(set).sort().map(function(s){return '<option>'+esc(s)+'</option>'}).join("");
+  var sel=$("specf"),v=sel.value;
+  sel.innerHTML='<option value="">Все специалисты</option>'+data.specialists.map(function(s){return '<option>'+esc(s.name)+'</option>'}).join("");
   sel.value=v;
 }
 function fillYears(){
   var set={};set[now.getFullYear()]=1;set[year]=1;
   data.objects.forEach(function(o){Object.keys(o.years).forEach(function(k){set[k]=1})});
-  var ys=Object.keys(set).sort();
-  var sel=document.getElementById("year");
-  sel.innerHTML=ys.map(function(y){return '<option>'+y+'</option>'}).join("")+'<option value="+">+ год</option>';
-  sel.value=year;document.getElementById("yearLbl").textContent=year;
+  var sel=$("year");
+  sel.innerHTML=Object.keys(set).sort().map(function(y){return '<option>'+y+'</option>'}).join("")+'<option value="+">+ год</option>';
+  sel.value=year;$("yearLbl").textContent=year;
 }
+function opts(list,cur){return list.map(function(p){return '<option value="'+esc(p[0])+'"'+(p[0]===cur?" selected":"")+'>'+esc(p[1])+'</option>'}).join("")}
+function stCls(map,v){return v?map[v]:"empty"}
+var TO_CLS={yes:"yes",no:"no"}, ACT_CLS={"Отправлен":"sent","Подписан":"yes"}, PAY_CLS={"Не оплачен":"no","Оплачен":"yes"};
+function stSel(attrs,list,cur,map,w){return '<select class="st '+stCls(map,cur)+(w?" w":"")+'" '+attrs+'>'+opts(list,cur)+'</select>'}
 
 /* ====== Контроль ТО ====== */
-function renderControl(){
-  var list=filtered(),tm=0,td=0,uo=0,us=0;
+function controlChips(list){
+  var tm=0,td=0,uo=0,us=0;
   list.forEach(function(o){
     var u=unclosed(o);if(u){uo++;us+=u}
     if(isCurYear()){if(planned(o,curM))tm++;if(Y(o).to[curM]==="yes")td++}
   });
-  var h='<div class="rules"><b>Правила:</b> с 15 по 20 число инженеры проводят ТО; с 20 по 21 — анализ и внесение данных по каждому объекту. Если ТО не проводилось — укажите «Нет», срок «Провести до» и причину.</div>';
-  h+='<div class="chips">'
-   +'<div class="chip">По плану в этом месяце<b>'+(isCurYear()?tm:"—")+'</b></div>'
+  return '<div class="chip">По плану в этом месяце<b>'+(isCurYear()?tm:"—")+'</b></div>'
    +'<div class="chip ok">Проведено в этом месяце<b>'+(isCurYear()?td:"—")+'</b></div>'
    +'<div class="chip bad">Не закрыто ТО, шт.<b>'+us+'</b></div>'
-   +'<div class="chip bad">Объектов с незакрытым ТО<b>'+uo+'</b></div></div>';
-  h+='<div class="legend"><span><span class="pill ok">Да</span> проведено</span><span><span class="pill bad">Нет</span> не проведено</span><span>пусто — нет отметки</span><span><span class="pill" style="background:#eceff3">—</span> не по графику</span></div>';
+   +'<div class="chip bad">Объектов с незакрытым ТО<b>'+uo+'</b></div>';
+}
+function rowLive(o){ // «Статус» и «Не закрыто» одной строки
+  var s=status(o),u=unclosed(o);
+  return {st:'<span class="pill '+s[1]+'">'+s[0]+'</span>',un:u?'<span class="pill bad">'+u+'</span>':'<span class="pill ok">0</span>'};
+}
+function renderControl(){
+  var list=filtered();
+  var h='<div class="rules"><b>Правила:</b> с 15 по 20 число инженеры проводят ТО; с 20 по 21 — анализ и внесение данных по каждому объекту. Если ТО не проводилось — выберите «Нет», укажите срок «Провести до» и причину.</div>';
+  h+='<div class="chips" id="chips">'+controlChips(list)+'</div>';
+  h+='<div class="legend"><span class="pill ok">Да</span> проведено <span class="pill bad">Нет</span> не проведено <span class="pill grey">·</span> нет отметки <span class="pill grey" style="background:repeating-linear-gradient(45deg,#f1f3f6,#f1f3f6 4px,#dde2e8 4px,#dde2e8 8px)">штрих</span> не по графику</div>';
   if(!list.length)return h+'<div class="empty-msg">Нет объектов</div>';
-  h+='<div class="tblwrap"><table><thead><tr><th class="name">Заказчик</th><th>Вид ТО</th><th>Период</th><th>Специалист</th><th>Статус</th><th>Не закрыто</th>';
-  MONTHS.forEach(function(m,i){h+='<th'+(isCurYear()&&i+1===curM?' style="background:#fde7d9"':'')+'>'+m+'</th>'});
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик / адрес</th><th>Вид ТО</th><th>Период</th><th>Специалист</th><th>Статус</th><th>Не закрыто</th>';
+  MONTHS.forEach(function(m,i){h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'</th>'});
   h+='<th>Провести до</th><th class="l">Причина</th></tr></thead><tbody>';
-  list.forEach(function(o){
-    var y=Y(o),u=unclosed(o);
-    var stt=status(o);
-    h+='<tr data-id="'+o.id+'"><td class="name">'+esc(o.name)+'</td><td>'+esc(o.kind)+'</td><td>'+esc(o.period)+'</td><td>'+esc(o.spec)+'</td><td><span class="pill '+stt[1]+'">'+stt[0]+'</span></td><td>'+(u?'<span class="pill bad">'+u+'</span>':'<span class="pill ok">0</span>')+'</td>';
+  list.forEach(function(o,i){
+    var y=Y(o),lv=rowLive(o);
+    h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</td><td>'+esc(o.kind)+'</td><td>'+esc(o.period)+'</td><td>'+esc(o.spec)+'</td><td class="lv-st">'+lv.st+'</td><td class="lv-un">'+lv.un+'</td>';
     for(var m=1;m<=12;m++){
-      var s=y.to[m]||"",pl=planned(o,m),cls=s||(pl?"empty":"off");
-      h+='<td class="m '+cls+(isCurYear()&&m===curM?" cur":"")+'" data-m="'+m+'" title="'+MFULL[m-1]+(pl?"":" — не по графику")+'">'+(s?STL[s]:pl?"·":"—")+'</td>';
+      var pl=planned(o,m),s=y.to[m]||"";
+      h+='<td class="'+(pl||s?"":"offc ")+(isCurYear()&&m===curM?"cur":"")+'">'+stSel('data-m="'+m+'" title="'+MFULL[m-1]+(pl?"":" — не по графику")+'"',TO_OPTS,s,TO_CLS)+'</td>';
     }
-    h+='<td><input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></td><td><input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Причина"></td></tr>';
+    h+='<td><input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></td><td><input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Причина" style="min-width:200px"></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
 
 /* ====== Бухгалтерия ====== */
+function accChips(list){
+  var na=0,np=0;
+  list.forEach(function(o){var y=Y(o);for(var m=1;m<=12;m++){if(y.act[m]==="Отправлен")na++;if(y.pay[m]==="Не оплачен")np++}});
+  return '<div class="chip bad">Актов без подписи, шт.<b>'+na+'</b></div><div class="chip bad">Не оплачено, шт.<b>'+np+'</b></div>';
+}
 function renderAcc(){
-  var list=filtered(),na=0,np=0;
-  list.forEach(function(o){var y=Y(o);
-    for(var m=1;m<=12;m++){
-      if(y.act[m]==="Отправлен")na++;
-      if(y.pay[m]==="Не оплачен")np++;}});
-  var h='<p class="hint">Заполняйте «Акт» и «Оплата» по месяцам и «Примечание». Заказчик, договор, период и стоимость берутся из вкладки «Объекты».</p>';
-  h+='<div class="chips"><div class="chip bad">Актов без подписи, шт.<b>'+na+'</b></div><div class="chip bad">Не оплачено, шт.<b>'+np+'</b></div></div>';
+  var list=filtered();
+  var h='<p class="hint">Выберите «Акт» и «Оплата» по месяцам из списков и заполните «Примечание». Заказчик, договор, период и стоимость берутся из вкладки «Объекты».</p>';
+  h+='<div class="chips" id="chips">'+accChips(list)+'</div>';
   if(!list.length)return h+'<div class="empty-msg">Нет объектов</div>';
-  h+='<div class="tblwrap"><table><thead><tr><th class="name">Заказчик</th><th>Договор</th><th>Период</th><th>Стоимость</th>';
-  MONTHS.forEach(function(m){h+='<th>'+m+'<br><small>акт / оплата</small></th>'});
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик</th><th>Договор</th><th>Период</th><th>Стоимость</th>';
+  MONTHS.forEach(function(m,i){h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'<br><small>акт / оплата</small></th>'});
   h+='<th class="l">Примечание</th></tr></thead><tbody>';
-  list.forEach(function(o){
+  list.forEach(function(o,i){
     var y=Y(o);
-    h+='<tr data-id="'+o.id+'"><td class="name">'+esc(o.name)+'</td><td>'+esc(o.contract)+(o.signed?'<br><small>'+esc(o.signed)+'</small>':'')+'</td><td>'+esc(o.period)+'</td><td>'+money(o.cost)+'</td>';
+    h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+'</td><td>'+esc(o.contract)+(o.signed?'<br><small>'+esc(o.signed)+'</small>':'')+'</td><td>'+esc(o.period)+'</td><td>'+money(o.cost)+'</td>';
     for(var m=1;m<=12;m++){
-      var a=y.act[m]||"",p=y.pay[m]||"";
-      h+='<td><span class="m pill '+(a==="Подписан"?"ok":a?"warn":"")+'" data-k="act" data-m="'+m+'" title="'+esc(a||"нет акта")+'" style="cursor:pointer;min-width:0">'+(a==="Подписан"?"акт ✓":a?"акт ✉":"акт ·")+'</span> '
-        +'<span class="m pill '+(p==="Оплачен"?"ok":p?"bad":"")+'" data-k="pay" data-m="'+m+'" title="'+esc(p||"нет оплаты")+'" style="cursor:pointer;min-width:0">'+(p==="Оплачен"?"₽ ✓":p?"₽ ✗":"₽ ·")+'</span></td>';
+      h+='<td class="pair">'+stSel('data-k="act" data-m="'+m+'"',ACT_OPTS,y.act[m]||"",ACT_CLS)+' '+stSel('data-k="pay" data-m="'+m+'"',PAY_OPTS,y.pay[m]||"",PAY_CLS)+'</td>';
     }
-    h+='<td><input type="text" data-f="note" value="'+esc(y.note)+'"></td></tr>';
+    h+='<td><input type="text" data-f="note" value="'+esc(y.note)+'" style="min-width:200px"></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
@@ -209,73 +276,178 @@ function renderObj(){
   var list=filtered();
   var yn=function(k,o){return '<select data-o="'+k+'"><option></option>'+["Да","Нет"].map(function(p){return '<option'+(o[k]===p?" selected":"")+'>'+p+'</option>'}).join("")+'</select>'};
   var tx=function(k,o,w){return '<td><input type="text" data-o="'+k+'" value="'+esc(o[k])+'" style="min-width:'+(w||110)+'px"></td>'};
-  var h='<div class="toolbar"><button class="primary" id="add">+ Добавить объект</button></div><p class="hint">Данные об объекте вводятся здесь один раз — «Контроль ТО» и «Бухгалтерия» берут их отсюда. Плановые месяцы считаются из «Периодичности» и «Первого месяца ТО».</p>';
-  h+='<div class="tblwrap"><table><thead><tr><th class="name">Заказчик</th><th>Вид ТО</th><th>Договор</th><th>Подписан?</th><th>Периодичность</th><th>Первый месяц</th><th>Стоимость, ₽</th><th>Специалист</th><th>Телефон специалиста</th><th>Контакт заказчика</th><th>Шифр проекта</th><th>ППКП</th><th>Акт вх. контроля</th><th>Журнал</th><th>Инструкция и схема</th><th>Примечание</th><th></th></tr></thead><tbody>';
-  list.forEach(function(o){
-    h+='<tr data-id="'+o.id+'"><td class="name"><input type="text" data-o="name" value="'+esc(o.name)+'"></td>'
+  var specOpts=function(o){return '<select data-o="spec"><option value=""></option>'+data.specialists.map(function(s){return '<option'+(o.spec===s.name?" selected":"")+'>'+esc(s.name)+'</option>'}).join("")+'</select>'};
+  var h='<div class="toolbar"><button class="primary" id="add">+ Добавить объект</button></div><p class="hint">Данные об объекте вводятся здесь один раз — «Контроль ТО» и «Бухгалтерия» берут их отсюда. Плановые месяцы считаются из «Периодичности» и «Первого месяца».</p>';
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик</th><th>Адрес</th><th>Вид ТО</th><th>Договор</th><th>Подписан?</th><th>Периодичность</th><th>Первый месяц</th><th>Стоимость, ₽</th><th>Специалист</th><th>Контакт заказчика</th><th>Шифр проекта</th><th>ППКП</th><th>Акт вх. контроля</th><th>Журнал</th><th>Инструкция и схема</th><th>Примечание</th><th></th></tr></thead><tbody>';
+  list.forEach(function(o,i){
+    h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name"><input type="text" data-o="name" value="'+esc(o.name)+'"></td>'
+     +tx("address",o,220)
      +'<td><select data-o="kind">'+["СПС.СОУЭ","Огнетушители"].map(function(p){return '<option'+(o.kind===p?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
      +tx("contract",o,150)
      +'<td><select data-o="signed"><option></option><option'+(o.signed==="Подписан"?" selected":"")+'>Подписан</option><option'+(o.signed==="Не подписан"?" selected":"")+'>Не подписан</option></select></td>'
      +'<td><select data-o="period">'+["Месяц","Квартал","Полугодие","Год"].map(function(p){return '<option'+(o.period===p?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
-     +'<td><select data-o="first">'+MFULL.map(function(p,i){return '<option value="'+(i+1)+'"'+(o.first===i+1?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
+     +'<td><select data-o="first">'+MFULL.map(function(p,j){return '<option value="'+(j+1)+'"'+(o.first===j+1?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
      +'<td><input type="number" data-o="cost" value="'+(o.cost||"")+'" style="width:100px"></td>'
-     +tx("spec",o)+tx("phone",o)+tx("client",o,180)+tx("code",o,160)+tx("ppkp",o,90)
+     +'<td>'+specOpts(o)+'</td>'+tx("client",o,180)+tx("code",o,160)+tx("ppkp",o,90)
      +'<td>'+yn("entry",o)+'</td><td>'+yn("journal",o)+'</td><td>'+yn("instr",o)+'</td>'+tx("note",o,200)
      +'<td><button class="danger" data-del="1">Удалить</button></td></tr>';
   });
   return h+'</tbody></table></div>';
 }
 
-function render(){
-  fillYears();
-  var v=document.getElementById("view");
-  v.innerHTML=view==="control"?renderControl():view==="acc"?renderAcc():renderObj();
+/* ====== Специалисты ====== */
+function renderSpec(){
+  var pinCell=function(key,has){return '<td style="min-width:230px"><span class="pill '+(has?"ok":"grey")+'">'+(has?"PIN задан":"нет PIN")+'</span> <input type="text" inputmode="numeric" maxlength="8" placeholder="новый PIN" class="pin" data-pk="'+esc(key)+'" style="width:100px;min-width:0"> <button class="ghost" data-setpin="1">Задать</button></td>'};
+  var h='<div class="toolbar"><button class="primary" id="addspec">+ Добавить специалиста</button></div><p class="hint">Справочник специалистов. У каждого — свой PIN (4–8 цифр): по нему специалист входит и видит только свои объекты. Пустое поле + «Задать» удаляет PIN. При удалении специалиста его объекты остаются «без специалиста».</p>';
+  h+='<div class="tblwrap" style="min-height:0;margin-bottom:14px"><table><thead><tr><th class="l">Бухгалтер</th><th>PIN</th></tr></thead><tbody><tr><td class="l"><b>Вход бухгалтера</b> — видит только вкладку «Бухгалтерия»</td>'+pinCell("__acc",accPin)+'</tr></tbody></table></div>';
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="l">Специалист</th><th class="l">Телефон</th><th>Объектов</th><th>Не закрыто ТО, шт.</th><th>PIN</th><th></th></tr></thead><tbody>';
+  data.specialists.forEach(function(s,i){
+    var os=data.objects.filter(function(o){return o.spec===s.name}),un=0;
+    os.forEach(function(o){un+=unclosed(o)});
+    h+='<tr data-si="'+i+'"><td class="n">'+(i+1)+'</td><td><input type="text" data-s="name" value="'+esc(s.name)+'"></td><td><input type="text" data-s="phone" value="'+esc(s.phone)+'"></td><td>'+os.length+'</td><td>'+(un?'<span class="pill bad">'+un+'</span>':'<span class="pill ok">0</span>')+'</td>'+pinCell(s.name,pins[s.name])+'<td><button class="danger" data-delspec="1">Удалить</button></td></tr>';
+  });
+  if(!data.specialists.length)h+='<tr><td colspan="7" class="empty-msg">Нет специалистов</td></tr>';
+  return h+'</tbody></table></div>';
 }
 
-/* ====== События ====== */
+function render(){
+  fillYears();
+  $("view").innerHTML=view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
+}
+
+/* ====== Загрузка данных и роли ====== */
+function applyRole(){
+  var allowed=TABS_BY_ROLE[me.role]||[];
+  [].forEach.call($("tabs").children,function(b){b.style.display=allowed.indexOf(b.dataset.v)>=0?"":"none"});
+  if(allowed.indexOf(view)<0)view=allowed[0];
+  [].forEach.call($("tabs").children,function(b){b.classList.toggle("active",b.dataset.v===view)});
+  var adm=me.role==="admin";
+  $("specf").style.display=adm?"":"none";
+  $("exp").style.display=$("imp").style.display=$("csv").style.display=adm?"":"none";
+  $("me").textContent=me.name+(adm?" (руководитель)":me.role==="acc"?" (бухгалтерия)":"");
+}
+function typingNow(){var a=document.activeElement;return a&&$("view").contains(a)&&(a.tagName==="INPUT"||a.tagName==="SELECT")}
+function loadData(silent){
+  return api("to_load",getPin()).then(function(r){
+    if(r.empty&&r.role==="admin"){
+      return api("to_import",getPin(),SEED).then(function(){return loadData(silent)});
+    }
+    me={role:r.role,name:r.name};pins=r.pins||{};accPin=!!r.accPin;
+    data=migrate({objects:r.objects,specialists:r.specialists,nextId:r.nextId});
+    $("login").style.display="none";
+    applyRole();fillSpecs();render();setSync("Сохранено ✓");
+  });
+}
+function showLogin(msg){
+  me=null;$("login").style.display="flex";$("loginErr").textContent=msg||"";$("pinIn").value="";$("pinIn").focus();
+}
+function doLogin(){
+  var p=$("pinIn").value.trim();if(!p)return;
+  var b=$("pinBtn");b.disabled=true;
+  setPin(p);
+  loadData().catch(function(e){setPin("");showLogin(e.message)}).then(function(){b.disabled=false});
+}
+$("pinBtn").onclick=doLogin;
+$("pinIn").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin()});
+$("logout").onclick=function(){setPin("");pending=[];data={objects:[],specialists:[],nextId:1};$("view").innerHTML="";showLogin()};
+setInterval(function(){ // подтягиваем изменения других пользователей
+  if(me&&!pending.length&&!busy&&!typingNow())loadData(true).catch(function(){});
+},60000);
+
+/* ====== События (без перерисовки таблицы при выборе статусов) ====== */
 function find(el){var tr=el.closest("tr");return tr&&data.objects.filter(function(o){return o.id==tr.dataset.id})[0]}
-function cycle(arr,v){return arr[(arr.indexOf(v||"")+1)%arr.length]}
-document.getElementById("view").addEventListener("click",function(e){
-  var t=e.target,o=find(t);
-  if(t.id==="add"){data.objects.push({id:data.nextId++,name:"Новый заказчик",kind:"СПС.СОУЭ",spec:"",phone:"",client:"",code:"",ppkp:"",entry:"",journal:"",instr:"",note:"",contract:"",signed:"",period:"Месяц",first:1,cost:0,years:{}});save();render();return}
-  if(!o)return;
-  if(t.dataset.del){if(confirm("Удалить объект «"+o.name+"» со всеми данными?")){data.objects=data.objects.filter(function(x){return x!==o});save();render()}return}
-  if(view==="control"&&t.classList.contains("m")){var y=Y(o),m=t.dataset.m;y.to[m]=cycle(ST,y.to[m]);save();render();return}
-  if(view==="acc"&&t.dataset.k){var y2=Y(o),k=t.dataset.k,m2=t.dataset.m;y2[k][m2]=cycle(k==="act"?ACT:PAY,y2[k][m2]);save();render()}
+function uniqSpecName(){var n=1,nm;do{nm="Новый специалист"+(n>1?" "+n:"");n++}while(data.specialists.some(function(s){return s.name===nm}));return nm}
+$("view").addEventListener("click",function(e){
+  var t=e.target;
+  if(t.id==="add"){
+    var no={id:Date.now(),name:"Новый заказчик",address:"",kind:"СПС.СОУЭ",spec:"",client:"",code:"",ppkp:"",entry:"",journal:"",instr:"",note:"",contract:"",signed:"",period:"Месяц",first:1,cost:0,years:{}};
+    data.objects.push(no);op({k:"objAdd",obj:no});render();return}
+  if(t.id==="addspec"){var s0={name:uniqSpecName(),phone:""};data.specialists.push(s0);op({k:"specAdd",name:s0.name,phone:""});fillSpecs();render();return}
+  if(t.dataset.setpin){
+    var inp=t.parentNode.querySelector(".pin"),key=inp.dataset.pk,v=inp.value.trim();
+    if(v&&!/^\d{4,8}$/.test(v)){toast("PIN — 4–8 цифр");return}
+    api("to_setPin",getPin(),key,v).then(function(){if(key==="__acc")accPin=!!v;else pins[key]=!!v;toast(v?"PIN сохранён":"PIN удалён");render()}).catch(function(er){toast(er.message)});
+    return;
+  }
+  if(t.dataset.delspec){
+    var tr=t.closest("tr"),idx=+tr.dataset.si,s=data.specialists[idx];
+    if(confirm("Удалить специалиста «"+s.name+"»? Его объекты останутся без специалиста, его PIN будет удалён.")){
+      data.objects.forEach(function(o){if(o.spec===s.name)o.spec=""});
+      data.specialists.splice(idx,1);delete pins[s.name];op({k:"specDel",name:s.name});fillSpecs();render();
+    }return;
+  }
+  var o=find(t);if(!o)return;
+  if(t.dataset.del&&confirm("Удалить объект «"+o.name+"» со всеми данными?")){data.objects=data.objects.filter(function(x){return x!==o});op({k:"objDel",id:o.id});render()}
 });
-document.getElementById("view").addEventListener("change",function(e){
-  var t=e.target,o=find(t);if(!o)return;
-  if(t.dataset.f){Y(o)[t.dataset.f]=t.value;save()}
-  if(t.dataset.o){var v=t.value;o[t.dataset.o]=(t.dataset.o==="cost"||t.dataset.o==="first")?Number(v)||0:v;save();if(t.dataset.o==="spec")fillSpecs()}
-  if(t.dataset.o==="period"||t.dataset.o==="first")render();
+$("view").addEventListener("change",function(e){
+  var t=e.target;
+  if(t.dataset.s!==undefined){
+    var s=data.specialists[+t.closest("tr").dataset.si];
+    if(t.dataset.s==="name"){
+      var old=s.name,nv=t.value.trim();
+      if(!nv||data.specialists.some(function(x){return x!==s&&x.name===nv})){t.value=old;toast("Имя пустое или уже есть");return}
+      s.name=nv;data.objects.forEach(function(o){if(o.spec===old)o.spec=nv});
+      if(pins[old]){pins[nv]=pins[old];delete pins[old]}
+      op({k:"specSet",name:old,f:"name",v:nv});fillSpecs();
+    }else{s.phone=t.value;op({k:"specSet",name:s.name,f:"phone",v:t.value})}
+    return;
+  }
+  var o=find(t);if(!o)return;
+  if(t.dataset.m&&!t.dataset.k){ // статус ТО
+    Y(o).to[t.dataset.m]=t.value;op({k:"cell",id:o.id,year:year,field:"to",m:+t.dataset.m,v:t.value});
+    t.className="st "+stCls(TO_CLS,t.value);
+    var tr=t.closest("tr"),lv=rowLive(o);
+    tr.querySelector(".lv-st").innerHTML=lv.st;tr.querySelector(".lv-un").innerHTML=lv.un;
+    t.closest("td").classList.remove("offc");
+    $("chips").innerHTML=controlChips(filtered());
+    return;
+  }
+  if(t.dataset.k){ // акт / оплата
+    Y(o)[t.dataset.k][t.dataset.m]=t.value;op({k:"cell",id:o.id,year:year,field:t.dataset.k,m:+t.dataset.m,v:t.value});
+    t.className="st "+stCls(t.dataset.k==="act"?ACT_CLS:PAY_CLS,t.value);
+    $("chips").innerHTML=accChips(filtered());
+    return;
+  }
+  if(t.dataset.f){Y(o)[t.dataset.f]=t.value;op({k:"yf",id:o.id,year:year,f:t.dataset.f,v:t.value});return}
+  if(t.dataset.o){
+    var v=t.value,k=t.dataset.o;
+    o[k]=(k==="cost"||k==="first")?Number(v)||0:v;op({k:"obj",id:o.id,f:k,v:o[k]});
+    if(k==="period"||k==="first")render();
+  }
 });
-document.getElementById("tabs").addEventListener("click",function(e){
+$("tabs").addEventListener("click",function(e){
   var b=e.target.closest(".tab");if(!b)return;
   view=b.dataset.v;[].forEach.call(this.children,function(c){c.classList.toggle("active",c===b)});render();
 });
-document.getElementById("q").addEventListener("input",render);
-document.getElementById("spec").addEventListener("change",render);
-document.getElementById("year").addEventListener("change",function(){
+$("q").addEventListener("input",render);
+$("specf").addEventListener("change",render);
+$("year").addEventListener("change",function(){
   if(this.value==="+"){var n=parseInt(prompt("Год:",year+1),10);if(n>2000&&n<2100)year=n}else year=parseInt(this.value,10);
   render();
 });
 function download(name,text,type){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;a.click()}
-document.getElementById("exp").onclick=function(){download("to-mpb.json",JSON.stringify(data,null,1),"application/json")};
-document.getElementById("imp").onclick=function(){document.getElementById("file").click()};
-document.getElementById("file").onchange=function(){
+$("exp").onclick=function(){download("to-mpb.json",JSON.stringify(data,null,1),"application/json")};
+$("imp").onclick=function(){$("file").click()};
+$("file").onchange=function(){
   var f=this.files[0];if(!f)return;var r=new FileReader();
-  r.onload=function(){try{var d=JSON.parse(r.result);if(!d.objects)throw 0;data=d;save();fillSpecs();render();toast("Импортировано")}catch(e){toast("Неверный файл")}};
+  r.onload=function(){
+    try{var d=JSON.parse(r.result);if(!d.objects)throw 0;
+      if(!confirm("Заменить ВСЕ данные ТО на сервере данными из файла?"))return;
+      api("to_import",getPin(),d).then(function(){return loadData()}).then(function(){toast("Импортировано")}).catch(function(er){toast(er.message)});
+    }catch(e){toast("Неверный файл")}};
   r.readAsText(f,"utf-8");this.value="";
 };
-document.getElementById("csv").onclick=function(){
-  var rows=[["Заказчик","Специалист"].concat(MFULL).concat(["Провести до","Причина"])];
-  filtered().forEach(function(o){var y=Y(o);rows.push([o.name,o.spec].concat(MONTHS.map(function(_,i){return STL[y.to[i+1]||""]})).concat([y.deadline,y.reason]))});
-  var t=rows.map(function(r){return r.map(function(c){return '"'+String(c||"").replace(/"/g,'""')+'"'}).join(";")}).join("\r\n");
+$("csv").onclick=function(){
+  var rows=[["№","Заказчик","Адрес","Специалист"].concat(MFULL).concat(["Провести до","Причина"])];
+  var L={"yes":"Да","no":"Нет","":""};
+  filtered().forEach(function(o,i){var y=Y(o);rows.push([i+1,o.name,o.address,o.spec].concat(MONTHS.map(function(_,j){return L[y.to[j+1]||""]})).concat([y.deadline,y.reason]))});
+  var t=rows.map(function(r){return r.map(function(c){return '"'+String(c==null?"":c).replace(/"/g,'""')+'"'}).join(";")}).join("\r\n");
   download("to-mpb-"+year+".csv","﻿"+t,"text/csv");
 };
 
-window.TOMPB={adapter:adapter,getData:function(){return data},setData:function(d){data=d;save();fillSpecs();render()}};
-fillSpecs();render();
+/* старт */
+fillYears();
+if(getPin()){loadData().catch(function(e){setPin("");showLogin(e.message)})}else showLogin();
 })();
 </script>
 </body>
