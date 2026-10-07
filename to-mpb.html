@@ -75,7 +75,54 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 .empty-msg{padding:40px;text-align:center;color:var(--muted)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
-</style>
+
+/* ---- телефон: строки таблиц превращаются в карточки ---- */
+@media(max-width:760px){
+  html{font-size:14px}
+  .wrap{padding:8px 8px 24px}
+  h2.title{font-size:1.1rem}
+  .hint{font-size:.8rem}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:2px}
+  .tab{white-space:nowrap;flex:0 0 auto}
+  .toolbar{gap:6px}
+  .toolbar input[type=search]{flex:1 1 100%}
+  .toolbar select{flex:1 1 40%}
+  .chips{gap:6px}
+  .chip{flex:1 1 44%;padding:6px 10px;font-size:.74rem}
+  .chip b{font-size:1.25rem}
+  .rules{display:none}
+  .tblwrap{overflow:visible;max-height:none;border:0;background:transparent;box-shadow:none;min-height:0}
+  table{display:block;font-size:.9rem}
+  thead{display:none}
+  tbody{display:block;counter-reset:rn}
+  tbody tr{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(0,1fr));gap:6px;background:var(--card)!important;border:1px solid #b9c4d0;border-radius:12px;padding:10px;margin-bottom:10px;box-shadow:0 1px 4px rgba(20,40,70,.08);counter-increment:rn}
+  table.acc tbody tr{--cols:3}
+  td{display:block;border:0;padding:0;text-align:left;white-space:normal;position:static;min-width:0;max-width:none;grid-column:1/-1;width:auto}
+  tbody tr td,tbody tr:nth-child(even) td,tbody tr:hover td{background:transparent!important}
+  td.n{display:none}
+  .legend{display:none}
+  #exp,#imp,#csv{flex:1 1 28%;padding:7px 4px;font-size:.8rem}
+  td.name{position:static!important;left:auto!important;min-width:0!important;border-right:0!important;font-size:1.02rem;padding-bottom:4px;border-bottom:1px solid #e3e8ee;margin-bottom:2px}
+  td.name::before{content:counter(rn) ". ";color:var(--blue);font-weight:700}
+  td.name:has(input)::before{content:none}
+  td.name small{font-size:.8rem}
+  td[data-l]:not(.mc):not(.name)::before{content:attr(data-l);display:block;font-size:.7rem;color:var(--muted);margin-bottom:1px}
+  td.meta{grid-column:span 2}
+  td.mc{grid-column:span 1;text-align:center}
+  td.mc::before{content:attr(data-l);display:block;font-size:.7rem;font-weight:700;color:var(--muted);margin-bottom:2px}
+  td.mc.mc1{grid-column-start:1}
+  td.mc.cur::before{color:var(--orange)}
+  td.cur{box-shadow:none}
+  td.mc.cur select.st,td.mc.cur.offc{outline:2px solid var(--orange);outline-offset:1px;border-radius:8px}
+  td.offc{background:#eef0f3!important;border-radius:8px;padding:4px 0!important;text-align:center}
+  td.mc.pair{min-width:0!important;display:flex;flex-direction:column;gap:3px}
+  td.mc.pair::before{margin-bottom:0}
+  select.st,select.st.w,td.pair select.st{width:100%;min-width:0;padding:7px 2px;font-size:.82rem}
+  td input[type=text],td input[type=date],td input[type=number],td select:not(.st),td input.pin{width:100%!important;min-width:0!important;font-size:1rem;padding:8px}
+  td button{width:100%;margin-top:4px}
+  td .pin{width:60%!important;display:inline-block}
+  td .pin+button{width:36%;display:inline-block}
+}</style>
 </head>
 <body>
 <div class="wrap" id="to-mpb">
@@ -315,6 +362,21 @@ function renderSpec(){
 function render(){
   fillYears();
   $("view").innerHTML=view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
+  labelize();
+}
+/* подписи ячеек для карточек на телефоне */
+function labelize(){
+  [].forEach.call(document.querySelectorAll("#view table"),function(t){
+    t.classList.toggle("acc",view==="acc");
+    var hs=[].map.call(t.querySelectorAll("thead th"),function(h){return h.childNodes[0]?h.childNodes[0].textContent.trim():""});
+    [].forEach.call(t.querySelectorAll("tbody tr"),function(tr){
+      [].forEach.call(tr.children,function(td,i){
+        var l=hs[i]||"";if(l)td.setAttribute("data-l",l);
+        if(MONTHS.indexOf(l)>=0){td.classList.add("mc");if(l===MONTHS[0])td.classList.add("mc1")}
+        else if(!td.classList.contains("name")&&!td.classList.contains("n")&&!td.querySelector("input,select,button"))td.classList.add("meta");
+      });
+    });
+  });
 }
 
 /* ====== Загрузка данных и роли ====== */
