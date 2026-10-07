@@ -239,6 +239,7 @@ function renderControl(){
     h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</td><td>'+esc(o.kind)+'</td><td>'+esc(o.period)+'</td><td>'+esc(o.spec)+'</td><td class="lv-st">'+lv.st+'</td><td class="lv-un">'+lv.un+'</td>';
     for(var m=1;m<=12;m++){
       var pl=planned(o,m),s=y.to[m]||"";
+      if(!pl&&!s){h+='<td class="offc" title="'+MFULL[m-1]+' — ТО не требуется" style="color:#9aa6b4">—</td>';continue}
       h+='<td class="'+(pl||s?"":"offc ")+(isCurYear()&&m===curM?"cur":"")+'">'+stSel('data-m="'+m+'" title="'+MFULL[m-1]+(pl?"":" — не по графику")+'"',TO_OPTS,s,TO_CLS)+'</td>';
     }
     h+='<td><input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></td><td><input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Причина" style="min-width:200px"></td></tr>';
@@ -264,6 +265,7 @@ function renderAcc(){
     var y=Y(o);
     h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+'</td><td>'+esc(o.contract)+(o.signed?'<br><small>'+esc(o.signed)+'</small>':'')+'</td><td>'+esc(o.period)+'</td><td>'+money(o.cost)+'</td>';
     for(var m=1;m<=12;m++){
+      if(!planned(o,m)&&!y.act[m]&&!y.pay[m]){h+='<td class="offc" title="'+MFULL[m-1]+' — ТО не требуется" style="color:#9aa6b4">—</td>';continue}
       h+='<td class="pair">'+stSel('data-k="act" data-m="'+m+'"',ACT_OPTS,y.act[m]||"",ACT_CLS)+' '+stSel('data-k="pay" data-m="'+m+'"',PAY_OPTS,y.pay[m]||"",PAY_CLS)+'</td>';
     }
     h+='<td><input type="text" data-f="note" value="'+esc(y.note)+'" style="min-width:200px"></td></tr>';
