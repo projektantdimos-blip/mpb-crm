@@ -281,12 +281,12 @@ textarea{resize:vertical;min-height:64px}
   <div style="padding:8px 16px;font-size:.85rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:var(--card);border-bottom:1px solid var(--line)">
     <span id="contracts-status" style="font-weight:600">Проверяю связь…</span>
     <span>База клиентов, история и папки договоров — на сервере. Новый договор МПБ создаёт задачу «Договор Подписать» и папку.</span>
-    <a id="contracts-open" href="http://176.197.21.187:8791/" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">Открыть в отдельной вкладке ↗</a>
+    <a id="contracts-open" href="http://10.10.10.1:8791/" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">Открыть в отдельной вкладке ↗</a>
   </div>
   <div id="contracts-off" style="display:none;max-width:640px;margin:24px auto;padding:18px 22px;background:var(--card);border:1px solid var(--line);border-radius:12px">
     <h3 id="contracts-off-title" style="margin:0 0 8px">Генератор договоров не отвечает</h3>
-    <p id="contracts-off-text" style="margin:0 0 12px;color:var(--muted)">Проверьте, что вы в сети офиса и сервер 176.197.21.187 включён. Если генератор не установлен на сервере — запустите на нём «Установка на сервер (от администратора).bat» (или на этом ПК «Автозапуск (один раз).bat»).</p>
-    <a id="contracts-bigopen" href="http://176.197.21.187:8791/" target="_blank" rel="noopener" style="display:none;background:var(--blue);color:#fff;padding:10px 18px;border-radius:8px;font-weight:700">Открыть генератор договоров ↗</a>
+    <p id="contracts-off-text" style="margin:0 0 12px;color:var(--muted)">Проверьте, что вы в сети офиса и сервер включён. Если генератор не установлен на сервере — запустите на нём «Установка на сервер (от администратора).bat» (или на этом ПК «Автозапуск (один раз).bat»).</p>
+    <a id="contracts-bigopen" href="http://10.10.10.1:8791/" target="_blank" rel="noopener" style="display:none;background:var(--blue);color:#fff;padding:10px 18px;border-radius:8px;font-weight:700">Открыть генератор договоров ↗</a>
     <button class="primary" id="contracts-retry">Проверить ещё раз</button>
   </div>
   <iframe id="contracts-frame" title="Договоры" style="width:100%;height:calc(100vh - 160px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe>
@@ -614,7 +614,7 @@ function renderTopNav(){
   });
 }
 /* Генератор договоров (локальный сервер на ПК): проверяем связь и показываем, куда пишутся данные */
-var CONTRACTS_URLS = ["http://176.197.21.187:8791/", "http://localhost:8791/"];   // сервер, затем ПК
+var CONTRACTS_URLS = ["http://10.10.10.1:8791/", "http://localhost:8791/"];   // сервер, затем ПК
 try { var cu = localStorage.getItem("mpb_contracts_url"); if (cu) CONTRACTS_URLS.unshift(cu); } catch(e){}
 function contractsProbe(){
   var st = document.getElementById("contracts-status"), off = document.getElementById("contracts-off"), fr = document.getElementById("contracts-frame");
