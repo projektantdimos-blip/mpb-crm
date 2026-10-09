@@ -35,6 +35,11 @@
   }
   function chInfo(id) { return CH[id] || { label: id, color: "#888" }; }
 
+  /* push-уведомления на это устройство: регистрация service worker при загрузке страницы */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").then(null, function () {});
+  }
+
   function api(path, opts) {
     var c = cfg();
     if (!c.url || !c.key) return Promise.reject("NOCFG");
@@ -66,6 +71,8 @@
     ".chat-tools input{width:100%;padding:8px 10px;border:1px solid #b9c4d0;border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}" +
     ".chat-sync{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:.75rem;color:var(--muted)}" +
     ".chat-sync button{border:0;background:none;color:var(--blue);font:inherit;cursor:pointer;padding:2px 4px}" +
+    ".chat-sync .right{display:flex;align-items:center;gap:8px}" +
+    "#chatPush{font-size:1rem;opacity:.55}#chatPush.on{opacity:1}" +
     ".chat-chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}" +
     ".chat-chips button{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:14px;padding:3px 10px;font:inherit;font-size:.8rem;cursor:pointer}" +
     ".chat-chips button.on{background:var(--blue);border-color:var(--blue);color:#fff}" +
@@ -126,7 +133,9 @@
       '<div class="chat-wrap" id="chatWrap">' +
         '<aside class="chat-list"><div class="chat-tools"><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
         '<div class="chat-chips" id="chatChips"></div>' +
-        '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></div></div>' +
+        '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><span class="right">' +
+        '<button type="button" id="chatPush" title="Уведомления на этом устройстве">🔔</button>' +
+        '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatMsgs"></div>' +
         '<div id="chatComposer"><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
@@ -143,7 +152,9 @@
     el.q.oninput = function () { st.q = el.q.value.trim().toLowerCase(); renderThreads(); };
     el.send.onclick = sendMsg;
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
+    document.getElementById("chatPush").onclick = togglePush;
     showSync();
+    refreshPushBtn();
     el.msgs.onclick = function (e) {
       var b = e.target.closest ? e.target.closest(".cf") : null;
       if (b) openFile(b.getAttribute("data-fid"), b.getAttribute("data-name"), b.getAttribute("data-mime"));
@@ -297,6 +308,54 @@
       for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === tid) st.threads[i].avatar_ts = 0;
       renderThreads(); renderThread(true);
     }, function (e) { setErr(String(e)); });
+  }
+
+  /* ---------- push-уведомления на это устройство ---------- */
+  function pushSupported() { return "serviceWorker" in navigator && "PushManager" in window; }
+  function urlB64ToUint8Array(b64) {
+    var pad = "=".repeat((4 - (b64.length % 4)) % 4);
+    var raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    var out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function currentPushSub() {
+    if (!pushSupported()) return Promise.resolve(null);
+    return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); });
+  }
+  function refreshPushBtn() {
+    var b = document.getElementById("chatPush");
+    if (!b) return;
+    if (!pushSupported()) { b.style.display = "none"; return; }
+    currentPushSub().then(function (sub) {
+      b.classList.toggle("on", !!sub);
+      b.title = sub ? "Уведомления включены на этом устройстве — нажмите, чтобы отключить"
+                     : "Включить уведомления о новых сообщениях на этом устройстве";
+    });
+  }
+  function enablePush() {
+    if (Notification.permission === "denied") {
+      setErr("Уведомления запрещены в браузере для этого сайта — разрешите их в его настройках"); return;
+    }
+    Notification.requestPermission().then(function (perm) {
+      if (perm !== "granted") return;
+      var reg;
+      return navigator.serviceWorker.ready.then(function (r) { reg = r; return api("/api/push/vapid-key"); })
+        .then(function (j) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(j.key) }); })
+        .then(function (sub) { return api("/api/push/subscribe", { method: "POST", body: sub.toJSON() }); })
+        .then(function () { setErr(""); refreshPushBtn(); })
+        .then(null, function (e) { setErr(typeof e === "string" ? e : "Не удалось включить уведомления"); refreshPushBtn(); });
+    });
+  }
+  function disablePush() {
+    currentPushSub().then(function (sub) {
+      if (!sub) return;
+      var endpoint = sub.endpoint;
+      return sub.unsubscribe().then(function () { return api("/api/push/unsubscribe", { method: "POST", body: { endpoint: endpoint } }); });
+    }).then(refreshPushBtn, refreshPushBtn);
+  }
+  function togglePush() {
+    currentPushSub().then(function (sub) { if (sub) disablePush(); else enablePush(); });
   }
 
   /* ---------- вложения ---------- */
