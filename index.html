@@ -270,13 +270,35 @@ textarea{resize:vertical;min-height:64px}
 .kpc-scope .paper .tot{font-weight:700}
 
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme-v2.css">
+<script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
-<nav id="topnav"></nav>
+<div class="app">
+<aside class="side">
+  <div class="sbrand" onclick="location.hash='#/'"><img src="bear.png" alt="МПБ — Мир пожарной безопасности"><b>МПБ</b><small>Полный спектр защиты</small></div>
+  <nav id="topnav"></nav>
+  <div class="side-foot"><button class="ib2" id="themeBtn" title="Светлая / тёмная тема" aria-label="Тема"></button><div class="me" id="meChip">МПБ CRM<small>Рабочие инструменты</small></div></div>
+</aside>
+<div class="main">
+<div class="subnavM" id="subnavM"></div>
 <div id="tasks-app"><div class="loading">Загрузка…</div></div>
 <div id="kpreg-app" style="display:none"></div>
 <div id="kpc-app" class="kpc-scope" style="display:none"></div>
 <div id="chat-app" style="display:none"></div>
+<div id="dash-app" style="display:none"></div>
+<div id="cal-app" style="display:none"></div>
+<div id="my-app" style="display:none"></div>
+<div id="team-app" style="display:none"></div>
+<div id="log-app" style="display:none"></div>
+<div id="me-app" style="display:none"></div>
+<div id="auto-app" style="display:none"></div>
+<div id="stages-app" style="display:none"></div>
+<div id="clients-app" style="display:none"></div>
+<div id="price-app" style="display:none"></div>
 <div id="contracts-app" style="display:none">
   <div style="padding:8px 16px;font-size:.85rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:var(--card);border-bottom:1px solid var(--line)">
     <span id="contracts-status" style="font-weight:600">Проверяю связь…</span>
@@ -292,6 +314,8 @@ textarea{resize:vertical;min-height:64px}
   <iframe id="contracts-frame" title="Договоры" style="width:100%;height:calc(100vh - 160px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe>
 </div>
 <div id="to-app" style="display:none"><iframe id="to-frame" title="ТО МПБ" style="width:100%;height:calc(100vh - 110px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe></div>
+</div></div>
+<nav class="bottomnav" id="bottomnav"></nav>
 <script>
 var STAGES = JSON.parse('[{"name":"Договор Подписать","who":"Алексей"},{"name":"Собрать данные","who":"Алексей"},{"name":"Обследовать","who":"Алексей"},{"name":"Расчет","who":"Дмитрий"},{"name":"Проектирование","who":"Дмитрий"},{"name":"Проверка расчета","who":"Дмитрий"},{"name":"Закупка оборудования","who":"Дмитрий"},{"name":"Забрать оборудование и доставить на объект","who":"Алексей"},{"name":"Запустить монтаж","who":"Алексей"},{"name":"Сбор данных для исполнительной документации","who":"Алексей"},{"name":"Разработать исполняк","who":"Дмитрий"},{"name":"Печать документов","who":"Алексей"},{"name":"Сдача работ","who":"Алексей"},{"name":"Работа сдана","who":"Игорь"}]');
 var PERSON_COLOR = {"Алексей":"var(--blue)","Максим":"var(--orange)","Дмитрий":"var(--ok)","Игорь":"var(--warn)"};
@@ -302,21 +326,83 @@ var LOGO = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAMCAgMCAgMDA
 var cache = { tasks: [] };
 var listFilter = { person: "Все", q: "", view: "list" };
 
+var ICONS={
+  tasks:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/>',
+  briefcase:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 13h18"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  calc:'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18.5h.01M12 18.5h.01M16 18.5h.01"/>',
+  file:'<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zM14 3v5h5M9 13h6M9 17h6"/>',
+  chat:'<path d="M21 12a8 8 0 01-11.6 7.1L4 20l1-4.6A8 8 0 1121 12z"/>',
+  wrench:'<path d="M14.7 6.3a4 4 0 005 5l-9.4 9.4a2.1 2.1 0 01-3-3l9.4-9.4a4 4 0 00-2-2z"/>',
+  layers:'<path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  alert:'<path d="M12 3l10 18H2L12 3zM12 10v5M12 18h.01"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  wallet:'<path d="M3 7a2 2 0 012-2h13v4M3 7v11a2 2 0 002 2h15a1 1 0 001-1V10a1 1 0 00-1-1H5a2 2 0 01-2-2zM17 14.5h.01"/>',
+  phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',
+  trophy:'<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4zM17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M21 13A9 9 0 1111 3a7 7 0 0010 10z"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
+  bell:'<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a2 2 0 003.4 0"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 002 2h8a2 2 0 002-2l1-13M9 7V4h6v3"/>',
+  repeat:'<path d="M17 2l4 4-4 4M3 11V9a3 3 0 013-3h15M7 22l-4-4 4-4M21 13v2a3 3 0 01-3 3H3"/>',
+  menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  zap:'<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',
+  hash:'<path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>',
+  flame:'<path d="M12 2c1 3.5 5 5.5 5 11a5 5 0 01-10 0c0-2.2.9-3.7 2-4.8.2 1.9 1 2.8 2 2.8C11 8 10.5 5 12 2z"/>',
+  send:'<path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>',
+  undo:'<path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/>',
+  arrow:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  history:'<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8M3 3v5h5M12 7v5l3 2"/>',
+  team:'<path d="M17 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 10a4 4 0 100-8 4 4 0 000 8zM21 20v-2a4 4 0 00-3-3.9M15 2.1a4 4 0 010 7.8"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0M16 4.6a3.5 3.5 0 010 6.8M18 14.2a6.5 6.5 0 013.5 5.8"/>'
+};
+function icon(n){ return '<svg class="i" viewBox="0 0 24 24">'+(ICONS[n]||"")+'</svg>'; }
+/* цвет вида работ (из комментариев: монтаж — зелёный, проекты/риски — жёлтый, ТО, испытания, аудит, документы) */
+function wtColor(w){
+  var s = " " + String(w||"").toLowerCase() + " ";
+  if (/монтаж/.test(s)) return "var(--t-montazh)";
+  if (/проект|риск|категор|[^а-яё]рк[^а-яё]/.test(s)) return "var(--t-proekt)";
+  if (/испыт|[^а-яё]рр[^а-яё]|сопротивл/.test(s)) return "var(--t-ispyt)";
+  if (/аудит/.test(s)) return "var(--t-audit)";
+  if (/документ|декларац/.test(s)) return "var(--t-docs)";
+  if (/[^а-яё]то[^а-яё]|обслуж/.test(s)) return "var(--t-to)";
+  return "var(--t-other)";
+}
+function kpiHtml(cls, ic, v, l, icc){
+  return '<div class="kpi '+(cls||"")+'"><div class="ic '+(icc||"")+'">'+icon(ic)+'</div><div class="v">'+v+'</div><div class="l">'+l+'</div></div>';
+}
+function tasksKpis(all){
+  var open = all.filter(function(t){ return !t.closed; });
+  var soon = open.filter(function(t){ return deadlineStatus(t.deadline)==="soon"; }).length;
+  var over = open.filter(function(t){ return deadlineStatus(t.deadline)==="overdue"; }).length;
+  return '<div class="kpis">'
+    + kpiHtml("hero","layers",open.length,"Задач в работе")
+    + kpiHtml("","clock",soon,"Дедлайн в ближайшие 2 дня","c-warn")
+    + kpiHtml("","alert",over,"Просрочено","c-bad")
+    + kpiHtml("","check",all.length-open.length,"Закрыто","c-ok")
+    + '</div>';
+}
 function taskCardHtml(t){
   var dstat = deadlineStatus(t.deadline);
   var pc = PERSON_COLOR[t.responsible] || '#888';
-  return '<div class="task-card" data-row="'+t.row+'">'
+  var idx = stageIndex(t.stage, t.workType), n = stagesFor(t.workType).length, segs = "";
+  for (var i = 0; i < n; i++) segs += '<i class="'+(i<idx?"d":i===idx?"c":"")+'"></i>';
+  return '<div class="task-card" data-row="'+t.row+'" style="--tc:'+wtColor(t.workType)+'">'
     + '<div class="row1"><div class="cust">'+esc(t.customer||"(без названия)")+(t.closed?' <span class="badge closed">Закрыто</span>':'')+'</div><div class="worktype">'+esc(t.workType)+'</div></div>'
     + '<div class="addr">'+esc(t.address)+'</div>'
+    + '<div class="prog"><div class="segs">'+segs+'</div><div class="lab"><b>'+esc(t.stage)+'</b><span>'+(idx+1)+' / '+n+'</span></div></div>'
     + '<div class="meta">Договор '+esc(t.contractNo)+' · начало '+fmtDate(t.startDate)+' · срок по договору '+fmtDate(t.dueDate)+'</div>'
     + '<div class="badges">'
-    +   '<span class="badge stage">'+(stageIndex(t.stage)+1)+'/'+STAGES.length+' · '+esc(t.stage)+'</span>'
     +   (t.responsible ? '<span class="badge person" style="background:'+pc+'">'+esc(t.responsible)+'</span>' : '')
     +   '<span class="badge deadline '+dstat+'">Дедлайн этапа: '+fmtDate(t.deadline)+'</span>'
     + '</div>'
     + '</div>';
 }
-
 function esc(s){
   if(s==null) s="";
   return String(s).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;");
@@ -331,7 +417,9 @@ function deadlineStatus(iso){
   if(iso <= soon) return "soon";
   return "";
 }
-function stageIndex(name){ for(var i=0;i<STAGES.length;i++){ if(STAGES[i].name===name) return i; } return 0; }
+/* Набор этапов зависит от вида работ (stages.js); без него — общий список STAGES */
+function stagesFor(wt){ return (window.MPBS && MPBS.stagesFor) ? MPBS.stagesFor(wt) : STAGES; }
+function stageIndex(name, wt){ var st = stagesFor(wt); for(var i=0;i<st.length;i++){ if(st[i].name===name) return i; } return 0; }
 
 
 /* ---------- связь с таблицей ----------
@@ -383,7 +471,7 @@ function showError(msg){
 function header(showBack){
   return '<header class="top">'
     + '<div class="brand"><img src="'+LOGO+'" alt="МПБ">'
-    +   '<div><h1>CRM Монтаж — МПБ</h1><p>13 этапов: от подписания договора до сдачи работ</p></div>'
+    +   '<div><h1>Задачи</h1><p>Договоры в работе — от подписания до сдачи работ</p></div>'
     + '</div>'
     + (showBack
         ? '<button class="backlink" onclick="location.hash=\'#/\'; tasksRouter();">← К списку задач</button>'
@@ -422,8 +510,8 @@ function renderList(){
   }).join("");
 
   var viewToggle = '<div class="viewtoggle">'
-    + '<button data-view="list" class="'+(listFilter.view==="list"?"active":"")+'">📇 Список</button>'
-    + '<button data-view="board" class="'+(listFilter.view==="board"?"active":"")+'">🧑‍🔧 По исполнителям</button>'
+    + '<button data-view="list" class="'+(listFilter.view==="list"?"active":"")+'">'+icon("list")+' Список</button>'
+    + '<button data-view="board" class="'+(listFilter.view==="board"?"active":"")+'">'+icon("users")+' По исполнителям</button>'
     + '</div>';
 
   var bodyHtml;
@@ -437,6 +525,7 @@ function renderList(){
 
   app.innerHTML = header(false)
     + '<div class="wrap">'
+    +   tasksKpis(cache.tasks)
     +   '<div class="summary-row">'+chips+'</div>'
     +   '<div class="toolbar">'
     +     '<div class="tabs">'+(listFilter.view==="board"?"":tabs)+'</div>'
@@ -481,7 +570,7 @@ function boardHtml(tasks){
     var list = groups[p];
     var body = list.length ? list.map(taskCardHtml).join("") : '<div class="empty2">Нет задач</div>';
     return '<div class="board-col">'
-      + '<h3><span class="dot" style="background:'+(PERSON_COLOR[p]||'#888')+'"></span>'+esc(p)+'<span class="cnt">'+list.length+'</span></h3>'
+      + '<h3><span class="ava" style="background:'+(PERSON_COLOR[p]||'#888')+'">'+esc(p).charAt(0)+'</span>'+esc(p)+'<span class="cnt">'+list.length+'</span></h3>'
       + '<div class="list">'+body+'</div>'
       + '</div>';
   }).join("");
@@ -494,30 +583,36 @@ function boardHtml(tasks){
 
 function renderDetail(task, isNew){
   var app = document.getElementById("tasks-app");
-  var t = task || {row:null, customer:"", address:"", contractNo:"", workType:"", startDate:todayISO(), dueDate:"", stage:STAGES[0].name, deadline:"", comment:"", siteContact:"", siteContactPhone:"", manager:"", closed:false};
-  var curIdx = stageIndex(t.stage);
-
-  var stageOptions = STAGES.map(function(s,i){
-    return '<option value="'+esc(s.name)+'" '+(i===curIdx?"selected":"")+'>'+(i+1)+'. '+esc(s.name)+'</option>';
-  }).join("");
-
-  var steps = STAGES.map(function(s,i){
-    var cls = i<curIdx ? "done" : (i===curIdx ? "current" : "");
-    return '<div class="step '+cls+'"><div class="circle">'+(i+1)+'</div><div class="lbl2">'+esc(s.name)+'</div></div>';
-  }).join("");
+  var t = task || {row:null, customer:"", address:"", contractNo:"", workType:"", startDate:todayISO(), dueDate:"", stage:stagesFor("")[0].name, deadline:"", comment:"", siteContact:"", siteContactPhone:"", manager:"", closed:false};
+  /* этапы, шаги и ответственный для вида работ wt и текущего этапа stage */
+  function stageBlocks(wt, stage){
+    var st = stagesFor(wt), idx = -1, i;
+    for(i=0;i<st.length;i++){ if(st[i].name===stage){ idx = i; break; } }
+    var opts = (idx<0 ? '<option value="'+esc(stage)+'" selected>'+esc(stage)+' (нет в наборе этапов)</option>' : "")
+      + st.map(function(s,i){ return '<option value="'+esc(s.name)+'" '+(i===idx?"selected":"")+'>'+(i+1)+'. '+esc(s.name)+'</option>'; }).join("");
+    var steps = st.map(function(s,i){
+      var cls = i<idx ? "done" : (i===idx ? "current" : "");
+      return '<div class="step '+cls+'"><div class="circle">'+(i+1)+'</div><div class="lbl2">'+esc(s.name)+'</div></div>';
+    }).join("");
+    var who = idx>=0 ? st[idx].who : ((window.MPBS && MPBS.whoOf && MPBS.whoOf(stage, wt)) || t.responsible || "");
+    return {opts:opts, steps:steps, who:who, days: idx>=0 ? (st[idx].days||0) : 0, stage: stage};
+  }
+  var sb = stageBlocks(t.workType, t.stage);
+  var wtNames = [];
+  (window.MPBS && MPBS.poolNames ? MPBS.poolNames() : []).concat((cache.tasks||[]).map(function(x){ return x.workType; })).forEach(function(n){ if(n && wtNames.indexOf(n)<0) wtNames.push(n); });
 
   var title = isNew ? "Новая задача" : ("Задача: "+esc(t.customer||"(без названия)"));
-  var respName = STAGES[curIdx].who;
+  var respName = sb.who;
 
   app.innerHTML = header(true)
     + '<div class="wrap"><div class="card">'
     +   '<h2>'+title+'</h2>'
-    +   '<div class="stepper">'+steps+'</div>'
-    +   '<div class="field"><span class="lbl">Этап</span><select id="f_stage">'+stageOptions+'</select></div>'
+    +   '<div class="stepper">'+sb.steps+'</div>'
+    +   '<div class="field"><span class="lbl">Этап</span><select id="f_stage">'+sb.opts+'</select></div>'
     +   '<div class="resp-readout"><span class="lbl" style="margin:0">Текущий ответственный:</span> <span class="badge person" id="respBadge" style="background:'+(PERSON_COLOR[respName]||'#888')+'">'+esc(respName)+'</span></div>'
     +   '<div class="row2">'
     +     '<label class="field"><span class="lbl">Заказчик</span><input type="text" id="f_customer" value="'+esc(t.customer)+'"></label>'
-    +     '<label class="field"><span class="lbl">Вид работы</span><input type="text" id="f_workType" value="'+esc(t.workType)+'"></label>'
+    +     '<label class="field"><span class="lbl">Вид работы</span><input type="text" id="f_workType" list="wtList" value="'+esc(t.workType)+'"><datalist id="wtList">'+wtNames.map(function(n){ return '<option value="'+esc(n)+'">'; }).join("")+'</datalist></label>'
     +   '</div>'
     +   '<label class="field"><span class="lbl">Адрес объекта</span><input type="text" id="f_address" value="'+esc(t.address)+'"></label>'
     +   '<div class="row2">'
@@ -528,7 +623,7 @@ function renderDetail(task, isNew){
     +     '<label class="field"><span class="lbl">Дата начала по договору</span><input type="date" id="f_startDate" value="'+esc(t.startDate)+'"></label>'
     +     '<label class="field"><span class="lbl">Крайний срок по договору</span><input type="date" id="f_dueDate" value="'+esc(t.dueDate)+'"></label>'
     +   '</div>'
-    +   '<label class="field"><span class="lbl">Дедлайн по текущему этапу</span><input type="date" id="f_deadline" value="'+esc(t.deadline)+'"></label>'
+    +   '<label class="field"><span class="lbl">Дедлайн по текущему этапу</span><input type="date" id="f_deadline" value="'+esc(t.deadline)+'"><span id="dlHint" style="display:block;margin-top:5px;font-size:.8rem;color:var(--muted)"></span></label>'
     +   '<div class="row2">'
     +     '<label class="field"><span class="lbl">Ответственное лицо на объекте</span><input type="text" id="f_siteContact" value="'+esc(t.siteContact)+'"></label>'
     +     '<label class="field"><span class="lbl">Телефон ответственного на объекте</span><input type="tel" id="f_siteContactPhone" value="'+esc(t.siteContactPhone)+'"></label>'
@@ -539,15 +634,30 @@ function renderDetail(task, isNew){
     +   '<div class="actions">'
     +     '<button class="primary" id="saveBtn">'+(isNew?"Создать задачу":"Сохранить изменения")+'</button>'
     +     (isNew ? "" : '<button class="danger" id="delBtn">Удалить задачу</button>')
+    +     (isNew ? "" : '<button class="ghost" type="button" data-remind="'+t.row+'" data-cust="'+esc(t.customer)+'" onclick="if(window.MPBX)MPBX.remindTask(+this.dataset.remind,this.dataset.cust)">'+icon("bell")+' Напомнить</button>')
+    +     (isNew ? "" : '<button class="ghost" type="button" data-row="'+t.row+'" data-cust="'+esc(t.customer)+'" onclick="if(window.MPBT)MPBT.openTaskRoom(+this.dataset.row,this.dataset.cust)">'+icon("chat")+' Обсуждение</button>')
     +     '<button class="ghost" type="button" onclick="location.hash=\'#/\'; tasksRouter();">Отмена</button>'
     +   '</div>'
     + '</div></div>';
 
-  document.getElementById("f_stage").onchange = function(e){
-    var who = STAGES[stageIndex(e.target.value)].who;
-    var b = document.getElementById("respBadge");
-    b.textContent = who; b.style.background = PERSON_COLOR[who] || '#888';
-  };
+  /* вид работы или этап изменились: пересобираем набор этапов, шаги, ответственного и подсказку по сроку */
+  function refreshStages(){
+    var wt = document.getElementById("f_workType").value, sel = document.getElementById("f_stage"), cur = sel.value;
+    var st = stagesFor(wt), known = st.some(function(s){ return s.name===cur; });
+    if(!known && isNew) cur = st[0].name;
+    var b = stageBlocks(wt, cur);
+    sel.innerHTML = b.opts; sel.value = cur;
+    document.querySelector(".stepper").innerHTML = b.steps;
+    var badge = document.getElementById("respBadge");
+    badge.textContent = b.who; badge.style.background = PERSON_COLOR[b.who] || '#888';
+    var hint = document.getElementById("dlHint");
+    hint.innerHTML = b.days ? 'Обычно на этот этап — '+b.days+' дн. <a href="#" id="dlSet">поставить срок '+fmtDate(addDays(todayISO(), b.days))+'</a>' : "";
+    var set = document.getElementById("dlSet");
+    if(set) set.onclick = function(ev){ ev.preventDefault(); document.getElementById("f_deadline").value = addDays(todayISO(), b.days); };
+  }
+  document.getElementById("f_stage").onchange = refreshStages;
+  document.getElementById("f_workType").oninput = refreshStages;
+  refreshStages();
 
   function setBusy(busy, label){
     var b = document.getElementById("saveBtn");
@@ -584,36 +694,51 @@ function renderDetail(task, isNew){
 }
 
 function sectionForHash(h){
+  if (h.indexOf("#/price") === 0) return "price";
   if (h.indexOf("#/kpreg") === 0) return "kpreg";
   if (h.indexOf("#/kpc") === 0) return "kpc";
   if (h.indexOf("#/contracts") === 0) return "contracts";
   if (h.indexOf("#/chat") === 0) return "chat";
   if (h.indexOf("#/to") === 0) return "to";
+  if (h.indexOf("#/dash") === 0) return "dash";
+  if (h.indexOf("#/cal") === 0) return "cal";
+  if (h.indexOf("#/my") === 0) return "my";
+  if (h.indexOf("#/team") === 0) return "team";
+  if (h.indexOf("#/log") === 0) return "log";
+  if (h.indexOf("#/me") === 0) return "me";
+  if (h.indexOf("#/auto") === 0) return "auto";
+  if (h.indexOf("#/stages") === 0) return "stages";
+  if (h.indexOf("#/clients") === 0) return "clients";
   return "tasks";
 }
 function renderTopNav(){
   var cur = sectionForHash(location.hash);
-  var primaryActive = (cur === "tasks") ? "tasks" : (cur === "chat") ? "chat" : (cur === "to") ? "to" : "commerce";
-  var row1 = '<div class="row">'
-    + '<button data-goto="#/" class="' + (primaryActive==="tasks"?"active":"") + '">🧯 Задачи</button>'
-    + '<button data-goto="#/kpreg/" class="' + (primaryActive==="commerce"?"active":"") + '">💼 Коммерция</button>'
-    + '<button data-goto="#/chat" class="' + (primaryActive==="chat"?"active":"") + '">💬 Общение</button>'
-    + '<button data-goto="#/to" class="' + (primaryActive==="to"?"active":"") + '">🛠 ТО МПБ</button>'
-    + '</div>';
-  var row2 = "";
-  if (primaryActive === "commerce") {
-    row2 = '<div class="row sub">'
-      + '<button data-goto="#/kpreg/" class="' + (cur==="kpreg"?"active":"") + '">📋 Реестр КП</button>'
-      + '<button data-goto="#/kpc" class="' + (cur==="kpc"?"active":"") + '">🧾 Конструктор КП</button>'
-      + '<button data-goto="#/contracts" class="' + (cur==="contracts"?"active":"") + '">📄 Договоры</button>'
-      + '</div>';
-  }
-  document.getElementById("topnav").innerHTML = row1 + row2;
-  document.querySelectorAll("#topnav button").forEach(function(b){
-    b.onclick = function(){ location.hash = b.dataset.goto; };
+  var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1 };
+  var pa = own[cur] ? cur : "commerce";
+  var b = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
+  var sub = '<div class="sub">'+b("#/kpreg/","list","Реестр КП",cur==="kpreg")+b("#/kpc","calc","Конструктор КП",cur==="kpc")+b("#/price","list","Прайс",cur==="price")+b("#/contracts","file","Договоры",cur==="contracts")+'</div>';
+  document.getElementById("topnav").innerHTML =
+    '<div class="nav-label">Работа</div>' + b("#/dash","chart","Сводка",pa==="dash") + b("#/","tasks","Задачи",pa==="tasks") + b("#/cal","cal","Календарь",pa==="cal") + b("#/my","bell","Мои задачи",pa==="my")
+    + '<div class="nav-label">Клиенты и продажи</div>' + b("#/clients","users","Клиенты",pa==="clients") + b("#/kpreg/","briefcase","Коммерция",pa==="commerce") + (pa==="commerce" ? sub : "") + b("#/to","wrench","ТО МПБ",pa==="to")
+    + '<div class="nav-label">Общение</div>' + b("#/team","team","Команда",pa==="team") + b("#/chat","chat","Переписка",pa==="chat")
+    + '<button data-notif="1">'+icon("bell")+'<span>Уведомления</span></button>'
+    + '<div class="nav-label">Система</div>' + b("#/auto","zap","Автоматизация",pa==="auto") + b("#/stages","layers","Этапы и сроки",pa==="stages") + b("#/log","history","Журнал изменений",pa==="log") + b("#/me","user","Личный кабинет",pa==="me");
+  var bn = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+t+'</button>'; };
+  document.getElementById("bottomnav").innerHTML =
+    bn("#/","tasks","Задачи",pa==="tasks") + bn("#/my","bell","Мои",pa==="my") + bn("#/kpreg/","briefcase","Коммерция",pa==="commerce") + bn("#/team","team","Команда",pa==="team")
+    + '<button data-more="1">'+icon("menu")+'Ещё</button>';
+  document.getElementById("subnavM").innerHTML = pa==="commerce"
+    ? [["#/kpreg/","Реестр КП","kpreg"],["#/kpc","Конструктор КП","kpc"],["#/price","Прайс","price"],["#/contracts","Договоры","contracts"]].map(function(x){ return '<button data-goto="'+x[0]+'" class="tab '+(cur===x[2]?"active":"")+'">'+x[1]+'</button>'; }).join("")
+    : "";
+  document.querySelectorAll("#topnav button[data-goto], #bottomnav button[data-goto], #subnavM button").forEach(function(btn){
+    btn.onclick = function(){ location.hash = btn.dataset.goto; };
   });
-}
-/* Генератор договоров (локальный сервер на ПК): проверяем связь и показываем, куда пишутся данные */
+  var mo = document.querySelector("#bottomnav [data-more]");
+  if (mo) mo.onclick = function(){ if (window.MPBX && window.MPBX.more) window.MPBX.more(); };
+  if (window.__chatBadge) window.__chatBadge();
+  if (window.MPBX && window.MPBX.badge) window.MPBX.badge();
+  if (window.MPBC && window.MPBC.afterNav) window.MPBC.afterNav();
+}/* Генератор договоров (локальный сервер на ПК): проверяем связь и показываем, куда пишутся данные */
 var CONTRACTS_URLS = ["http://176.197.21.187:8791/", "http://10.10.10.1:8791/", "http://localhost:8791/"];   // сервер снаружи, внутри офиса, ПК   // сервер, затем ПК
 try { var cu = localStorage.getItem("mpb_contracts_url"); if (cu) CONTRACTS_URLS.unshift(cu); } catch(e){}
 function contractsProbe(){
@@ -658,6 +783,21 @@ function globalRouter(){
   if (sec === "contracts") { contractsProbe(); }
   document.getElementById("to-app").style.display = (sec === "to") ? "block" : "none";
   if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) tf.setAttribute("src", "to-mpb.html"); }
+  document.getElementById("dash-app").style.display = (sec === "dash") ? "block" : "none";
+  document.getElementById("cal-app").style.display = (sec === "cal") ? "block" : "none";
+  document.getElementById("my-app").style.display = (sec === "my") ? "block" : "none";
+  if ((sec === "dash" || sec === "cal" || sec === "my") && window.MPBX && window.MPBX.render) window.MPBX.render(sec);
+  document.getElementById("team-app").style.display = (sec === "team") ? "block" : "none";
+  document.getElementById("log-app").style.display = (sec === "log") ? "block" : "none";
+  document.getElementById("me-app").style.display = (sec === "me") ? "block" : "none";
+  document.getElementById("auto-app").style.display = (sec === "auto") ? "block" : "none";
+  document.getElementById("stages-app").style.display = (sec === "stages") ? "block" : "none";
+  if (sec === "stages" && window.MPBS && window.MPBS.render) window.MPBS.render();
+  document.getElementById("clients-app").style.display = (sec === "clients") ? "block" : "none";
+  if (sec === "clients" && window.MPBK && window.MPBK.render) window.MPBK.render();
+  document.getElementById("price-app").style.display = (sec === "price") ? "block" : "none";
+  if (sec === "price" && window.MPBP && window.MPBP.render) window.MPBP.render();
+  if ((sec === "team" || sec === "log" || sec === "me" || sec === "auto") && window.MPBT && window.MPBT.render) window.MPBT.render(sec);
   if (sec === "chat" && window.__subRouters && window.__subRouters.chat) window.__subRouters.chat();
   if (sec === "kpreg") { if (window.__subRouters && window.__subRouters.kpreg) window.__subRouters.kpreg(); }
   else if (sec === "tasks") { tasksRouter(); }
@@ -676,6 +816,7 @@ var STATUS_ARCHIVAL = {};
 STATUSES.forEach(function(s){ STATUS_ARCHIVAL[s[0]] = s[1] === "Да"; });
 var STATUS_NAMES = STATUSES.map(function(s){ return s[0]; });
 var FUNNEL_SOURCES = ["Сайт","Сарафан","Алексей","Дмитрий"];
+var STATUS_COLORS = {"Новое обращение":"#3a86d6","КП отправлено":"#6f6fe0","Переговоры":"#e0a21c","Согласование условий":"#1fb3b3","Отложено":"#8794ab","Выиграно":"#1f9d63","Отказ":"#d8453a"};
 var OVERDUE_DAYS = 5;
 
 function esc(s){ if(s==null)s=""; return String(s).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;"); }
@@ -764,18 +905,19 @@ function renderList(){
   }).join(" ");
 
   var viewToggle = '<div class="viewtoggle">'
-    + '<button data-view="table" class="' + (listFilter.view==="table"?"active":"") + '">📊 Таблица</button>'
-    + '<button data-view="cards" class="' + (listFilter.view==="cards"?"active":"") + '">📇 Карточки</button>'
+    + '<button data-view="table" class="' + (listFilter.view==="table"?"active":"") + '">'+icon("list")+' Таблица</button>'
+    + '<button data-view="cards" class="' + (listFilter.view==="cards"?"active":"") + '">'+icon("layers")+' Карточки</button>'
     + '</div>';
 
   var bodyHtml = listFilter.view === "table" ? kpTableHtml(items) : kpCardsHtml(items);
 
   app.innerHTML = header(false)
     + '<div class="wrap2">'
-    + '<div class="summary-row">'
-    + '<span class="chip">Активных заявок: <b>' + activeAll.length + '</b></span>'
-    + '<span class="chip">Просрочен контакт (' + OVERDUE_DAYS + '+ дн.): <b>' + overdueCount + '</b></span>'
-    + '<span class="chip">Сумма КП в работе: <b>' + money(activeSum) + '</b></span>'
+    + '<div class="kpis">'
+    + kpiHtml("hero","wallet",money(activeSum),"Сумма КП в работе")
+    + kpiHtml("","briefcase",activeAll.length,"Активных заявок","c-blue")
+    + kpiHtml("","phone",overdueCount,"Нет контакта "+OVERDUE_DAYS+"+ дн.","c-bad")
+    + kpiHtml("","trophy",archivedAll.filter(function(x){ return x.l.status==="Выиграно"; }).length,"Выиграно","c-ok")
     + '</div>'
     + '<div class="toolbar"><div class="tabs">' + scopeTabs + '</div>' + viewToggle + '</div>'
     + '<div class="toolbar"><div class="tabs">' + funnelTabs + '</div><button class="primary" id="kpNewBtn">+ Новая заявка</button></div>'
@@ -821,7 +963,7 @@ function kpTableHtml(items){
       + '<td>' + esc(l.object) + '</td>'
       + '<td>' + esc(l.funnel) + '</td>'
       + '<td class="num">' + money(l.amount) + '</td>'
-      + '<td><select class="statusSel" data-row="' + l.row + '">' + STATUS_NAMES.map(function(s){ return '<option value="'+esc(s)+'" '+(s===l.status?'selected':'')+'>'+esc(s)+'</option>'; }).join("") + '</select></td>'
+      + '<td><select class="statusSel" style="--sc:' + (STATUS_COLORS[l.status] || '#8794ab') + '" data-row="' + l.row + '">' + STATUS_NAMES.map(function(s){ return '<option value="'+esc(s)+'" '+(s===l.status?'selected':'')+'>'+esc(s)+'</option>'; }).join("") + '</select></td>'
       + '<td class="num">' + c.days + '</td>'
       + '<td>' + esc(l.owner) + '</td>'
       + '<td class="open"><a href="javascript:void(0)" class="editOpen" data-row="' + l.row + '">✏️</a></td>'
@@ -1694,11 +1836,15 @@ function serviceCard(svc) {
   svc.fields.map(f => fieldControl(svc, f)).filter(Boolean).forEach(c => body.append(c));
   body.append(
     h('label', { class: 'field small' }, h('span', { class: 'lbl' }, 'Стоимость, ₽ (целое число)'), price, errBox(priceKey)),
+    h('button', { type: 'button', class: 'link', 'data-pricehint': svc.id, style: 'display:none', onclick: () => {
+      const sg = window.MPBP ? MPBP.suggest(svc, st) : 0; if (!sg) return;
+      st.price = String(sg); price.value = st.price; touch(priceKey); refresh(); } }),
     h('div', { class: 'rule' }, svc.rule));
   const card = h('div', { class: 'svc' + (st.on ? ' on' : ''), 'data-svc': svc.id },
     h('label', { class: 'svc-head' }, cb, h('span', { class: 'svc-title' }, svc.title)), body);
   cb.addEventListener('change', () => {
     st.on = cb.checked; card.classList.toggle('on', st.on);
+    if (st.on && !st.price && window.MPBP) { const sg = MPBP.suggest(svc, st); if (sg) { st.price = String(sg); price.value = st.price; } }
     if (!state.deadline.dirty) state.deadline.on = hasProject(state);
     syncDeadlineUi(); refresh();
   });
@@ -1765,7 +1911,7 @@ function buildDeadlineCard() {
 function html(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function markHtml(s) { return html(s).split(MARK).join('<span class="miss">не заполнено</span>'); }
 
-let summaryEl, previewEl, dlBtn, pdfBtn;
+let summaryEl, previewEl, dlBtn, pdfBtn, leftEl;
 function refresh() {
   const res = validate(state);
   
@@ -1789,6 +1935,12 @@ function refresh() {
   }
   if (res.warnings.length) summaryEl.append(h('ul', { class: 'warns' }, res.warnings.map(w => h('li', null, '⚠ ' + w.msg))));
   dlBtn.classList.toggle('ready', res.ok); pdfBtn.classList.toggle('ready', res.ok);
+  document.querySelectorAll('[data-pricehint]').forEach(b => {                      // подсказка из прайса (kpv.js)
+    const svc = CATALOG.find(s => s.id === b.dataset.pricehint), sv = state.services[svc.id];
+    const sg = window.MPBP ? MPBP.suggest(svc, sv) : 0;
+    b.style.display = sg && parseIntStrict(sv.price) !== sg && sv.on ? '' : 'none';
+    b.textContent = sg ? 'По прайсу: ' + fmtPrice(sg) + (MPBP.note(svc.id) ? ' (' + MPBP.note(svc.id) + ')' : '') + ' — подставить' : '';
+  });
   renderPreview();
   return res;
 }
@@ -1879,10 +2031,13 @@ function init() {
   dlBtn = h('button', { type: 'button', class: 'primary', onclick: () => download('docx') }, 'Скачать КП (.docx)');
   pdfBtn = h('button', { type: 'button', class: 'primary', onclick: () => download('pdf') }, 'Скачать КП (.pdf)');
   const left = h('div', { class: 'left' }, buildHeaderCard(), buildServicesCard(), buildDeadlineCard());
+  leftEl = left;
   const right = h('aside', { class: 'right' },
     h('section', { class: 'card sticky' },
       h('h2', null, 'Проверка'), summaryEl,
-      h('div', { class: 'actions' }, dlBtn, pdfBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП')),
+      h('div', { class: 'actions' }, dlBtn, pdfBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП'),
+        h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.saveVersion() : alert('Модуль версий не загружен') }, 'Сохранить версию'),
+        h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.versions() : alert('Модуль версий не загружен') }, 'Версии КП')),
       h('h3', null, 'Предпросмотр'), previewEl));
   const tabConstructor = h('div', { id: 'tab-constructor', class: 'layout' }, left, right);
   const tabMemo = h('div', { id: 'tab-memo', class: 'hidden' }, buildMemo());
@@ -1899,6 +2054,29 @@ function init() {
       h('nav', null, btnA, btnB)),
     tabConstructor, tabMemo);
   refresh();
+  /* доступ для kpv.js: прайс и версии КП */
+  window.__kpc = {
+    state, CATALOG, refresh, parseIntStrict, fmtPrice,
+    total() {
+      let s = 0;
+      CATALOG.forEach(v => { const x = state.services[v.id]; if (x.on) s += parseIntStrict(x.price) || 0; });
+      if (state.custom.on) state.custom.items.forEach(it => { s += parseIntStrict(it.price) || 0; });
+      return s;
+    },
+    load(saved) {                                    // открыть сохранённое состояние в конструкторе
+      const fresh = newState(todayIso());
+      Object.assign(state, fresh, { num: saved.num || '', date: saved.date || fresh.date, object: saved.object || '', address: saved.address || '', noAddress: !!saved.noAddress,
+        deadline: Object.assign(fresh.deadline, saved.deadline || {}), custom: saved.custom && saved.custom.items && saved.custom.items.length ? saved.custom : fresh.custom });
+      CATALOG.forEach(s => {
+        const sv = saved.services && saved.services[s.id];
+        state.services[s.id] = sv ? { on: !!sv.on, price: sv.price || '', fields: Object.assign(defaultFields(s), sv.fields || {}) } : fresh.services[s.id];
+      });
+      touched.clear(); showAll = false;
+      Object.keys(errEls).forEach(k => delete errEls[k]);
+      leftEl.replaceChildren(buildHeaderCard(), buildServicesCard(), buildDeadlineCard());
+      syncDeadlineUi(); refresh();
+    }
+  };
 }
 document.addEventListener('DOMContentLoaded', init);
 
@@ -1948,6 +2126,26 @@ document.addEventListener('DOMContentLoaded', init);
     location.reload();
   };
   if (!apiCfg().key) openApiSettings();
+})();
+</script>
+<script src="crm.js"></script>
+<script src="extras.js"></script>
+<script src="team.js"></script>
+<script src="auto.js"></script>
+<script src="stages.js"></script>
+<script src="clients.js"></script>
+<script src="kpv.js"></script>
+<script>
+(function(){
+  var KEY = "mpb_theme", t = "light";
+  try { t = localStorage.getItem(KEY) || ((window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light"); } catch(e){}
+  function apply(){
+    document.documentElement.setAttribute("data-theme", t);
+    document.getElementById("themeBtn").innerHTML = icon(t === "dark" ? "sun" : "moon");
+    var m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "dark" ? "#071426" : "#1f5c99");
+  }
+  document.getElementById("themeBtn").onclick = function(){ t = (t === "dark") ? "light" : "dark"; try { localStorage.setItem(KEY, t); } catch(e){} apply(); };
+  apply();
 })();
 </script>
 </body>

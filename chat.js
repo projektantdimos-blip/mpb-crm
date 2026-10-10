@@ -65,7 +65,7 @@
     ".chat-badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;background:var(--orange);color:#fff;font-size:.72rem;font-weight:700;line-height:18px;text-align:center}" +
     "#chat-app{max-width:1400px;margin:0 auto;padding:14px 16px 24px}" +
     ".chat-banner{margin-bottom:10px;padding:9px 12px;border-radius:8px;background:var(--bad-l);color:var(--bad);font-size:.88rem}" +
-    ".chat-wrap{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 170px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}" +
+    ".chat-wrap{display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 230px);min-height:440px;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}" +
     ".chat-list{display:flex;flex-direction:column;border-right:1px solid var(--line);min-height:0}" +
     ".chat-tools{padding:10px;border-bottom:1px solid var(--line)}" +
     ".chat-tools input{width:100%;padding:8px 10px;border:1px solid #b9c4d0;border-radius:8px;font:inherit;background:var(--card);color:var(--ink)}" +
@@ -129,6 +129,7 @@
 
   function build() {
     root.innerHTML =
+      '<header class="top"><div class="brand"><div><h1>Переписка</h1><p>Клиенты: Telegram, почта и Max — в одном окне</p></div></div></header>' +
       '<div id="chatBanner"></div>' +
       '<div class="chat-wrap" id="chatWrap">' +
         '<aside class="chat-list"><div class="chat-tools"><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
@@ -402,14 +403,15 @@
     var e = document.getElementById("chatSyncT");
     if (e && st.synced) e.textContent = "Обновлено " + pad(st.synced.getHours()) + ":" + pad(st.synced.getMinutes()) + ":" + pad(st.synced.getSeconds());
   }
+  window.__chatBadge = function () { applyBadge(); };
   function applyBadge() {
     var un = totalUnread();      // счётчик и в заголовке вкладки браузера
     document.title = (un ? "(" + un + ") " : "") + "МПБ — Рабочие инструменты";
-    var b = document.querySelector('#topnav button[data-goto="#/chat"]');
-    if (!b) return;
-    var old = b.querySelector(".chat-badge"); if (old) old.remove();
     var n = totalUnread();
-    if (n) { var s = document.createElement("span"); s.className = "chat-badge"; s.textContent = n > 99 ? "99+" : n; b.appendChild(s); }
+    document.querySelectorAll('#topnav button[data-goto="#/chat"], #bottomnav button[data-goto="#/chat"]').forEach(function (b) {
+      var old = b.querySelector(".chat-badge"); if (old) old.remove();
+      if (n) { var s = document.createElement("span"); s.className = "chat-badge"; s.textContent = n > 99 ? "99+" : n; b.appendChild(s); }
+    });
   }
 
   function loadThreads() {

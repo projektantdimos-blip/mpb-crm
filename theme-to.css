@@ -1,0 +1,75 @@
+/* Тема v2 для вкладки «ТО МПБ» (to-mpb.html). Подключается после встроенных стилей.
+   Тема (светлая/тёмная) берётся из localStorage "mpb_theme" — как в основном приложении. */
+:root{
+  --blue:#1f5c99;--blue-d:#164a7d;--blue-l:#e8f1fb;--orange:#ee9264;
+  --ink:#15233b;--muted:#6a768c;--line:#e5e9f2;--bg:#f2f5fa;--card:#ffffff;
+  --ok:#1f9d63;--ok-l:#e3f6ec;--bad:#d8453a;--bad-l:#fdeceb;--warn:#c98412;--warn-l:#fdf3dc;
+  --surface-2:#f7f9fd;--brand-2:#3a86d6;--accent:#ee9264;
+  --shadow-s:0 1px 2px rgba(21,35,59,.05),0 2px 8px rgba(21,35,59,.05);--shadow-m:0 6px 24px rgba(21,35,59,.08);
+}
+:root[data-theme="dark"]{
+  --blue:#5aa2ee;--blue-d:#79b4f4;--blue-l:#16294a;--orange:#f2a47c;
+  --ink:#e9effb;--muted:#8e9db9;--line:#223455;--bg:#0a1322;--card:#121f38;
+  --ok:#4cc58a;--ok-l:#143327;--bad:#ff7a70;--bad-l:#3d1f22;--warn:#e6a93e;--warn-l:#3a2f16;
+  --surface-2:#172746;--brand-2:#79b4f4;--accent:#f2a47c;
+  --shadow-s:0 1px 2px rgba(0,0,0,.3);--shadow-m:0 8px 28px rgba(0,0,0,.35);
+}
+body{font-family:"Onest","Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(900px 420px at 85% -80px,rgba(58,134,214,.14),transparent 70%);background-attachment:fixed}
+.wrap{max-width:1500px;margin:0 auto;padding:26px 32px 40px}
+h2.title{font-size:1.7rem;font-weight:800;letter-spacing:-.4px;margin:0 0 4px}
+.hint{font-size:.92rem}
+.toolbar{gap:12px;margin-bottom:18px}
+.toolbar input[type=search],select,input[type=text],input[type=number],input[type=date]{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:10px 13px;transition:.15s}
+.toolbar input[type=search]{box-shadow:var(--shadow-s);border-radius:14px}
+input:focus,select:focus{outline:0;border-color:var(--brand-2);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-2) 16%,transparent)}
+.tabs{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px;box-shadow:var(--shadow-s);gap:2px}
+.tab{background:transparent;border:0;color:var(--muted);padding:8px 15px;border-radius:10px;font-weight:600;font-size:.86rem;transition:.18s}
+.tab:hover{color:var(--ink)}
+.tab.active{background:linear-gradient(135deg,var(--brand-2),var(--blue));color:#fff;box-shadow:0 4px 12px color-mix(in srgb,var(--blue) 35%,transparent)}
+button.primary{background:linear-gradient(135deg,var(--brand-2),var(--blue));border-radius:13px;padding:10px 18px;box-shadow:0 8px 20px color-mix(in srgb,var(--blue) 34%,transparent)}
+button.primary:hover{background:linear-gradient(135deg,var(--brand-2),var(--blue));transform:translateY(-1px)}
+button.ghost{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:9px 15px;font-weight:600;box-shadow:var(--shadow-s)}
+button.ghost:hover{border-color:var(--brand-2);color:var(--blue)}
+button.danger{border-radius:11px;border-color:color-mix(in srgb,var(--bad) 55%,var(--line))}
+
+/* итоги */
+.chips{gap:14px;margin-bottom:18px}
+.chip{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--brand-2);border-radius:16px;padding:12px 20px;box-shadow:var(--shadow-s);min-width:150px}
+.chip b{font-size:1.7rem;font-weight:800;letter-spacing:-.6px}
+.legend{font-size:.82rem}
+.rules{border-radius:14px;background:var(--card);box-shadow:var(--shadow-s)}
+
+/* таблицы */
+.tblwrap{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-m)}
+th,td{border-bottom:1px solid var(--line);border-right:1px solid color-mix(in srgb,var(--line) 60%,transparent);background:var(--card)}
+thead th{background:var(--surface-2);color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;font-weight:700;border-right-color:var(--line);border-bottom:1px solid var(--line)}
+thead th small{opacity:.9;text-transform:none;letter-spacing:0}
+thead th.cur{background:color-mix(in srgb,var(--accent) 22%,var(--surface-2));color:#d0702f}
+tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--surface-2) 70%,var(--card))}
+tbody tr:hover td{background:var(--blue-l)}
+tbody tr:nth-child(even) td.n,tbody tr:nth-child(even) td.name{background:color-mix(in srgb,var(--surface-2) 70%,var(--card))}
+tbody tr:hover td.n,tbody tr:hover td.name{background:var(--blue-l)}
+td.name{border-right:2px solid var(--line)}
+td.cur{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--accent) 70%,transparent)}
+td.offc{background:repeating-linear-gradient(45deg,var(--surface-2),var(--surface-2) 6px,var(--line) 6px,var(--line) 12px)!important}
+.pill{border-radius:30px;padding:3px 11px}
+.pill.ok{background:var(--ok-l);color:var(--ok)}.pill.bad{background:var(--bad-l);color:var(--bad)}.pill.warn{background:var(--warn-l);color:var(--warn)}.pill.grey{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+
+/* статусы в клетках */
+select.st{border-radius:10px;font-weight:700}
+select.st.yes{background:var(--ok-l);color:var(--ok);border-color:transparent}
+select.st.no{background:var(--bad-l);color:var(--bad);border-color:transparent}
+select.st.sent{background:var(--warn-l);color:var(--warn);border-color:transparent}
+select.st.empty{background:var(--card);color:var(--muted);border:1px dashed var(--line)}
+select.st.off{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+select.st option{background:var(--card);color:var(--ink)}
+.toast{background:#10223f;border-radius:14px;box-shadow:0 24px 60px rgba(13,39,70,.3)}
+
+/* вход по PIN */
+#login{background:var(--bg)!important;background-image:radial-gradient(700px 380px at 50% 0,rgba(58,134,214,.18),transparent 70%)!important}
+#login>div{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:24px!important;box-shadow:var(--shadow-m)!important;padding:30px 30px!important}
+#login input[type=password]{border-radius:14px!important;background:var(--surface-2);color:var(--ink);border:1px solid var(--line)!important}
+
+@media(max-width:760px){.wrap{padding:14px 10px 24px}h2.title{font-size:1.3rem}
+  tbody tr{border-radius:16px!important;box-shadow:var(--shadow-s)!important;border-color:var(--line)!important}}

@@ -12,7 +12,7 @@ self.addEventListener('push', function (event) {
     body: data.body || '',
     icon: 'icon-512.png',
     badge: 'icon-180.png',
-    tag: 'mpb-chat',
+    tag: data.tag || 'mpb-chat',
     renotify: true,
     data: { url: url }
   }));
