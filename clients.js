@@ -117,47 +117,143 @@
   function shell(title, sub, extra, body) { return U.head(title, sub, extra || "") + '<div class="wrap">' + body + "</div>"; }
   function render() {
     var el = $("clients-app");
-    el.innerHTML = shell("Клиенты", "Заказчики из задач и заявок КП — вся история в одном месте", "", '<div class="x-empty">Загрузка…</div>');
+    el.innerHTML = shell("Клиенты", "Единая карточка заказчика: заявки, договоры, задачи, КП и переписка — вместе", "", '<div class="x-empty">Загрузка…</div>');
     load(false).then(function () { paint(); }).catch(function (e) { el.innerHTML = shell("Клиенты", "", "", '<div class="x-panel"><div class="x-empty">Не удалось загрузить данные: ' + E(e) + "</div></div>"); });
   }
   function paint() {
     var r = route();
-    if (r === "dups") { S.tab = "dups"; return paintList(); }
-    if (r) { var c = S.by[r]; if (c) return paintCard(c); }
-    S.tab = "all"; paintList();
+    S.tab = r === "dups" ? "dups" : "all";
+    paintMain(r && r !== "dups" ? S.by[r] : null);
+  }
+  function kindOf(c) {
+    var cnt = {}, best = "", n = 0;
+    c.tasks.forEach(function (t) { var w = t.workType || ""; if (w) cnt[w] = (cnt[w] || 0) + 1; });
+    Object.keys(cnt).forEach(function (w) { if (cnt[w] > n) { n = cnt[w]; best = w; } });
+    return best || (c.leads[0] && c.leads[0].object) || "Клиент";
+  }
+  function filtered() {
+    var q = norm(S.q), raw = S.q.toLowerCase(), digits = S.q.replace(/\D/g, "");
+    var list = S.list.filter(function (c) {
+      if (S.tab === "dups" && !c.dup) return false;
+      if (!q && !raw) return true;
+      return c.key.indexOf(q) >= 0 || Object.keys(c.names).some(function (n) { return n.toLowerCase().indexOf(raw) >= 0; }) || (digits.length >= 4 && Object.keys(c.phones).some(function (p) { return p.indexOf(digits) >= 0; }));
+    });
+    return list.sort(S.sort === "name" ? function (a, b) { return a.name.localeCompare(b.name, "ru"); } : S.sort === "sum" ? function (a, b) { return (b.wonSum + b.liveSum) - (a.wonSum + a.liveSum); } : function (a, b) { return a.activity < b.activity ? 1 : a.activity > b.activity ? -1 : 0; });
+  }
+  function listHtml(list, sel) {
+    return list.map(function (c) {
+      var pill = c.dup ? '<span class="x-pill soon">дубль?</span>' : c.open.length ? '<span class="x-pill blue">' + c.open.length + " в работе</span>" : "";
+      return '<div class="cl2-item ' + (sel && sel.key === c.key ? "on" : "") + '" data-k="' + E(c.key) + '"><span class="cl2-av">' + E((c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?").toUpperCase()) + '</span><div class="cl2-t"><b>' + E(c.name) + "</b><small>" + E(kindOf(c)) + "</small></div>" + pill + "</div>";
+    }).join("") || '<p class="cl2-none">Не найдено</p>';
+  }
+  function paintMain(sel) {
+    var el = $("clients-app"), list = filtered(), nd = S.dups.length;
+    if (!sel && list.length) sel = list[0];
+    el.innerHTML = shell("Клиенты", "Единая карточка заказчика: заявки, договоры, задачи, КП и переписка — вместе", '<button class="x-btn accent" id="clNewTop">' + ic("plus") + "Новый клиент</button>",
+      '<div class="cl2"><div class="x-panel cl2-left"><div class="cl2-top"><label class="cl2-search">' + ic("search") + '<input id="clQ" placeholder="Найти клиента, телефон…" value="' + E(S.q) + '"></label>'
+      + '<div class="cl2-tabs"><button data-t="all" class="' + (S.tab === "all" ? "on" : "") + '">Все · ' + S.list.length + '</button><button data-t="dups" class="' + (S.tab === "dups" ? "on" : "") + '">Дубли' + (nd ? " · " + nd : "") + '</button></div></div>'
+      + '<div id="clList" class="cl2-list">' + listHtml(list, sel) + '</div></div><div id="clCard" class="cl2-card"></div></div>');
+    $("clNewTop").onclick = function () { K.createClient("", "", null); };
+    var qi = $("clQ"); qi.oninput = function () { S.q = qi.value; var pos = qi.selectionStart; var l2 = filtered(); $("clList").innerHTML = listHtml(l2, sel); bindList(sel); };
+    el.querySelectorAll(".cl2-tabs button").forEach(function (b) { b.onclick = function () { location.hash = b.dataset.t === "dups" ? "#/clients/dups" : "#/clients"; }; });
+    bindList(sel);
+    var card = $("clCard");
+    if (!sel) { card.innerHTML = '<div class="x-panel"><div class="x-empty">' + (S.tab === "dups" ? "Дублей не найдено — каждый заказчик записан одним способом" : "Клиентов пока нет. Нажмите «Новый клиент» или создайте клиента из переписки.") + "</div></div>"; return; }
+    cardInto(card, sel);
+  }
+  function bindList(sel) {
+    $("clList").querySelectorAll(".cl2-item").forEach(function (r) { r.onclick = function () { location.hash = "#/clients/" + encodeURIComponent(r.dataset.k); }; });
   }
 
-  /* ---------- список ---------- */
-  function paintList() {
-    var el = $("clients-app"), q = norm(S.q), list = S.list.filter(function (c) { return !q || c.key.indexOf(q) >= 0 || Object.keys(c.names).some(function (n) { return n.toLowerCase().indexOf(S.q.toLowerCase()) >= 0; }) || Object.keys(c.phones).some(function (p) { return p.indexOf(S.q.replace(/\D/g, "")) >= 0 && S.q.replace(/\D/g, "").length >= 4; }); });
-    list.sort(S.sort === "name" ? function (a, b) { return a.name.localeCompare(b.name, "ru"); } : S.sort === "sum" ? function (a, b) { return (b.wonSum + b.liveSum) - (a.wonSum + a.liveSum); } : function (a, b) { return a.activity < b.activity ? 1 : a.activity > b.activity ? -1 : 0; });
-    var nd = S.dups.length, kp = '<div class="kpis">'
-      + '<div class="kpi hero"><div class="v">' + S.list.length + '</div><div class="l">Клиентов</div></div>'
-      + '<div class="kpi"><div class="v">' + S.list.filter(function (c) { return c.open.length; }).length + '</div><div class="l">С задачами в работе</div></div>'
-      + '<div class="kpi"><div class="v">' + S.list.filter(function (c) { return c.live.length; }).length + '</div><div class="l">С активными заявками</div></div>'
-      + '<div class="kpi"><div class="v">' + nd + '</div><div class="l">Возможных дублей</div></div></div>';
-    var tabs = '<div class="x-seg"><button data-t="all" class="' + (S.tab === "all" ? "on" : "") + '">' + ic("users") + "Все клиенты</button><button data-t=\"dups\" class=\"" + (S.tab === "dups" ? "on" : "") + '">' + ic("repeat") + "Дубли" + (nd ? " · " + nd : "") + "</button></div>";
-    var body;
-    if (S.tab === "dups") body = dupsHtml();
-    else body = '<div class="x-bar">' + tabs + '<input type="search" id="clQ" class="cl-q" placeholder="Поиск по названию или телефону…" value="' + E(S.q) + '"><div class="x-seg" id="clSort">' + [["act", "По активности"], ["sum", "По сумме"], ["name", "По алфавиту"]].map(function (o) { return '<button data-s="' + o[0] + '" class="' + (S.sort === o[0] ? "on" : "") + '">' + o[1] + "</button>"; }).join("") + "</div></div>"
-      + '<div class="x-panel">' + (list.map(rowHtml).join("") || '<div class="x-empty">Ничего не найдено</div>') + "</div>";
-    if (S.tab === "dups") body = '<div class="x-bar">' + tabs + "</div>" + body;
-    el.innerHTML = shell("Клиенты", "Заказчики из задач и заявок КП — вся история в одном месте", '<button class="x-btn ghost" id="clRef">' + ic("repeat") + "Обновить</button>", kp + body);
-    el.querySelectorAll("button[data-t]").forEach(function (b) { b.onclick = function () { location.hash = b.dataset.t === "dups" ? "#/clients/dups" : "#/clients"; }; });
-    $("clRef").onclick = function () { S.at = 0; render(); };
-    var qi = $("clQ"); if (qi) qi.oninput = function () { S.q = qi.value; var pos = qi.selectionStart; paintList(); var n = $("clQ"); n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} };
-    el.querySelectorAll("#clSort button").forEach(function (b) { b.onclick = function () { S.sort = b.dataset.s; paintList(); }; });
-    el.querySelectorAll(".cl-row").forEach(function (r) { r.onclick = function () { location.hash = "#/clients/" + encodeURIComponent(r.dataset.k); }; });
-    bindDups(el);
+  /* путь клиента: заявка → КП → договор → работа → ТО */
+  function chainOf(c) {
+    var lead = c.leads.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0];
+    var steps = [], isTO = function (t) { return /(^|[^а-яё])то([^а-яё]|$)|обслуж/i.test(" " + (t.workType || "") + " "); };
+    steps.push(lead ? ["done", "Заявка № " + (lead.row - 1), dmy(lead.date)] : ["todo", "Заявка", ""]);
+    var won = c.won[0], kp = c.live[0] || lead;
+    if (won) steps.push(["done", "КП", money(+won.amount) + " · выиграно"]);
+    else if (kp) steps.push(["cur", "КП", (kp.status || "") + (+kp.amount ? " · " + money(+kp.amount) : "")]);
+    else steps.push(["todo", "КП", ""]);
+    var withC = c.tasks.filter(function (t) { return t.contractNo; })[0];
+    steps.push(withC ? ["done", "№ " + withC.contractNo, "договор"] : ["new", "Договор", "создать"]);
+    var work = c.open.filter(function (t) { return !isTO(t); })[0], doneWork = c.tasks.filter(function (t) { return t.closed && !isTO(t); })[0];
+    if (work) { var n = window.stagesFor ? stagesFor(work.workType).length : 0, i = window.stageIndex ? stageIndex(work.stage, work.workType) + 1 : 0; steps.push(["cur", work.workType || "Работа", n ? "этап " + i + " из " + n : work.stage]); }
+    else if (doneWork) steps.push(["done", doneWork.workType || "Работа", "сдана"]);
+    else steps.push(["todo", "Работа", ""]);
+    var to = c.tasks.filter(isTO)[0];
+    steps.push(to ? [to.closed ? "done" : "cur", "ТО", "обслуживание"] : [doneWork ? "new" : "todo", "ТО", doneWork ? "предложить" : "после сдачи"]);
+    return steps;
   }
-  function rowHtml(c) {
-    var parts = [];
-    if (c.open.length) parts.push(c.open.length + " " + nz(c.open.length, "задача", "задачи", "задач") + " в работе");
-    if (c.live.length) parts.push(c.live.length + " " + nz(c.live.length, "заявка", "заявки", "заявок") + " · " + money(c.liveSum));
-    if (!parts.length) parts.push("нет активных дел");
-    return '<div class="cl-row" data-k="' + E(c.key) + '"><span class="x-ava cl-av">' + E(c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?") + '</span><div class="cl-main"><b>' + E(c.name) + (c.dup ? ' <span class="x-pill soon">возможный дубль</span>' : "") + "</b><small>" + E(parts.join(" · ")) + "</small></div>"
-      + '<div class="cl-side">' + (c.wonSum ? "<b>" + money(c.wonSum) + "</b><small>выиграно</small>" : "") + "</div>" + '<div class="cl-side"><small>' + (c.last ? "контакт " + dmy(c.last) : "") + "</small></div></div>";
+  function chainHtml(steps) {
+    return '<div class="cl2-chain">' + steps.map(function (s, i) {
+      return '<div class="cs ' + s[0] + '"><span class="dot">' + (s[0] === "done" ? ic("check") : s[0] === "cur" ? ic("clock") : s[0] === "new" ? ic("plus") : String(i + 1)) + "</span><b>" + E(s[1]) + "</b><small>" + E(s[2] || "") + "</small></div>";
+    }).join("") + "</div>";
   }
+  function timeline(c) {
+    var ev = [];
+    c.leads.forEach(function (l) {
+      if (l.date) ev.push([String(l.date).slice(0, 10), "kp", "Заявка: " + (l.object || l.essence || "—"), (l.status || "") + (+l.amount ? " · " + money(+l.amount) : "")]);
+      if (l.lastContact && l.lastContact !== l.date) ev.push([String(l.lastContact).slice(0, 10), "chat", "Контакт с клиентом", l.owner || ""]);
+    });
+    c.tasks.forEach(function (t) {
+      if (t.startDate) ev.push([String(t.startDate).slice(0, 10), "contract", "Договор " + (t.contractNo ? "№ " + t.contractNo + " · " : "") + (t.workType || ""), t.manager || ""]);
+      if (!t.closed && t.deadline) ev.push([String(t.deadline).slice(0, 10), "task", "Дедлайн этапа «" + (t.stage || "") + "»", t.responsible || ""]);
+    });
+    ev.sort(function (a, b) { return a[0] < b[0] ? 1 : -1; });
+    var ico = { kp: "file", contract: "briefcase", task: "tasks", chat: "chat" };
+    return ev.slice(0, 9).map(function (e) { return '<div class="ev ' + e[1] + '"><span class="pt">' + ic(ico[e[1]] || "file") + "</span>" + E(e[2]) + "<small>" + dmy(e[0]) + (e[3] ? " · " + E(e[3]) : "") + "</small></div>"; }).join("") || '<p class="x-sub">Событий пока нет</p>';
+  }
+  function threadFor(c) {
+    var th = window.__chatThreads ? window.__chatThreads() : [];
+    var found = th.filter(function (t) {
+      if (norm(t.title) === c.key) return true;
+      var p = phones(t.peer), m = emails(t.peer);
+      return p.some(function (x) { return c.phones[x]; }) || m.some(function (x) { return c.emails[x]; });
+    })[0];
+    return found || null;
+  }
+  function cardInto(card, c) {
+    var mydups = S.dups.filter(function (d) { return d.keys.indexOf(c.key) >= 0; }), others = [];
+    mydups.forEach(function (d) { d.clients.forEach(function (x) { if (x.key !== c.key && others.indexOf(x) < 0) others.push(x); }); });
+    var cons = Object.keys(c.contacts).map(function (k) { return c.contacts[k]; });
+    function link(t) { var m = emails(t); if (m.length) return '<a href="mailto:' + E(m[0]) + '">' + E(t) + "</a>"; var p = phones(t); return p.length ? '<a href="tel:+7' + p[0] + '">' + E(t) + "</a>" : E(t); }
+    var toN = c.tasks.filter(function (t) { return /(^|[^а-яё])то([^а-яё]|$)|обслуж/i.test(" " + (t.workType || "") + " "); }).length;
+    var tags = {}; c.tasks.forEach(function (t) { if (t.workType) tags[t.workType] = 1; });
+    var rel = function (h, b) { return '<div class="rel"><h6>' + h + "</h6>" + b + "</div>"; };
+    var li = function (go, icn, main, sub) { return '<div class="li" data-go="' + go + '">' + ic(icn) + "<div><b>" + main + "</b>" + (sub ? "<small>" + sub + "</small>" : "") + "</div></div>"; };
+    var leadsH = c.leads.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 5).map(function (l) { return li("#/kpreg/lead/" + l.row, "file", "КП № " + (l.row - 1) + " · " + E(l.object || "заявка"), E(l.status || "") + (+l.amount ? " · " + money(+l.amount) : "")); }).join("") || '<p class="hint2">Нет</p>';
+    var tasksH = c.tasks.filter(function (t) { return !t.closed; }).slice(0, 5).map(function (t) { return li("#/task/" + t.row, "tasks", E(t.workType || "Работа") + " · " + E(t.address || ""), E(t.stage || "") + (t.deadline ? " · срок " + dmy(t.deadline) : "")); }).join("") || '<p class="hint2">Нет активных</p>';
+    var contrH = c.tasks.filter(function (t) { return t.contractNo; }).slice(0, 4).map(function (t) { return li("#/task/" + t.row, "briefcase", "№ " + E(t.contractNo) + " · " + E(t.workType || ""), t.closed ? "выполнен" : "в работе"); }).join("") || '<p class="hint2">Нет</p>';
+    card.innerHTML = '<div class="x-panel pad"><div class="cl2-hd"><span class="cl2-av lg">' + E((c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?").toUpperCase()) + '</span><div class="cl2-hdt"><h2>' + E(c.name) + "</h2><p>" + E(kindOf(c)) + (c.people.length ? " · ответственный: " + E(c.people.join(", ")) : "") + "</p>"
+      + '<div class="cl2-tags">' + Object.keys(tags).slice(0, 5).map(function (t) { return '<span class="x-pill blue">' + E(t) + "</span>"; }).join("") + "</div></div>"
+      + '<div class="cl2-act"><button class="x-btn ghost" id="clMsg">' + ic("chat") + 'Написать</button><button class="x-btn primary" id="clKp">' + ic("file") + "Создать КП</button></div></div></div>"
+      + (others.length ? '<div class="cl2-dup">' + ic("alert") + "<span>Возможный дубль: «" + E(others.map(function (x) { return x.name; }).join("», «")) + "». Один и тот же заказчик? Объедините карточки, чтобы история не раздваивалась.</span>" + '<button class="x-btn primary" id="clMerge">' + ic("repeat") + "Объединить</button></div>" : "")
+      + '<div class="x-panel pad" style="margin-top:16px"><h3>Путь клиента</h3><p class="x-sub">От первой заявки до обслуживания — всё связано автоматически</p>' + chainHtml(chainOf(c)) + "</div>"
+      + '<div class="cl2-mini"><div><small>Договоры, сумма</small><b>' + money(c.wonSum) + "</b></div><div><small>КП в работе</small><b>" + c.live.length + "</b></div><div><small>Задач в работе</small><b>" + c.open.length + "</b></div><div><small>Объектов на ТО</small><b>" + toN + "</b></div></div>"
+      + '<div class="cl2-two"><div class="x-panel pad"><h3>История</h3><p class="x-sub">Все события по клиенту в одной ленте</p><div class="tl">' + timeline(c) + "</div></div>"
+      + '<div class="x-panel pad"><h3>Связанное</h3><p class="x-sub">' + (cons.length ? "Контакт: " + cons.slice(0, 2).map(function (k) { return E(k.name || "") + (k.text ? " · " + link(k.text) : ""); }).join("; ") : "Контактов нет") + "</p>"
+      + rel("Заявки и КП", leadsH) + rel("Договоры", contrH) + rel("Задачи", tasksH) + "</div></div>";
+    card.querySelectorAll("[data-go]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.go; }; });
+    $("clMsg").onclick = function () {
+      var th = threadFor(c);
+      if (th) location.hash = "#/chat?t=" + encodeURIComponent(th.id);
+      else U.toast("Диалога с этим клиентом ещё нет — он появится после первого сообщения");
+    };
+    $("clKp").onclick = function () { kpPicker(c); };
+    var mg = $("clMerge"); if (mg) mg.onclick = function () { mergeDlg(mydups[0]); };
+  }
+  function kpPicker(c) {
+    if (!window.MPBP) { U.toast("Модуль КП не загружен — обновите страницу"); return; }
+    var hdr = { object: c.name, address: addrOf(c) };
+    MPBP.templateList().then(function (tpls) {
+      var v = U.xmodal('<h3>Создать КП для «' + E(c.name) + '»</h3><p class="x-sub">Выберите шаблон или начните с пустого — заказчик и адрес подставятся</p>'
+        + '<div class="cl2-tpls"><div class="cl2-tpl" data-i="-1"><b>Пустое КП</b><small>выберу услуги сам</small></div>' + tpls.map(function (t, i) { return '<div class="cl2-tpl" data-i="' + i + '"><b>' + E(t.name) + "</b><small>" + E(t.descr || "") + "</small></div>"; }).join("") + '</div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button></div>', true);
+      v.querySelectorAll(".cl2-tpl").forEach(function (d) { d.onclick = function () { var i = +d.dataset.i; MPBP.prepareKp(hdr, i >= 0 ? tpls[i] : null, S.thread); }; });
+    }).catch(function () { MPBP.prepareKp(hdr, null, S.thread); });
+  }
+  K.summary = function (title, peer) {
+    return load(false).then(function () { return findFor(title, peer); }).catch(function () { return null; });
+  };
 
   /* ---------- дубли ---------- */
   function dupsHtml() {
@@ -211,42 +307,20 @@
     })(0);
   }
 
-  /* ---------- карточка ---------- */
-  function paintCard(c) {
-    var el = $("clients-app"), names = Object.keys(c.names), cons = Object.keys(c.contacts).map(function (k) { return c.contacts[k]; });
-    var mydups = S.dups.filter(function (d) { return d.keys.indexOf(c.key) >= 0; });
-    function link(t) { var m = emails(t); if (m.length) return '<a href="mailto:' + E(m[0]) + '">' + E(t) + "</a>"; var p = phones(t); return p.length ? '<a href="tel:+7' + p[0] + '">' + E(t) + "</a>" : E(t); }
-    var kp = '<div class="kpis"><div class="kpi hero"><div class="v">' + c.open.length + '</div><div class="l">Задач в работе</div></div><div class="kpi"><div class="v">' + c.live.length + '</div><div class="l">Активных заявок · ' + money(c.liveSum) + '</div></div><div class="kpi"><div class="v">' + money(c.wonSum) + '</div><div class="l">Выиграно (' + c.won.length + ')</div></div><div class="kpi"><div class="v" style="font-size:1.2rem">' + dmy(c.last) + '</div><div class="l">Последний контакт</div></div></div>';
-    var tasks = c.tasks.slice().sort(function (a, b) { return (a.closed ? 1 : 0) - (b.closed ? 1 : 0) || String(a.deadline).localeCompare(String(b.deadline)); }).map(function (t) {
-      return '<div class="cl-row" data-h="#/task/' + t.row + '"><div class="cl-main"><b>' + E(t.workType || "Работа") + (t.closed ? ' <span class="x-pill">закрыто</span>' : "") + "</b><small>" + E(t.address || "") + " · договор " + E(t.contractNo || "—") + '</small></div><div class="cl-side"><b>' + E(t.stage || "") + "</b><small>" + (t.closed ? "" : "срок " + dmy(t.deadline)) + (t.responsible ? " · " + E(t.responsible) : "") + "</small></div></div>";
-    }).join("") || '<div class="x-empty">Задач нет</div>';
-    var leads = c.leads.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).map(function (l) {
-      return '<div class="cl-row" data-h="#/kpreg/lead/' + l.row + '"><div class="cl-main"><b>' + E(l.object || l.essence || "Заявка") + '</b><small>' + dmy(l.date) + " · " + E(l.funnel || "") + (l.owner ? " · " + E(l.owner) : "") + '</small></div><div class="cl-side"><b>' + (+l.amount ? money(+l.amount) : "") + '</b><small><span class="x-pill ' + (l.status === "Выиграно" ? "ok" : l.status === "Отказ" ? "over" : "blue") + '">' + E(l.status || "") + "</span></small></div></div>";
-    }).join("") || '<div class="x-empty">Заявок нет</div>';
-    el.innerHTML = shell(E(c.name), "Карточка клиента", '<button class="x-btn ghost" onclick="location.hash=\'#/clients\'">← Все клиенты</button>',
-      (mydups.length ? '<div class="x-notif bad" style="margin-bottom:16px"><span class="dot"></span><div style="flex:1"><b>Возможный дубль</b><small>' + E(mydups[0].reasons.join("; ")) + " · " + mydups[0].clients.length + " " + nz(mydups[0].clients.length, "запись", "записи", "записей") + '</small></div><button class="x-btn primary" id="clMg" style="padding:8px 15px">Проверить и объединить</button></div>' : "")
-      + kp + '<div class="x-panel pad" style="margin-bottom:16px"><div class="cl-kp" style="margin:0"><b>Подготовить КП для клиента</b><div class="x-row" style="margin:6px 0 0;justify-content:flex-start"><select id="clTpl" class="sg-sel"><option value="">Пустое КП</option></select><button class="x-btn accent" id="clKp">Подготовить КП</button></div></div></div>' + '<div class="x-two"><div><div class="x-panel" style="margin-bottom:16px"><div class="sg-h"><h3>Заявки и КП</h3></div>' + leads + '</div><div class="x-panel"><div class="sg-h"><h3>Задачи и договоры</h3></div>' + tasks + "</div></div>"
-      + '<div class="x-sticky"><div class="x-panel pad" style="margin-bottom:16px"><h3>Контакты</h3>' + (cons.map(function (k) { return '<div class="cl-con"><b>' + E(k.name || "—") + "</b><small>" + (k.text ? link(k.text) : "") + "</small></div>"; }).join("") || '<p class="x-sub" style="margin:0">Контактов в заявках и задачах нет</p>') + "</div>"
-      + '<div class="x-panel pad"><h3>Ответственные</h3><p class="x-sub" style="margin:0">' + (c.people.length ? E(c.people.join(", ")) : "—") + "</p>" + (names.length > 1 ? '<h3 style="margin-top:14px">Как записан</h3><p class="x-sub" style="margin:0">' + names.map(E).join("<br>") + "</p>" : "") + "</div></div></div>");
-    el.querySelectorAll("[data-h]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.h; }; });
-    var mg = $("clMg"); if (mg) mg.onclick = function () { mergeDlg(mydups[0]); };
-    wireKp(c);
-  }
-
   /* ---------- «О клиенте» из переписки: найти заказчика по собеседнику и показать его дела ---------- */
   function findFor(title, peer) {
     var ph = phones(peer), em = emails(peer), i, c;
     for (i = 0; i < S.list.length; i++) { c = S.list[i]; if (ph.some(function (p) { return c.phones[p]; }) || em.some(function (m) { return c.emails[m]; })) return { c: c, why: "по телефону или почте" }; }
     var k = norm(title);
     if (k && S.by[k]) return { c: S.by[k], why: "по названию" };
-    if (k) for (i = 0; i < S.list.length; i++) { c = S.list[i]; if (similar(k, c.key) || (k.length >= 5 && (c.key.indexOf(k) >= 0 || k.indexOf(c.key) >= 0 && c.key.length >= 5))) return { c: c, why: "по похожему названию" }; }
+    if (k) for (i = 0; i < S.list.length; i++) { c = S.list[i]; if (similar(k, c.key) || (k.length >= 5 && (c.key.indexOf(k) >= 0 || (k.indexOf(c.key) >= 0 && c.key.length >= 5)))) return { c: c, why: "по похожему названию" }; }
     return null;
   }
   function infoHtml(c, why) {
     function row(h, main, side) { return '<div class="cl-row" data-h="' + h + '" style="padding:9px 0"><div class="cl-main"><b>' + main[0] + "</b><small>" + main[1] + '</small></div><div class="cl-side"><b>' + (side[0] || "") + "</b><small>" + (side[1] || "") + "</small></div></div>"; }
     var tasks = c.tasks.slice().sort(function (a, b) { return (a.closed ? 1 : 0) - (b.closed ? 1 : 0); }).slice(0, 6).map(function (t) { return row("#/task/" + t.row, [E(t.workType || "Работа") + (t.closed ? " · закрыто" : ""), E(t.address || "")], [E(t.stage || ""), t.closed ? "" : "срок " + dmy(t.deadline)]); }).join("") || '<div class="x-empty" style="padding:8px">Задач нет</div>';
     var leads = c.leads.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 5).map(function (l) { return row("#/kpreg/lead/" + l.row, [E(l.object || l.essence || "Заявка"), dmy(l.date) + (l.owner ? " · " + E(l.owner) : "")], [+l.amount ? money(+l.amount) : "", E(l.status || "")]); }).join("") || '<div class="x-empty" style="padding:8px">Заявок нет</div>';
-    return '<h3>' + E(c.name) + '</h3><p class="x-sub">Найден ' + E(why) + (c.people.length ? " · ведёт: " + E(c.people.join(", ")) : "") + "</p>"
+    return "<h3>" + E(c.name) + '</h3><p class="x-sub">Найден ' + E(why) + (c.people.length ? " · ведёт: " + E(c.people.join(", ")) : "") + "</p>"
       + '<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="kpi"><div class="v">' + c.open.length + '</div><div class="l">Задач в работе</div></div><div class="kpi"><div class="v">' + c.live.length + '</div><div class="l">Активных заявок</div></div><div class="kpi"><div class="v" style="font-size:1.05rem">' + money(c.wonSum) + '</div><div class="l">Выиграно</div></div></div>'
       + '<div class="x-grp" style="padding:4px 0">Задачи и договоры</div>' + tasks + '<div class="x-grp" style="padding:10px 0 4px">Заявки и КП</div>' + leads
       + '<div class="cl-kp"><b>Коммерческое предложение</b><div class="x-row" style="margin:6px 0 0;justify-content:flex-start"><select id="clTpl" class="sg-sel"><option value="">Пустое КП</option></select><button class="x-btn accent" id="clKp">Подготовить КП</button></div></div>'
@@ -264,10 +338,10 @@
     var l = c.leads.filter(function (x) { return x.object; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0];
     return l ? l.object : "";
   }
-  function wireKp(c) {                                           // «Подготовить КП» из окна «О клиенте» / карточки клиента
+  function wireKp(c) {                                           // «Подготовить КП» из окна «О клиенте»
     var sel = $("clTpl"), go = $("clKp"), tpls = [];
     if (!go) return;
-    if (window.MPBP && MPBP.templateList) MPBP.templateList().then(function (l) { tpls = l; if (sel) sel.innerHTML += l.map(function (t, i) { return "<option value=\"" + i + "\">" + E(t.name) + "</option>"; }).join(""); }).catch(function () {});
+    if (window.MPBP && MPBP.templateList) MPBP.templateList().then(function (l) { tpls = l; if (sel) sel.innerHTML += l.map(function (t, i) { return '<option value="' + i + '">' + E(t.name) + "</option>"; }).join(""); }).catch(function () {});
     go.onclick = function () {
       if (!window.MPBP) { U.toast("Модуль КП не загружен — обновите страницу"); return; }
       var hdr = { object: c.name, address: addrOf(c) };

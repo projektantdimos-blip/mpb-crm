@@ -614,3 +614,83 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 /* передача писем сотрудникам */
 .as-pill{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:#c0612a;white-space:nowrap;margin-left:6px}
 .as-bar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--accent-soft);color:var(--ink);font-size:.84rem;border-bottom:1px solid var(--line)}
+
+/* ===== как в согласованном макете: «Клиенты» ===== */
+.cl2{display:grid;grid-template-columns:340px minmax(0,1fr);gap:20px;align-items:start}
+.cl2-left{position:sticky;top:12px;max-height:calc(100vh - 120px);display:flex;flex-direction:column}
+.cl2-top{padding:14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.cl2-search{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 13px;color:var(--muted)}
+.cl2-search:focus-within{border-color:var(--brand-2);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-2) 18%,transparent)}
+.cl2-search input{border:0;background:transparent;outline:0;width:100%;font:inherit;color:var(--ink)}
+.cl2-tabs{display:flex;gap:6px}
+.cl2-tabs button{flex:1;padding:7px 10px;border-radius:30px;border:1px solid var(--line);background:var(--card);color:var(--muted);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.cl2-tabs button.on{background:var(--blue-l);border-color:transparent;color:var(--blue)}
+.cl2-list{overflow:auto;flex:1}
+.cl2-item{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.15s;align-items:center}
+.cl2-item:hover{background:var(--surface-2)}.cl2-item.on{background:var(--blue-l);box-shadow:inset 3px 0 0 var(--brand-2)}
+.cl2-t{min-width:0;flex:1}.cl2-t b{display:block;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cl2-t small{color:var(--muted);font-size:.76rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cl2-av{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--brand-2),var(--blue));flex:none}
+.cl2-av.lg{width:64px;height:64px;font-size:1.5rem;border-radius:20px}
+.cl2-none{padding:30px;text-align:center;color:var(--muted)}
+.cl2-hd{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.cl2-hdt{flex:1;min-width:200px}.cl2-hdt h2{font-size:1.4rem;font-weight:800;margin:0;overflow-wrap:anywhere}.cl2-hdt p{color:var(--muted);margin:2px 0 0}
+.cl2-tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.cl2-act{display:flex;gap:8px;flex-wrap:wrap}
+.cl2-dup{display:flex;gap:12px;align-items:center;padding:12px 16px;border-radius:14px;background:var(--warn-l);color:var(--warn);font-weight:600;font-size:.86rem;margin-top:16px;flex-wrap:wrap}
+.cl2-dup svg{width:18px;height:18px;flex:none}.cl2-dup .x-btn{margin-left:auto}
+.cl2-chain{display:flex;align-items:flex-start;margin:6px 0 4px;overflow-x:auto;padding-bottom:4px}
+.cl2-chain .cs{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:96px;text-align:center;position:relative;flex:1}
+.cl2-chain .dot{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:2px solid var(--line);color:var(--muted);position:relative;z-index:1;font-size:.8rem;font-weight:700}
+.cl2-chain .dot svg{width:16px;height:16px}
+.cl2-chain .done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.cl2-chain .cur .dot{border-color:var(--brand-2);color:var(--blue);background:var(--card);box-shadow:0 0 0 5px color-mix(in srgb,var(--brand-2) 20%,transparent)}
+.cl2-chain .new .dot{border-style:dashed;border-color:var(--accent);color:#d0702f;background:var(--accent-soft)}
+.cl2-chain b{font-size:.8rem}.cl2-chain small{font-size:.7rem;color:var(--muted);line-height:1.25;max-width:120px}
+.cl2-chain .cs:not(:last-child)::after{content:"";position:absolute;top:17px;left:calc(50% + 22px);right:calc(-50% + 22px);height:2px;background:var(--line)}
+.cl2-chain .done:not(:last-child)::after{background:var(--ok)}
+.cl2-chain .cur:not(:last-child)::after,.cl2-chain .new:not(:last-child)::after{background:repeating-linear-gradient(90deg,var(--line) 0 5px,transparent 5px 9px)}
+.cl2-mini{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.cl2-mini div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow-s)}
+.cl2-mini small{color:var(--muted);font-size:.74rem;display:block}.cl2-mini b{font-size:1.2rem;font-weight:800}
+.cl2-two{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}
+.tl{position:relative;padding-left:28px}.tl::before{content:"";position:absolute;left:10px;top:6px;bottom:10px;width:2px;background:var(--line)}
+.tl .ev{position:relative;padding:0 0 16px;font-size:.88rem}
+.tl .ev .pt{position:absolute;left:-28px;top:0;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:2px solid var(--line);color:var(--muted)}
+.tl .ev .pt svg{width:11px;height:11px}.tl .ev small{color:var(--muted);font-size:.72rem;display:block}
+.tl .ev.kp .pt{border-color:var(--brand-2);color:var(--blue)}.tl .ev.contract .pt{border-color:var(--ok);color:var(--ok)}.tl .ev.task .pt{border-color:var(--t-montazh);color:var(--t-montazh)}.tl .ev.chat .pt{border-color:var(--accent);color:#d0702f}
+.rel{margin-bottom:18px}.rel h6{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+.rel .li{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);font-size:.84rem;margin-bottom:6px;cursor:pointer;transition:.15s}
+.rel .li:hover{border-color:var(--brand-2)}.rel .li svg{width:18px;height:18px;flex:none;color:var(--blue)}.rel .li b{display:block;font-size:.86rem}.rel .li small{color:var(--muted)}
+.rel .hint2{color:var(--muted);font-size:.82rem;margin:0}
+.cl2-tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+.cl2-tpl{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);cursor:pointer;transition:.15s}.cl2-tpl:hover{border-color:var(--brand-2)}
+.cl2-tpl b{display:block}.cl2-tpl small{color:var(--muted)}
+@media(max-width:1100px){.cl2{grid-template-columns:1fr}.cl2-left{position:static;max-height:360px}.cl2-two{grid-template-columns:1fr}.cl2-mini{grid-template-columns:repeat(2,1fr)}}
+
+/* ===== как в макете: «Переписка» — три колонки: диалоги / переписка / клиент и действия ===== */
+#chat-app .top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+#chat-app .top .chat-chips{margin:0}
+#chat-app .chat-wrap{grid-template-columns:330px minmax(0,1fr) 300px;height:calc(100vh - 190px);min-height:560px}
+#chat-app .chat-list{background:var(--surface-2)}
+#chat-app .chat-tools{padding:16px;border-bottom:1px solid var(--line)}
+#chat-app .ct{align-items:center}
+#chat-app .ct .ava{width:40px;height:40px}
+#chat-app .ct .nm{font-size:.9rem}
+#chat-app #chatHead{padding:14px 20px;gap:12px}
+#chat-app #chatHead .hmain{flex:1;min-width:0}
+#chat-app #chatHead .hmain b{display:block;flex:none}
+#chat-app #chatHead .hmain small{display:block;color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chat-app #chatHead .hbtn{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;padding:0}
+.chat-info{border-left:1px solid var(--line);background:var(--card);padding:20px 18px;overflow:auto;display:flex;flex-direction:column;gap:18px;min-height:0}
+.chat-info .who{text-align:center}
+.chat-info .who .hava{margin:0 auto 10px}
+.chat-info .hava.big{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:1.4rem;background-size:cover;background-position:center}
+.chat-info .who b{display:block;font-size:1rem;overflow-wrap:anywhere}.chat-info .who .sub{color:var(--muted);font-size:.82rem;margin:2px 0 8px;overflow-wrap:anywhere}
+.chat-info h6{font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 8px}
+.chat-info .linkcard{display:flex;gap:10px;align-items:center;padding:11px 13px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line);font-size:.86rem;margin-bottom:8px;cursor:pointer;transition:.15s;color:var(--ink)}
+.chat-info .linkcard:hover{border-color:var(--brand-2)}
+.chat-info .linkcard svg{width:18px;height:18px;flex:none;color:var(--blue)}
+.chat-info .linkcard>span:not(.cl-mini){min-width:0}.chat-info .linkcard b,.chat-info .linkcard small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-info .linkcard small{color:var(--muted);font-size:.76rem}
+.cl-mini{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;font-weight:800;background:linear-gradient(135deg,var(--brand-2),var(--blue));flex:none}
+@media(max-width:1180px){#chat-app .chat-wrap{grid-template-columns:320px minmax(0,1fr)}.chat-info{display:none}}
+@media(max-width:760px){#chat-app .chat-wrap{grid-template-columns:1fr}}
