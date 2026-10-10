@@ -388,5 +388,21 @@
       };
     }).catch(function (e) { U.toast("Не удалось загрузить данные: " + E(e)); });
   };
-  K.render = render;
+  K.invalidate = function () { S.at = 0; };
+  /* КП ушло клиенту: заявка в реестре получает статус «КП отправлено» (или создаётся новая) */
+  K.registerKp = function (info) {
+    var d = new Date(), today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    return load(true).then(function () {
+      var c = S.by[norm(info.name)], closed = ["Выиграно", "Отказ", "Отложено"];
+      var lead = c ? c.leads.filter(function (l) { return closed.indexOf(l.status) < 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0] : null;
+      if (lead) {
+        var data = {}; LEAD_KEYS.forEach(function (k) { if (lead[k] !== undefined) data[k] = lead[k]; });
+        data.status = "КП отправлено"; data.amount = info.total; data.lastContact = today;
+        data.essence = (data.essence ? data.essence + " · " : "") + "КП № " + info.num;
+        return callServer("api_kpregSave", lead.row, data).then(function () { S.at = 0; return { created: false, row: lead.row }; });
+      }
+      var n = { date: today, customer: info.name, funnel: (window.FUNNEL_SOURCES && FUNNEL_SOURCES[0]) || "Переписка", contact: "", phoneEmail: info.phone || "", object: info.address || "", essence: "КП № " + info.num, amount: info.total, status: "КП отправлено", owner: info.owner || "", lastContact: today, comment: "Создано при отправке КП из переписки" };
+      return callServer("api_kpregCreate", n).then(function () { S.at = 0; return { created: true }; });
+    });
+  };  K.render = render;
 })();

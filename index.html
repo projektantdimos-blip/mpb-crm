@@ -2059,7 +2059,32 @@ function init() {
   /* доступ для kpv.js: прайс и версии КП */
   window.__kpc = {
     state, CATALOG, refresh, parseIntStrict, fmtPrice,
-    model() { return buildModel(state, false); },
+    fromSaved(saved) {                               // состояние конструктора из сохранённого — без изменения экрана
+      const st = newState(todayIso());
+      Object.assign(st, { num: saved.num || '', date: saved.date || st.date, object: saved.object || '', address: saved.address || '', noAddress: !!saved.noAddress });
+      CATALOG.forEach(s => {
+        const sv = saved.services && saved.services[s.id];
+        if (sv) st.services[s.id] = { on: !!sv.on, price: sv.price || '', fields: Object.assign(defaultFields(s), sv.fields || {}) };
+      });
+      st.deadline.on = hasProject(st);
+      return st;
+    },
+    checkSaved(saved) { return validate(this.fromSaved(saved)); },
+    textFor(saved) {                                 // текст сообщения для чата
+      const m = buildModel(this.fromSaved(saved), false), nb = / /g;
+      const lines = ['Коммерческое предложение № ' + m.num + ' от ' + m.date, 'Объект: ' + m.object];
+      if (m.address) lines.push(m.address);
+      lines.push('');
+      m.rows.forEach((r, i) => lines.push((i + 1) + '. ' + r.lines.join(' ') + ' — ' + r.priceLines.join(' / ')));
+      lines.push('', 'Итого: ' + m.total + ' (НДС не облагается, АУСН)', '');
+      m.note.forEach(n => lines.push(n));
+      return lines.join('\n').replace(nb, ' ');
+    },
+    async pdf(saved) {                               // PDF по тем же правилам, что кнопка «Скачать КП (.pdf)»
+      const st = this.fromSaved(saved);
+      return { blob: await buildPdf(st), name: pdfFileName(st) };
+    },
+
     check() { return validate(state); },
     total() {
       let s = 0;
@@ -2139,6 +2164,7 @@ document.addEventListener('DOMContentLoaded', init);
 <script src="stages.js"></script>
 <script src="clients.js"></script>
 <script src="kpv.js"></script>
+<script src="chatpanel.js"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

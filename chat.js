@@ -316,6 +316,13 @@
     if (!el.info) return;
     if (!t) { el.info.innerHTML = '<div class="chat-empty">Выберите диалог слева</div>'; return; }
     var ci = chInfo(t.channel), av = avUrl(t), ini = (t.title || "?").trim().charAt(0).toUpperCase(), name = t.title || t.peer;
+    if (window.MPBD && MPBD.render) {                              // боковая панель с вкладками: клиент / создать клиента / КП
+      el.info.innerHTML = '<div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
+        (crmOn() ? '<button class="hbtn cp-assign" id="qaAssign">📨 Передать сотруднику</button>' : "") + '<div id="chatPanel"></div>';
+      var qa0 = document.getElementById("qaAssign"); if (qa0) qa0.onclick = function () { assignDialog(t); };
+      MPBD.render(document.getElementById("chatPanel"), t, name);
+      return;
+    }
     el.info.innerHTML = '<div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
       '<div><h6>Клиент</h6><div id="chatCl"><div class="chat-empty" style="padding:8px">Ищу в задачах и заявках…</div></div></div>' +
       '<div><h6>Быстрые действия</h6>' +
@@ -540,6 +547,10 @@
 
   /* для «Конструктора КП»: отправить готовое предложение в диалог */
   window.__chatThreads = function () { return st.threads.slice(); };
+  window.__chatSendFile = function (tid, text, filename, b64) {
+    return api("/api/threads/" + encodeURIComponent(tid) + "/send-file", { method: "POST", body: { text: text, filename: filename, mime: "application/pdf", data: b64 } })
+      .then(function (r) { try { loadThreads(); if (st.sel === tid) loadMessages(false); } catch (e) {} return r; });
+  };
   window.__chatSend = function (tid, text) {
     return api("/api/threads/" + encodeURIComponent(tid) + "/send", { method: "POST", body: { text: text } }).then(function () { try { loadThreads(); if (st.sel === tid) loadMessages(false); } catch (e) {} });
   };
