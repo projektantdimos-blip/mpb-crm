@@ -815,3 +815,56 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .x-opt select{min-height:46px}
 .x-opt input[type=time]::-webkit-calendar-picker-indicator,.x-opt input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.7}
 .x-comp{position:relative}
+
+/* ===== Конструктор КП — вид из макета: ступени, карточки услуг, бумага справа ===== */
+.kpc-scope .top{background:transparent;color:var(--ink);padding:0;margin:0 0 6px}
+.kpc-scope .top h1{font-size:1.7rem;font-weight:800;letter-spacing:-.4px}
+.kpc-scope .top p{color:var(--muted);opacity:1}
+.kpc-scope .tab{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:30px;font-weight:600}
+.kpc-scope .tab.active{background:var(--blue-l);color:var(--blue);border-color:transparent}
+.kpc-scope .layout{max-width:none!important;grid-template-columns:minmax(420px,620px) minmax(0,1fr)!important;gap:24px!important;padding:0 24px!important}
+.kpc-scope .card{border-radius:20px;padding:22px 24px;box-shadow:var(--shadow-s)}
+.kpc-scope .card h2{font-size:1.1rem;font-weight:800;gap:12px}
+.kpc-scope .step{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,var(--brand-2),var(--blue));font-weight:800;font-size:.9rem}
+.kpc-scope .svc{border:1.5px solid var(--line);border-radius:16px;margin-bottom:10px;background:var(--surface-2);transition:.18s}
+.kpc-scope .svc.on{border-color:var(--brand-2);background:var(--card);box-shadow:0 6px 20px color-mix(in srgb,var(--brand-2) 14%,transparent)}
+.kpc-scope .svc-head{padding:14px 16px;align-items:center;gap:12px}
+.kpc-scope .svc-head input{width:22px;height:22px;accent-color:var(--blue)}
+.kpc-scope .svc-title{font-weight:700;font-size:.93rem;flex:1}
+.kpc-scope .svc-pr{margin-left:auto;font-weight:800;font-size:.92rem;color:var(--blue);white-space:nowrap}
+.kpc-scope .svc-body{padding:0 16px 16px 50px}
+.kpc-scope .rule{background:var(--blue-l);color:var(--blue);border-radius:12px;font-size:.8rem}
+.kpc-scope input[type=text],.kpc-scope input[type=date],.kpc-scope input:not([type]){border:1px solid var(--line);border-radius:12px;padding:11px 14px;background:var(--surface-2);color:var(--ink)}
+.kpc-scope input:focus{outline:0;border-color:var(--brand-2);background:var(--card);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-2) 16%,transparent)}
+.kpc-scope .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);font-weight:700}
+.kpc-scope .right .sticky{border-radius:20px}
+.kpc-scope .okbox{background:var(--ok-l);color:var(--ok);border-radius:14px;padding:12px 16px}
+.kpc-scope .badbox{background:var(--bad-l);color:var(--bad);border-radius:14px;padding:12px 16px}
+.kpc-scope .actions{gap:10px}
+.kpc-scope button.primary{background:linear-gradient(135deg,#f6a982,var(--accent));color:#3d1b08;border-radius:13px;box-shadow:0 8px 20px rgba(238,146,100,.35)}
+.kpc-scope button.primary.ready{background:linear-gradient(135deg,var(--brand-2),var(--blue));color:#fff;box-shadow:0 8px 20px color-mix(in srgb,var(--blue) 34%,transparent)}
+.kpc-scope button.ghost{border-radius:13px}
+/* бумага */
+.kpc-scope .paper{background:#fff;color:#1d2733;border-radius:8px;padding:34px 38px;box-shadow:var(--shadow-l);border:1px solid #e1e6ee;font-size:.88rem}
+.kpc-scope .paper .lh{display:flex;align-items:center;gap:16px;border-bottom:3px solid #1f5c99;padding-bottom:14px;margin-bottom:18px;background:none;border-top:0;color:inherit;font-size:inherit}
+.kpc-scope .paper .lh img{height:58px;width:auto}
+.kpc-scope .paper .lh .rq{margin-left:auto;text-align:right;font-size:.78rem;color:#66717e;line-height:1.5}
+.kpc-scope .paper h2{text-align:center;font-size:1.15rem;margin:6px 0 4px;color:#1d2733}
+.kpc-scope .paper .sbt{text-align:center;color:#66717e;margin-bottom:16px}
+.kpc-scope .paper .meta{display:grid;grid-template-columns:90px 1fr;gap:3px 10px;margin-bottom:12px}
+.kpc-scope .paper .meta span{color:#66717e}
+.kpc-scope .paper .intro{color:#46515f;margin:0 0 14px;line-height:1.5}
+.kpc-scope .paper table.srv{width:100%;border-collapse:collapse;margin-bottom:12px}
+.kpc-scope .paper table.srv th{background:#ee9264;color:#fff;font-size:.76rem;padding:9px 10px;text-align:left;border:0}
+.kpc-scope .paper table.srv td{padding:10px;border-bottom:1px solid #e6ebf1;vertical-align:top}
+.kpc-scope .paper table.srv .n{width:30px;color:#66717e;text-align:center}
+.kpc-scope .paper table.srv .r{text-align:right;white-space:nowrap}
+.kpc-scope .paper .tot{margin-left:auto;width:min(320px,100%);font-size:.86rem}
+.kpc-scope .paper .tot div{display:flex;justify-content:space-between;padding:4px 0;gap:12px}
+.kpc-scope .paper .tot .gt{border-top:2px solid #1f5c99;margin-top:6px;padding-top:9px;font-size:1.1rem;font-weight:800;color:#1f5c99}
+.kpc-scope .paper .cond{margin-top:16px;color:#46515f;font-size:.8rem;line-height:1.6}
+.kpc-scope .paper .sign{display:flex;justify-content:space-between;margin-top:28px;color:#66717e;font-size:.8rem}
+.kpc-scope .paper .fixed{margin-top:16px;padding-top:10px;border-top:1px dashed #d6dde7;color:#8793a2;font-size:.72rem}
+.kpc-scope .paper .miss{background:#fff1d6;color:#a45b00;border-radius:5px;padding:0 5px;font-size:.78em}
+.kpc-scope .paper .emptyrow{text-align:center;color:#9aa5b3;padding:22px}
+@media(max-width:1100px){.kpc-scope .layout{grid-template-columns:1fr!important}}

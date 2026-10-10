@@ -1841,7 +1841,7 @@ function serviceCard(svc) {
       st.price = String(sg); price.value = st.price; touch(priceKey); refresh(); } }),
     h('div', { class: 'rule' }, svc.rule));
   const card = h('div', { class: 'svc' + (st.on ? ' on' : ''), 'data-svc': svc.id },
-    h('label', { class: 'svc-head' }, cb, h('span', { class: 'svc-title' }, svc.title)), body);
+    h('label', { class: 'svc-head' }, cb, h('span', { class: 'svc-title' }, svc.title), h('span', { class: 'svc-pr', 'data-pr': svc.id })), body);
   cb.addEventListener('change', () => {
     st.on = cb.checked; card.classList.toggle('on', st.on);
     if (st.on && !st.price && window.MPBP) { const sg = MPBP.suggest(svc, st); if (sg) { st.price = String(sg); price.value = st.price; } }
@@ -1935,6 +1935,10 @@ function refresh() {
   }
   if (res.warnings.length) summaryEl.append(h('ul', { class: 'warns' }, res.warnings.map(w => h('li', null, '⚠ ' + w.msg))));
   dlBtn.classList.toggle('ready', res.ok); pdfBtn.classList.toggle('ready', res.ok);
+  document.querySelectorAll('[data-pr]').forEach(el => {                        // цена услуги справа в карточке
+    const sv = state.services[el.dataset.pr], p = sv && parseIntStrict(sv.price);
+    el.textContent = sv && sv.on && p ? fmtPrice(p) : '';
+  });
   document.querySelectorAll('[data-pricehint]').forEach(b => {                      // подсказка из прайса (kpv.js)
     const svc = CATALOG.find(s => s.id === b.dataset.pricehint), sv = state.services[svc.id];
     const sg = window.MPBP ? MPBP.suggest(svc, sv) : 0;
@@ -1946,20 +1950,22 @@ function refresh() {
 }
 function renderPreview() {
   const m = buildModel(state, true);
-  const rows = m.rows.map(r => '<tr><td>' + r.lines.map(l => '<div>' + markHtml(l) + '</div>').join('') + '</td><td class="c">' +
+  const rows = m.rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + r.lines.map(l => '<div>' + markHtml(l) + '</div>').join('') + '</td><td class="r">' +
     r.priceLines.map(l => '<div>' + markHtml(l) + '</div>').join('') + '</td></tr>').join('');
-  const empty = '<tr><td colspan="2" class="emptyrow">Услуги не выбраны</td></tr>';
+  const empty = '<tr><td colspan="3" class="emptyrow">Услуги не выбраны — отметьте их слева</td></tr>';
+  const logo = window.LOGO ? '<img src="' + window.LOGO + '" alt="МПБ">' : '';
   previewEl.innerHTML =
-    '<div class="lh">Фирменный бланк МПБ: логотип и контакты подставятся автоматически</div>' +
-    '<table class="meta"><tr><td><b>Предложение № ' + markHtml(m.num) + '</b></td><td class="r">От ' + markHtml(m.date) + '</td></tr>' +
-    '<tr><td><b>Наименование объекта:</b></td><td class="r">' + markHtml(m.object) + '</td></tr></table>' +
-    '<p class="intro">' + html(m.intro) + (m.address ? '<br>' + markHtml(m.address) : '') + '</p>' +
-    '<table class="srv"><tr><th>Наименование</th><th>Стоимость</th></tr>' + (rows || empty) +
-    '<tr><td class="nds">' + html(m.totalLabel) + '</td><td class="c tot">' + markHtml(m.total) + '</td></tr></table>' +
-    '<p class="note">' + m.note.map(markHtml).join(' ') + '</p>' +
-    '<div class="fixed">Дальше подставляются автоматически: лицензия МЧС Л014-00101-78/03255690, QR-коды, «Только аттестованные специалисты выполняют работы по проектированию.», подпись и печать генерального директора.</div>';
-}
-async function download(kind) {
+    '<div class="lh">' + logo + '<div class="rq">г. Санкт-Петербург<br>' + markHtml(m.date) + '</div></div>' +
+    '<h2>Коммерческое предложение № ' + markHtml(m.num) + '</h2>' +
+    '<div class="sbt">' + markHtml(m.object) + '</div>' +
+    '<div class="meta"><span>Объект</span><b>' + markHtml(m.object) + '</b>' + (m.address ? '<span>Адрес</span><b>' + markHtml(m.address) + '</b>' : '') + '</div>' +
+    '<p class="intro">' + html(m.intro) + '</p>' +
+    '<table class="srv"><tr><th class="n">№</th><th>Наименование</th><th class="r">Стоимость</th></tr>' + (rows || empty) + '</table>' +
+    '<div class="tot"><div><span>НДС</span><span>не облагается (АУСН)</span></div><div class="gt"><span>Итого</span><b>' + markHtml(m.total || '—') + '</b></div></div>' +
+    '<div class="cond">' + m.note.map(markHtml).join('<br>') + '</div>' +
+    '<div class="sign"><span>Генеральный директор</span><span>М.П.</span></div>' +
+    '<div class="fixed">Дальше подставляются автоматически: лицензия МЧС, QR-коды, подпись и печать — как в КП № 211.</div>';
+}async function download(kind) {
   showAll = true;
   const res = refresh();
   if (!res.ok) {
