@@ -108,7 +108,7 @@
     el.innerHTML = U.head("Этапы и сроки", "У каждого вида работ свой порядок этапов, исполнители и сроки по умолчанию",
       adm ? '<div class="x-row" style="margin:0"><button class="x-btn ghost" id="sgReset">Отменить правки</button><button class="x-btn primary" id="sgSave">Сохранить</button></div>' : "")
       + '<div class="wrap">' + (adm ? "" : '<div class="x-notif on" style="margin-bottom:16px"><span class="dot"></span><div><b>Только просмотр</b><small>Менять наборы этапов может руководитель</small></div></div>')
-      + '<div class="sg"><div class="sg-list" id="sgList"></div><div id="sgEd"></div></div></div>';
+      + '<div class="sg"><div class="sg-list" id="sgList"></div><div class="x-panel" id="sgEd"></div></div></div>';
     paintList(); paintEd(); bar();
     var s = $("sgSave"); if (s) s.onclick = function () { save(false); };
     var r = $("sgReset"); if (r) r.onclick = function () { if (G.dirty && !confirm("Отменить все несохранённые правки?")) return; G.draft = null; G.dirty = false; G.sel = 0; render(); };
@@ -117,18 +117,19 @@
   function touch() { G.dirty = true; bar(); }
 
   function busy(p) { var u = G.usage[p.id], n = 0; if (u) Object.keys(u).forEach(function (k) { n += u[k]; }); return n; }
+  function tc(p) { return window.wtColor ? wtColor((p.name || "") + " " + (p.keys || []).join(" ")) : "var(--blue)"; }
   function paintList() {
     var d = G.draft, adm = isAdmin();
-    $("sgList").innerHTML = d.pools.map(function (p, i) {
-      var n = busy(p);
-      return '<div class="sg-pool ' + (i === G.sel ? "on" : "") + '" data-i="' + i + '"><div class="t"><b>' + E(p.name || "Без названия") + "</b>" + (d.default === p.id ? '<span class="x-pill blue">по умолчанию</span>' : "") + "</div>"
-        + "<small>" + p.stages.length + " " + nz(p.stages.length, "этап", "этапа", "этапов") + (n ? " · сейчас в работе: " + n : "") + "</small>"
-        + (p.keys && p.keys.length ? '<div class="sg-keys">' + p.keys.slice(0, 5).map(function (k) { return "<span>" + E(k) + "</span>"; }).join("") + "</div>" : "") + "</div>";
-    }).join("") + (adm ? '<button class="x-btn ghost" id="sgAdd" style="justify-content:center">' + ic("plus") + "Добавить набор</button><p class=\"sg-hintln\">Новый набор создаётся как копия выбранного — удобно поменять только то, что отличается</p>" : "");
-    $("sgList").querySelectorAll(".sg-pool").forEach(function (b) { b.onclick = function () { G.sel = +b.dataset.i; paintList(); paintEd(); }; });
+    $("sgList").innerHTML = '<div style="padding:16px 18px 10px"><h3>Виды работ</h3><p class="x-sub" style="margin:0">Цвет задаёт вид на доске и в календаре</p></div>'
+      + d.pools.map(function (p, i) {
+        var n = busy(p);
+        return '<div class="sg-wt ' + (i === G.sel ? "on" : "") + '" data-i="' + i + '" style="--tc:' + tc(p) + '"><span class="sq"></span><div><b>' + E(p.name || "Без названия") + (d.default === p.id ? ' <span class="x-pill blue">по умолчанию</span>' : "") + "</b><small>" + p.stages.length + " " + nz(p.stages.length, "этап", "этапа", "этапов") + " · задач: " + n + "</small></div></div>";
+      }).join("")
+      + (adm ? '<div style="padding:14px 16px"><button class="x-btn ghost" id="sgAdd" style="width:100%;justify-content:center">' + ic("plus") + 'Добавить вид работ</button><p class="sg-hintln">Новый вид создаётся как копия выбранного — измените только отличия</p></div>' : "");
+    $("sgList").querySelectorAll(".sg-wt").forEach(function (b) { b.onclick = function () { G.sel = +b.dataset.i; paintList(); paintEd(); }; });
     var a = $("sgAdd");
     if (a) a.onclick = function () {
-      var src = d.pools[G.sel], nm = "Новый набор", k = 1; while (d.pools.some(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); })) nm = "Новый набор " + (++k);
+      var src = d.pools[G.sel], nm = "Новый вид работ", k = 1; while (d.pools.some(function (p) { return p.name.toLowerCase() === nm.toLowerCase(); })) nm = "Новый вид работ " + (++k);
       d.pools.push({ id: "p" + Date.now().toString(36), name: nm, keys: [], stages: clone(src.stages) }); G.sel = d.pools.length - 1; touch(); paintList(); paintEd();
       var f = $("sgName"); if (f) { f.focus(); f.select(); }
     };
@@ -136,43 +137,47 @@
 
   function testText(wt) {
     var d = G.draft, p = pick(d.pools, d.default, wt);
-    return wt ? "попадёт в набор <b>«" + E(p.name) + "»</b>" + (d.default === p.id && !(String(wt).trim().toLowerCase() === p.name.toLowerCase()) ? " (набор по умолчанию)" : "") : "";
+    return wt ? "попадёт в набор <b>«" + E(p.name) + "»</b>" + (d.default === p.id && !(String(wt).trim().toLowerCase() === p.name.toLowerCase()) ? " (по умолчанию)" : "") : "";
   }
-  function chain(p) {
-    return '<div class="sg-chain">' + p.stages.map(function (s, i) {
-      return (i ? '<span class="sg-sep">›</span>' : "") + '<span class="sg-chip" style="--c:' + color(s.who) + '"><b>' + (i + 1) + "</b>" + E(s.name || "…") + "<small>" + E(s.who || "—") + (s.days ? " · " + s.days + " дн." : "") + "</small></span>";
-    }).join("") + "</div>";
-  }
+  function strip(p) { return p.stages.map(function (s, i) { return "<span>" + (i + 1) + ". " + E(s.name || "…") + "</span>"; }).join(""); }
+  function totalDays(p) { return p.stages.reduce(function (a, s) { return a + (+s.days || 0); }, 0); }
   function paintEd() {
-    var d = G.draft, p = d.pools[G.sel], adm = isAdmin(), dis = adm ? "" : " disabled", use = G.usage[p.id] || {};
+    var d = G.draft, p = d.pools[G.sel], adm = isAdmin(), dis = adm ? "" : " disabled", use = G.usage[p.id] || {}, isDef = d.default === p.id;
     var people = []; G.users.concat(window.ALL_PEOPLE || []).forEach(function (n) { if (n && people.indexOf(n) < 0) people.push(n); });
     d.pools.forEach(function (q) { q.stages.forEach(function (s) { if (s.who && people.indexOf(s.who) < 0) people.push(s.who); }); });
-    var isDef = d.default === p.id;
-    $("sgEd").innerHTML = '<div class="x-panel pad"><div class="x-field"><label>Название набора</label><input type="text" id="sgName" maxlength="60" value="' + E(p.name) + '"' + dis + ' placeholder="Например: Испытания"></div>'
-      + '<div class="x-field"><label>Ключевые слова вида работ</label><input type="text" id="sgKeys" value="' + E((p.keys || []).join(", ")) + '"' + dis + ' placeholder="через запятую: испыт, сопротивл, рр"><p class="sg-hintln">Если в поле «Вид работы» задачи есть любое из этих слов (или оно совпадает с названием набора), задача пойдёт по этому набору. Остальные виды работ идут по набору «по умолчанию».</p></div>'
-      + '<div class="x-qrow" style="border-bottom:0;padding-bottom:4px"><div><b>Набор по умолчанию</b><small>' + (isDef ? "Для всех видов работ, которые не подошли другим наборам" : "Включите, чтобы все прочие виды работ шли по этому набору") + '</small></div><button type="button" class="x-sw ' + (isDef ? "on" : "") + '" id="sgDef"' + dis + "></button></div>"
-      + '<div class="sg-test" style="margin-top:10px"><span>Проверка:</span><input type="text" id="sgTest" placeholder="введите вид работы, например «Испытания ВПВ»"><span id="sgTestOut"></span></div></div>'
-      + '<datalist id="sgPeople">' + people.map(function (n) { return '<option value="' + E(n) + '">'; }).join("") + "</datalist>"
-      + '<div class="x-panel" style="margin-top:16px"><div class="sg-h"><h3>Этапы по порядку</h3>' + (adm && d.pools.length > 1 && !isDef ? '<button class="x-btn ghost" id="sgDel" style="padding:7px 13px;color:var(--bad)">Удалить набор</button>' : "") + "</div>"
-      + '<div class="sg-cols"><span></span><span>Этап</span><span>Исполнитель</span><span title="Срок этапа по умолчанию. 0 — как в настройке моста (3 дня)">Срок, дн.</span><span style="text-align:center">В работе</span><span></span></div>'
+    $("sgEd").innerHTML = '<div style="padding:18px 20px 12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><h3 style="font-size:1.1rem;margin:0">Пул этапов · ' + E(p.name) + '</h3><p class="x-sub" style="margin:0">Задачи этого вида получают именно эти этапы. Всего: <b>' + p.stages.length + '</b> · около <b id="sgTot">' + totalDays(p) + '</b> дн.</p></div>'
+      + (adm ? '<select id="sgCopy" class="sg-sel"><option value="">Скопировать из…</option>' + d.pools.filter(function (q) { return q.id !== p.id; }).map(function (q) { return '<option value="' + E(q.id) + '">' + E(q.name) + "</option>"; }).join("") + "</select>" : "") + "</div>"
+      + '<div class="sg-strip" style="--tc:' + tc(p) + '" id="sgStrip">' + strip(p) + "</div>"
+      + '<div class="sg-meta"><div class="x-field"><label>Название вида работ</label><input type="text" id="sgName" maxlength="60" value="' + E(p.name) + '"' + dis + '></div>'
+      + '<div class="x-field"><label>Ключевые слова в поле «Вид работы»</label><input type="text" id="sgKeys" value="' + E((p.keys || []).join(", ")) + '"' + dis + ' placeholder="через запятую: испыт, сопротивл"></div>'
+      + '<div class="x-qrow" style="border:0;padding:0"><div><b>По умолчанию</b><small>' + (isDef ? "Для видов работ, не подошедших другим" : "Включите, чтобы остальные виды шли по этому пулу") + '</small></div><button type="button" class="x-sw ' + (isDef ? "on" : "") + '" id="sgDef"' + dis + "></button></div>"
+      + '<div class="sg-test"><span>Проверка:</span><input type="text" id="sgTest" placeholder="например «Испытания ВПВ»"><span id="sgTestOut"></span></div></div>'
       + p.stages.map(function (s, i) {
-        return '<div class="sg-row" data-i="' + i + '"><span class="n">' + (i + 1) + '</span><input class="nm" data-f="name" maxlength="80" value="' + E(s.name) + '"' + dis + '><input class="who" data-f="who" list="sgPeople" maxlength="40" value="' + E(s.who) + '"' + dis + ' placeholder="кто делает"><input class="dy" data-f="days" type="number" min="0" max="365" value="' + s.days + '"' + dis + '>'
-          + '<span class="use">' + (use[s.name] ? '<span class="x-pill soon">' + use[s.name] + "</span>" : '<span style="color:var(--muted)">—</span>') + "</span>"
-          + (adm ? '<span class="mv"><button data-mv="-1" title="Выше"' + (i === 0 ? " disabled" : "") + '>▲</button><button data-mv="1" title="Ниже"' + (i === p.stages.length - 1 ? " disabled" : "") + '>▼</button><button class="rm" data-rm="1" title="Убрать этап"' + (p.stages.length < 2 ? " disabled" : "") + ">✕</button></span>" : "<span></span>") + "</div>";
+        var opts = people.slice(); if (s.who && opts.indexOf(s.who) < 0) opts.push(s.who);
+        return '<div class="sg-row" data-i="' + i + '"><span class="gp">⠿</span><span class="n">' + (i + 1) + '</span><input class="nm" data-f="name" maxlength="80" value="' + E(s.name) + '"' + dis + '>'
+          + '<select class="who" data-f="who"' + dis + '><option value=""' + (s.who ? "" : " selected") + '>— не назначен —</option>' + opts.map(function (n) { return "<option" + (n === s.who ? " selected" : "") + ">" + E(n) + "</option>"; }).join("") + "</select>"
+          + '<input class="dy" data-f="days" type="number" min="0" max="365" value="' + s.days + '" title="Срок этапа, дней (0 — как в настройке, 3 дня)"' + dis + ">"
+          + '<span class="use">' + (use[s.name] ? '<span class="x-pill soon" title="Открытых задач на этапе">' + use[s.name] + "</span>" : "") + "</span>"
+          + (adm ? '<span class="mv"><button data-mv="-1" title="Выше"' + (i === 0 ? " disabled" : "") + '>▲</button><button data-mv="1" title="Ниже"' + (i === p.stages.length - 1 ? " disabled" : "") + '>▼</button><button class="rm" data-rm="1" title="Удалить"' + (p.stages.length < 2 ? " disabled" : "") + ">✕</button></span>" : "<span></span>") + "</div>";
       }).join("")
-      + (adm ? '<div style="padding:12px 18px"><button class="x-btn ghost" id="sgAddSt">' + ic("plus") + "Добавить этап</button></div>" : "") + "</div>"
-      + '<div class="x-panel pad" style="margin-top:16px"><h3>Как это увидят в задаче</h3><p class="x-sub">Цвет — по исполнителю. «В работе» — сколько открытых задач сейчас на этапе.</p><div id="sgChain">' + chain(p) + "</div></div>";
+      + (adm ? '<div style="padding:16px 20px;display:flex;gap:10px;flex-wrap:wrap"><button class="x-btn ghost" id="sgAddSt">' + ic("plus") + 'Добавить этап</button><button class="x-btn primary" id="sgSavePool">Сохранить пул</button>' + (d.pools.length > 1 && !isDef ? '<button class="x-btn ghost" id="sgDel" style="margin-left:auto;color:var(--bad)">Удалить вид работ</button>' : "") + "</div>" : "");
     $("sgTest").oninput = function () { $("sgTestOut").innerHTML = testText(this.value); };
     if (!adm) return;
     $("sgName").oninput = function () { p.name = this.value; touch(); paintList(); };
-    $("sgKeys").onchange = function () { p.keys = this.value.split(/[,;\n]/).map(function (x) { return x.trim(); }).filter(Boolean); this.value = p.keys.join(", "); touch(); paintList(); };
+    $("sgKeys").onchange = function () { p.keys = this.value.split(/[,;\n]/).map(function (x) { return x.trim(); }).filter(Boolean); this.value = p.keys.join(", "); touch(); paintList(); $("sgStrip").style.setProperty("--tc", tc(p)); };
     $("sgDef").onclick = function () { d.default = p.id; touch(); paintList(); paintEd(); };
-    var del = $("sgDel"); if (del) del.onclick = function () { if (!confirm("Удалить набор «" + p.name + "»? Задачи этого вида работ пойдут по набору по умолчанию.")) return; d.pools.splice(G.sel, 1); G.sel = 0; touch(); paintList(); paintEd(); };
-    $("sgAddSt").onclick = function () { p.stages.push({ name: "", who: "", days: 3 }); touch(); paintList(); paintEd(); var rows = $("sgEd").querySelectorAll(".sg-row .nm"); rows[rows.length - 1].focus(); };
+    $("sgCopy").onchange = function () {
+      var src = d.pools.filter(function (q) { return q.id === $("sgCopy").value; })[0]; if (!src) return;
+      p.stages = clone(src.stages); touch(); paintList(); paintEd(); U.toast("Пул скопирован — отредактируйте под вид работ");
+    };
+    $("sgSavePool").onclick = function () { save(false); };
+    var del = $("sgDel"); if (del) del.onclick = function () { if (!confirm("Удалить вид работ «" + p.name + "»? Его задачи пойдут по пулу по умолчанию.")) return; d.pools.splice(G.sel, 1); G.sel = 0; touch(); paintList(); paintEd(); };
+    $("sgAddSt").onclick = function () { p.stages.push({ name: "Новый этап", who: "", days: 2 }); touch(); paintList(); paintEd(); var rows = $("sgEd").querySelectorAll(".sg-row .nm"); rows[rows.length - 1].focus(); rows[rows.length - 1].select(); };
+    function upd() { $("sgStrip").innerHTML = strip(p); $("sgTot").textContent = totalDays(p); }
     $("sgEd").querySelectorAll(".sg-row").forEach(function (row) {
       var i = +row.dataset.i, s = p.stages[i];
-      row.querySelectorAll("input[data-f]").forEach(function (inp) {
-        inp.oninput = function () { var f = inp.dataset.f; s[f] = f === "days" ? Math.max(0, Math.min(365, parseInt(inp.value, 10) || 0)) : inp.value; touch(); $("sgChain").innerHTML = chain(p); };
+      row.querySelectorAll("[data-f]").forEach(function (inp) {
+        inp.oninput = inp.onchange = function () { var f = inp.dataset.f; s[f] = f === "days" ? Math.max(0, Math.min(365, parseInt(inp.value, 10) || 0)) : inp.value; touch(); upd(); };
       });
       row.querySelectorAll("[data-mv]").forEach(function (b) { b.onclick = function () { var j = i + +b.dataset.mv; p.stages.splice(j, 0, p.stages.splice(i, 1)[0]); touch(); paintEd(); }; });
       var rm = row.querySelector("[data-rm]"); if (rm) rm.onclick = function () {

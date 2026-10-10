@@ -13,7 +13,15 @@
     if (window.PERSON_COLOR && PERSON_COLOR[name] && PERSON_COLOR[name].charAt(0) === "#") return PERSON_COLOR[name];
     var h = 0; String(name).split("").forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return PALETTE[h % PALETTE.length];
   }
-  function ava(name, cls) { return '<span class="x-ava ' + (cls || "") + '" style="background:' + color(name) + '">' + E(String(name).charAt(0)) + "</span>"; }
+  var PPL = {};                                                  // имя -> {title, photo}: загружается после входа
+  function ava(name, cls) {
+    var p = PPL[String(name).toLowerCase()];
+    if (p && p.photo) return '<span class="x-ava ' + (cls || "") + '" style="background-image:url(' + p.photo + ');background-size:cover;background-position:center"></span>';
+    return '<span class="x-ava ' + (cls || "") + '" style="background:' + color(name) + '">' + E(String(name).charAt(0)) + "</span>";
+  }
+  function loadPeople() {
+    return C.call("/people").then(function (l) { PPL = {}; l.forEach(function (x) { PPL[x.name.toLowerCase()] = x; }); T.people = l; }).catch(function () {});
+  }
   function head(title, sub, extra) { return '<header class="top"><div class="brand"><div><h1>' + title + "</h1><p>" + sub + "</p></div></div>" + (extra || "") + "</header>"; }
   function toast(msg, undo) {
     var t = $("xToast"); if (!t) { t = document.createElement("div"); t.id = "xToast"; t.className = "x-toast"; document.body.appendChild(t); }
@@ -207,7 +215,7 @@
     var el = $("me-app"), sub = "Настройки уведомлений, профиль и доступ сотрудников";
     if (!gate(el, "Личный кабинет", sub, renderMe)) return;
     var u = C.me, tabs = [["notif", "bell", "Уведомления"], ["info", "user", "Профиль"]].concat(u.role === "admin" ? [["staff", "users", "Сотрудники"]] : []);
-    el.innerHTML = head("Личный кабинет", sub) + '<div class="wrap"><div class="x-prof">' + ava(u.name) + "<div><h2>" + E(u.name) + "</h2><p>" + (u.role === "admin" ? "Руководитель" : "Сотрудник") + (u.tg ? " · Telegram подключён" : "") + '</p></div><button class="x-btn ghost" id="meOut">Выйти</button></div>'
+    el.innerHTML = head("Личный кабинет", sub) + '<div class="wrap"><div class="x-prof">' + ava(u.name) + "<div><h2>" + E(u.name) + "</h2><p>" + (u.title ? E(u.title) + " · " : "") + (u.role === "admin" ? "Руководитель" : "Сотрудник") + (u.tg ? " · Telegram подключён" : "") + '</p></div><button class="x-btn ghost" id="meOut">Выйти</button></div>'
       + '<div class="x-bar"><div class="x-seg" id="meTabs">' + tabs.map(function (t) { return '<button data-t="' + t[0] + '" class="' + (P.tab === t[0] ? "on" : "") + '">' + ic(t[1]) + t[2] + "</button>"; }).join("") + '</div></div><div id="meBody"></div></div>';
     $("meOut").onclick = function () { C.logout().then(renderMe); };
     $("meTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { P.tab = b.dataset.t; renderMe(); }; });
@@ -243,7 +251,44 @@
       C.call("/me/test", { body: {} }).then(function (r) { var names = { app: "в приложении", push: "push", telegram: "Telegram" }, parts = Object.keys(r).map(function (k) { return names[k] + (r[k] ? " ✓" : " ✗"); }); $("meTestOut").textContent = parts.length ? "Отправлено: " + parts.join(", ") : "По вашим настройкам сейчас ничего не отправляется (тихие часы?)"; C.refresh(); }).catch(function (e) { $("meTestOut").textContent = String(e); });
     };
   }
+  function resizePhoto(file, cb) {                                // квадрат 160×160, JPEG — небольшой, хранится на сервере
+    var fr = new FileReader();
+    fr.onload = function () {
+      var im = new Image();
+      im.onload = function () {
+        var s = Math.min(im.width, im.height), cv = document.createElement("canvas"); cv.width = cv.height = 160;
+        cv.getContext("2d").drawImage(im, (im.width - s) / 2, (im.height - s) / 2, s, s, 0, 0, 160, 160);
+        cb(cv.toDataURL("image/jpeg", 0.82));
+      };
+      im.onerror = function () { toast("Не удалось прочитать изображение"); };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  }
   function paintInfo2() {
+    paintPin();
+    var me = C.me, pw = { photo: undefined };
+    $("meBody").insertAdjacentHTML("afterbegin", '<div class="x-panel pad" style="max-width:560px;margin-bottom:16px"><h3>Профиль</h3><p class="x-sub">Фото и должность видят коллеги в «Команде», задачах и календаре</p>'
+      + '<div style="display:flex;gap:16px;align-items:center;margin-bottom:14px"><span id="prPh" class="x-ava" style="width:72px;height:72px;font-size:1.6rem;flex:none"></span><div><input type="file" id="prFile" accept="image/*" hidden><button class="x-btn ghost" id="prPick">Загрузить фото</button> <button class="x-btn ghost" id="prDel">Убрать</button></div></div>'
+      + '<div class="x-field"><label>Имя</label><input type="text" id="prName" maxlength="40" value="' + E(me.name) + '"><small style="color:var(--muted)">Имя должно совпадать с именем в таблице (колонки «Ответственный», «Менеджер»): по нему приходят уведомления</small></div>'
+      + '<div class="x-field"><label>Должность</label><input type="text" id="prTitle" maxlength="60" value="' + E(me.title || "") + '" placeholder="Например: инженер-проектировщик"></div><div class="x-err" id="prErr"></div><button class="x-btn primary" id="prSave">Сохранить профиль</button></div>');
+    function drawPh() {
+      var src = pw.photo !== undefined ? pw.photo : (me.photo || ""), el = $("prPh");
+      if (src) { el.style.background = "url(" + src + ") center/cover"; el.textContent = ""; }
+      else { el.style.background = color(me.name); el.textContent = String(me.name).charAt(0); }
+    }
+    drawPh();
+    $("prPick").onclick = function () { $("prFile").click(); };
+    $("prFile").onchange = function () { if (this.files[0]) resizePhoto(this.files[0], function (d) { pw.photo = d; drawPh(); }); };
+    $("prDel").onclick = function () { pw.photo = ""; drawPh(); };
+    $("prSave").onclick = function () {
+      var body = { name: $("prName").value, title: $("prTitle").value };
+      if (pw.photo !== undefined) body.photo = pw.photo;
+      if (body.name.trim() !== me.name && !confirm("Сменить имя «" + me.name + "» на «" + body.name.trim() + "»? Если в таблице вы записаны под прежним именем, уведомления по задачам перестанут приходить, пока имена не совпадут.")) return;
+      C.call("/me/profile", { body: body }).then(function (r) { C.me = r.user; return loadPeople(); }).then(function () { toast("Профиль сохранён"); renderMe(); }).catch(function (e) { $("prErr").textContent = String(e); });
+    };
+  }
+  function paintPin() {
     $("meBody").innerHTML = '<div class="x-panel pad" style="max-width:560px"><h3>Сменить PIN</h3><p class="x-sub">После смены нужно будет войти заново на всех устройствах</p>'
       + '<div class="x-field"><label>Текущий PIN</label><input type="password" id="pOld" inputmode="numeric" maxlength="8"></div><div class="x-field"><label>Новый PIN (4–8 цифр)</label><input type="password" id="pNew" inputmode="numeric" maxlength="8"></div><div class="x-field"><label>Повторите новый PIN</label><input type="password" id="pNew2" inputmode="numeric" maxlength="8"></div><div class="x-err" id="pErr"></div><button class="x-btn primary" id="pGo">Сменить PIN</button></div>';
     $("pGo").onclick = function () {
@@ -273,7 +318,7 @@
   /* ---------- маршрутизация ---------- */
   T.render = function (sec) { if (sec === "team") renderTeam(); else if (sec === "log") renderLog(); else if (sec === "me") renderMe(); };
   T.ready = true;
-  C.on("login", function () { var s = cur(); if (s === "team" || s === "log" || s === "me") T.render(s); });
+  C.on("login", function () { loadPeople().then(function () { var s = cur(); if (s === "team" || s === "log" || s === "me") T.render(s); }); });
   C.on("logout", function () { var s = cur(); if (s === "team" || s === "log" || s === "me") T.render(s); });
   var s0 = cur(); if (s0 === "team" || s0 === "log" || s0 === "me") T.render(s0);
 })();

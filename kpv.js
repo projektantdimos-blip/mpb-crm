@@ -45,12 +45,12 @@
   var ST = { draft: ["Черновик", ""], sent: ["Отправлено", "blue"], accepted: ["Принято", "ok"], rejected: ["Отказ", "over"] };
 
   /* ====================================================== прайс ====================================================== */
-  var G = { draft: null };
+  var G = { draft: null, tab: "price" };
   function render() {
     var el = $("price-app"), sub = "Цены по услугам конструктора КП — конструктор подсказывает их при составлении предложения";
     if (!U.gate(el, "Прайс", sub, render)) return;
     if (!K()) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-empty">Загрузка…</div></div>'; setTimeout(render, 400); return; }
-    C.call("/price").then(function (d) { doc = d; lsSet(d); G.draft = JSON.parse(JSON.stringify(d.items)); paint(d); }).catch(function (e) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-panel"><div class="x-empty">' + E(e) + "</div></div></div>"; });
+    C.call("/price").then(function (d) { doc = d; lsSet(d); G.draft = JSON.parse(JSON.stringify(d.items)); if (G.tab !== "price") paintTpl(); else paint(d); }).catch(function (e) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-panel"><div class="x-empty">' + E(e) + "</div></div></div>"; });
   }
   function paint(d) {
     var el = $("price-app"), adm = isAdmin(), cat = K().CATALOG, dis = adm ? "" : " disabled";
@@ -63,6 +63,7 @@
         return '<div class="pr-row" data-id="' + E(s.id) + '"><b>' + E(s.title) + '</b><select data-f="mode"' + dis + (q ? "" : " disabled") + '><option value="fixed"' + (it.mode !== "unit" ? " selected" : "") + '>Фиксированная</option><option value="unit"' + (it.mode === "unit" ? " selected" : "") + '>За единицу × количество</option></select>'
           + '<input data-f="price" type="text" inputmode="numeric" value="' + (it.price || "") + '" placeholder="0"' + dis + '><input data-f="note" type="text" maxlength="200" value="' + E(it.note || "") + '" placeholder="например: за дверь"' + dis + "></div>";
       }).join("") + "</div><p class=\"x-hint\">«За единицу» доступно там, где в КП указывается количество (двери, пожарные краны, ПК, оборудование): цена умножается на количество. Конструктор подставляет цену при выборе услуги и показывает подсказку, если она отличается от введённой.</p></div>";
+    el.querySelector(".wrap").insertAdjacentHTML("afterbegin", tabsHtml()); bindTabs(el);
     if (!adm) return;
     var btn = $("prSave");
     el.querySelectorAll(".pr-row").forEach(function (row) {
@@ -184,6 +185,139 @@
     $("kvQ").oninput = function () { showAll(this.value); };
     if (num) showNum(num, true); else showAll("");
   };
+
+  /* ====================================================== шаблоны КП и договоров ====================================================== */
+  var TPL = null;
+  function loadTpl(force) {
+    if (TPL && !force) return Promise.resolve(TPL);
+    return C.call("/templates").then(function (d) { TPL = d; return d; });
+  }
+  function svcTitle(id) { var s = K().CATALOG.filter(function (x) { return x.id === id; })[0]; return s ? s.title : id; }
+  function saveTpl(patch) {
+    return C.call("/templates", { body: { kp: patch.kp || TPL.kp, contracts: patch.contracts || TPL.contracts } }).then(function (d) { TPL = d; return d; });
+  }
+  P.useTemplate = function (t) {
+    var saved = snapshot();
+    saved.services = JSON.parse(JSON.stringify(t.state.services || {}));
+    if (t.state.deadline) saved.deadline = t.state.deadline;
+    if (t.state.custom) saved.custom = t.state.custom;
+    K().CATALOG.forEach(function (s) {
+      var x = saved.services[s.id];
+      if (x && x.on && !x.price) { var sg = P.suggest(s, { fields: x.fields || {} }); if (sg) x.price = String(sg); }
+    });
+    T.closeModal();
+    location.hash = "#/kpc";
+    setTimeout(function () { K().load(saved); U.toast("Шаблон «" + t.name + "» применён — укажите объёмы и цены"); }, 150);
+  };
+  function kpTplCards(withDel) {
+    return '<div class="tpl-grid">' + (TPL.kp.map(function (t, i) {
+      var ids = Object.keys(t.state.services || {}).filter(function (k) { return t.state.services[k].on; });
+      return '<div class="tpl-card"><div style="display:flex;gap:10px;align-items:center"><span class="tpl-ic">' + ic("file") + '</span><div><b>' + E(t.name) + "</b><small>" + E(t.descr || "") + "</small></div></div><ul>"
+        + ids.map(function (k) { return "<li>" + E(svcTitle(k)) + "</li>"; }).join("") + '</ul><div class="tpl-act"><button class="x-btn primary" data-use="' + i + '" style="padding:7px 14px">Использовать</button>'
+        + (withDel && isAdmin() ? '<button class="x-btn ghost" data-del="' + i + '" style="padding:7px 12px;color:var(--bad)">Удалить</button>' : "") + "</div></div>";
+    }).join("") || '<div class="x-empty" style="grid-column:1/-1">Шаблонов пока нет</div>') + "</div>";
+  }
+  function bindKp(root) {
+    root.querySelectorAll("[data-use]").forEach(function (b) { b.onclick = function () { P.useTemplate(TPL.kp[+b.dataset.use]); }; });
+    root.querySelectorAll("[data-del]").forEach(function (b) {
+      b.onclick = function () {
+        var t = TPL.kp[+b.dataset.del]; if (!confirm("Удалить шаблон «" + t.name + "»?")) return;
+        saveTpl({ kp: TPL.kp.filter(function (x) { return x !== t; }) }).then(function () { U.toast("Шаблон удалён"); render(); }).catch(function (e) { U.toast(E(e)); });
+      };
+    });
+  }
+  /* окно «Шаблоны» из конструктора КП */
+  P.templates = function () {
+    if (!need()) return;
+    loadTpl(true).then(function () {
+      var v = U.xmodal('<h3>Шаблоны КП</h3><p class="x-sub">Готовый набор услуг: выберите — и конструктор заполнится, останется указать объёмы</p><div style="max-height:56vh;overflow:auto">' + kpTplCards(true) + "</div>"
+        + '<div class="x-row">' + (isAdmin() ? '<button class="x-btn ghost" id="tpSaveCur" style="margin-right:auto">Сохранить текущее КП как шаблон</button>' : "") + '<button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>', true);
+      bindKp(v);
+      var sc = $("tpSaveCur");
+      if (sc) sc.onclick = function () {
+        var cur = snapshot(), on = Object.keys(cur.services).filter(function (k) { return cur.services[k].on; });
+        if (!on.length) { U.toast("Сначала отметьте услуги в конструкторе"); return; }
+        var name = prompt("Название шаблона:", ""); if (!name) return;
+        var st = { services: {}, deadline: cur.deadline };
+        on.forEach(function (k) { st.services[k] = { on: true, fields: cur.services[k].fields }; });
+        var kp = TPL.kp.concat([{ id: "", name: name, descr: "Сохранено из конструктора", state: st }]);
+        saveTpl({ kp: kp }).then(function () { U.toast("Шаблон «" + name + "» сохранён"); P.templates(); }).catch(function (e) { U.toast(E(e)); });
+      };
+    }).catch(function (e) { U.toast(E(e)); });
+  };
+
+  /* ---------- договор по шаблону ---------- */
+  var PAYS = ["Предоплата 50%, остаток — после подписания акта", "Предоплата 100% до начала работ", "Оплата по акту в течение 5 рабочих дней"];
+  function money0(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
+  function ctHtml(t, f) {
+    var body = t.body.replace(/\{object\}/g, f.object || "—").replace(/\{sum\}/g, money0(+f.sum)).replace(/\{days\}/g, f.days || "—").replace(/\{pay\}/g, f.pay).replace(/\{client\}/g, f.client || "—").replace(/\{num\}/g, f.num).replace(/\{date\}/g, f.date);
+    return '<div class="ct-paper"><div class="ct-h"><img src="bear.png" alt=""><div><b>МПБ</b><small>Полный спектр защиты</small></div><div class="ct-r">г. Санкт-Петербург<br>' + E(f.date) + "</div></div>"
+      + "<h2>ДОГОВОР " + E(f.num) + '</h2><div class="ct-t">' + E(t.type || t.name) + "</div>"
+      + '<div class="ct-meta"><span>Заказчик</span><b>' + E(f.client || "—") + "</b><span>Объект</span><b>" + E(f.object || "—") + "</b><span>Стоимость</span><b>" + money0(+f.sum) + "</b></div>"
+      + body.split("\n").map(function (p) { return "<p>" + E(p) + "</p>"; }).join("")
+      + '<div class="ct-sign"><span>Исполнитель ____________</span><span>Заказчик ____________</span></div><p class="ct-note">Образец договора. Перед подписанием согласуйте текст с руководителем или юристом.</p></div>';
+  }
+  var CT_CSS = "body{font-family:Arial,sans-serif;font-size:13pt;color:#111;margin:30px 40px}.ct-h{display:flex;gap:14px;align-items:center;border-bottom:2px solid #1f5c99;padding-bottom:10px}.ct-h img{height:60px}.ct-h small{display:block;color:#555}.ct-r{margin-left:auto;text-align:right;font-size:11pt}h2{text-align:center;margin:18px 0 2px}.ct-t{text-align:center;color:#555;margin-bottom:14px}.ct-meta{display:grid;grid-template-columns:140px 1fr;gap:4px 12px;margin-bottom:14px}.ct-meta span{color:#555}p{line-height:1.45;margin:8px 0}.ct-sign{display:flex;justify-content:space-between;margin-top:46px}.ct-note{color:#888;font-size:10pt;margin-top:30px}";
+  P.makeContract = function (t) {
+    var d = new Date(), f = { num: "№ ", date: d.toLocaleDateString("ru-RU"), client: "", object: "", sum: "", days: "30", pay: PAYS[0] };
+    function open(names) {
+      var v = U.xmodal('<h3>Договор: ' + E(t.name) + '</h3><p class="x-sub">Заполните поля — справа договор формируется сразу</p><div class="ct-form"><div><div class="x-field"><label>Номер договора</label><input id="ctNum" value="' + E(f.num) + '" placeholder="№ 129/26"></div>'
+        + '<div class="x-field"><label>Заказчик</label><input id="ctCl" list="ctCls" value="' + E(f.client) + '"><datalist id="ctCls">' + names.map(function (n) { return '<option value="' + E(n) + '">'; }).join("") + '</datalist></div>'
+        + '<div class="x-field"><label>Объект</label><input id="ctObj" value="' + E(f.object) + '" placeholder="адрес или название объекта"></div>'
+        + '<div class="x-field"><label>Стоимость, ₽</label><input id="ctSum" inputmode="numeric" value="' + E(f.sum) + '"></div><div class="x-field"><label>Срок, календарных дней</label><input id="ctDays" inputmode="numeric" value="' + E(f.days) + '"></div>'
+        + '<div class="x-field"><label>Порядок оплаты</label><select id="ctPay">' + PAYS.map(function (p) { return "<option" + (p === f.pay ? " selected" : "") + ">" + E(p) + "</option>"; }).join("") + "</select></div></div>"
+        + '<div id="ctPrev" class="ct-prev"></div></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button><button class="x-btn ghost" id="ctPrint">Печать</button><button class="x-btn primary" id="ctDoc">Скачать .doc</button></div>', true);
+      v.querySelector(".x-modal").style.width = "min(980px,100%)";
+      function upd() {
+        f.num = $("ctNum").value; f.client = $("ctCl").value; f.object = $("ctObj").value; f.sum = $("ctSum").value.replace(/\D/g, ""); f.days = $("ctDays").value.replace(/\D/g, ""); f.pay = $("ctPay").value;
+        $("ctPrev").innerHTML = ctHtml(t, f);
+      }
+      ["ctNum", "ctCl", "ctObj", "ctSum", "ctDays", "ctPay"].forEach(function (id) { $(id).oninput = $(id).onchange = upd; });
+      upd();
+      $("ctPrint").onclick = function () { var w = window.open("", "_blank"); if (!w) { U.toast("Разрешите всплывающие окна для печати"); return; } w.document.write("<html><head><meta charset=utf-8><title>Договор</title><style>" + CT_CSS + "</style></head><body>" + ctHtml(t, f) + "</body></html>"); w.document.close(); w.focus(); setTimeout(function () { w.print(); }, 300); };
+      $("ctDoc").onclick = function () {
+        var html = "<html><head><meta charset=utf-8><style>" + CT_CSS.replace(/display:flex;|display:grid;/g, "") + "</style></head><body>" + ctHtml(t, f).replace(/<img[^>]*>/, "") + "</body></html>";
+        var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿", html], { type: "application/msword" }));
+        a.download = "Договор " + (f.num.replace(/[^\wА-Яа-я№.\-]+/g, " ").trim() || "МПБ") + ".doc"; document.body.appendChild(a); a.click(); a.remove();
+      };
+    }
+    var names = [];
+    (window.callServer ? callServer("api_listTasks") : Promise.resolve([])).then(function (ts) { ts.forEach(function (x) { if (x.customer && names.indexOf(x.customer) < 0) names.push(x.customer); }); }).catch(function () {}).then(function () { open(names); });
+  };
+  function editCt(i) {
+    var t = i >= 0 ? TPL.contracts[i] : { id: "", name: "", type: "", body: "1. Предмет договора. …\n2. Стоимость и порядок расчётов. Стоимость работ составляет {sum}. {pay}.\n3. Сроки. {days} календарных дней." };
+    var v = U.xmodal('<h3>' + (i >= 0 ? "Шаблон договора" : "Новый шаблон договора") + '</h3><p class="x-sub">В тексте можно использовать: {client} {object} {sum} {days} {pay} {num} {date}</p><div class="x-field"><label>Название</label><input id="etName" value="' + E(t.name) + '"></div><div class="x-field"><label>Тип (подпись под заголовком)</label><input id="etType" value="' + E(t.type) + '"></div><div class="x-field"><label>Текст</label><textarea id="etBody" rows="10" style="width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit">' + E(t.body) + '</textarea></div><div class="x-err" id="etErr"></div><div class="x-row">' + (i >= 0 ? '<button class="x-btn ghost" id="etDel" style="margin-right:auto;color:var(--bad)">Удалить</button>' : "") + '<button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="etSave">Сохранить</button></div>', true);
+    $("etSave").onclick = function () {
+      var n = { id: t.id, name: $("etName").value, type: $("etType").value, body: $("etBody").value }, list = TPL.contracts.slice();
+      if (i >= 0) list[i] = n; else list.push(n);
+      saveTpl({ contracts: list }).then(function () { T.closeModal(); U.toast("Шаблон сохранён"); render(); }).catch(function (e) { $("etErr").textContent = String(e); });
+    };
+    var d = $("etDel"); if (d) d.onclick = function () { if (!confirm("Удалить шаблон?")) return; saveTpl({ contracts: TPL.contracts.filter(function (x, k) { return k !== i; }) }).then(function () { T.closeModal(); render(); }); };
+  }
+  function tabsHtml() {
+    return '<div class="x-bar"><div class="x-seg" id="prTabs">' + [["price", "list", "Прайс"], ["kp", "file", "Шаблоны КП"], ["ct", "file", "Шаблоны договоров"]].map(function (t) { return '<button data-t="' + t[0] + '" class="' + (G.tab === t[0] ? "on" : "") + '">' + ic(t[1]) + t[2] + "</button>"; }).join("") + "</div></div>";
+  }
+  function bindTabs(el) { var s = el.querySelector("#prTabs"); if (s) s.querySelectorAll("button").forEach(function (b) { b.onclick = function () { G.tab = b.dataset.t; render(); }; }); }
+  function paintTpl() {
+    var el = $("price-app"), adm = isAdmin();
+    el.innerHTML = U.head("Прайс и шаблоны", "Цены, готовые наборы услуг для КП и шаблоны договоров", "") + '<div class="wrap">' + tabsHtml() + '<div id="tpBody"><div class="x-empty">Загрузка…</div></div></div>';
+    bindTabs(el);
+    loadTpl(true).then(function () {
+      var b = $("tpBody");
+      if (G.tab === "kp") {
+        b.innerHTML = kpTplCards(true) + '<p class="x-hint">«Использовать» откроет конструктор КП с отмеченными услугами. Новый шаблон: соберите КП в конструкторе → «Шаблоны» → «Сохранить текущее КП как шаблон».</p>';
+        bindKp(b);
+      } else {
+        b.innerHTML = '<div class="tpl-grid">' + TPL.contracts.map(function (t, i) {
+          return '<div class="tpl-card"><div style="display:flex;gap:10px;align-items:center"><span class="tpl-ic">' + ic("file") + "</span><div><b>" + E(t.name) + "</b><small>" + E(t.type || "") + '</small></div></div><p class="tpl-body">' + E(t.body.slice(0, 220)) + (t.body.length > 220 ? "…" : "") + '</p><div class="tpl-act"><button class="x-btn primary" data-mk="' + i + '" style="padding:7px 14px">Составить договор</button>' + (adm ? '<button class="x-btn ghost" data-ed="' + i + '" style="padding:7px 12px">Изменить</button>' : "") + "</div></div>";
+        }).join("") + "</div>" + (adm ? '<div style="margin-top:14px"><button class="x-btn ghost" id="ctAdd">' + ic("plus") + "Добавить шаблон договора</button></div>" : "")
+          + '<p class="x-hint">Готовый договор печатается или скачивается как .doc. Генератор договоров МПБ (вкладка «Договоры») остаётся рядом — шаблоны здесь для быстрых типовых случаев.</p>';
+        b.querySelectorAll("[data-mk]").forEach(function (x) { x.onclick = function () { P.makeContract(TPL.contracts[+x.dataset.mk]); }; });
+        b.querySelectorAll("[data-ed]").forEach(function (x) { x.onclick = function () { editCt(+x.dataset.ed); }; });
+        var ad = $("ctAdd"); if (ad) ad.onclick = function () { editCt(-1); };
+      }
+    }).catch(function (e) { $("tpBody").innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
+  }
 
   if (U.cur() === "price") {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", render); else render();

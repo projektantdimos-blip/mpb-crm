@@ -232,6 +232,7 @@
       '<div class="hava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(t.title || t.peer) + "</b>" +
       (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
         (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">⇅</button>" : "") +
+      '<button class="hbtn" id="chatInfo" title="О клиенте: задачи, КП, контакты">👤 О клиенте</button>' +
       '<button class="hbtn" id="chatAv" title="Загрузить фото">📷</button>' +
       (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>' +
@@ -239,6 +240,7 @@
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
+    document.getElementById("chatInfo").onclick = function () { if (window.MPBK && MPBK.forThread) MPBK.forThread(t.title || t.peer, t.peer); else alert("Раздел «Клиенты» не загружен — обновите страницу"); };
     document.getElementById("chatAv").onclick = function () { document.getElementById("chatAvFile").click(); };
     document.getElementById("chatAvFile").onchange = function () { if (this.files[0]) uploadAvatar(t.id, this.files[0]); this.value = ""; };
     var del = document.getElementById("chatAvDel");

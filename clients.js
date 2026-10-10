@@ -232,5 +232,41 @@
     var mg = $("clMg"); if (mg) mg.onclick = function () { mergeDlg(mydups[0]); };
   }
 
+  /* ---------- «О клиенте» из переписки: найти заказчика по собеседнику и показать его дела ---------- */
+  function findFor(title, peer) {
+    var ph = phones(peer), em = emails(peer), i, c;
+    for (i = 0; i < S.list.length; i++) { c = S.list[i]; if (ph.some(function (p) { return c.phones[p]; }) || em.some(function (m) { return c.emails[m]; })) return { c: c, why: "по телефону или почте" }; }
+    var k = norm(title);
+    if (k && S.by[k]) return { c: S.by[k], why: "по названию" };
+    if (k) for (i = 0; i < S.list.length; i++) { c = S.list[i]; if (similar(k, c.key) || (k.length >= 5 && (c.key.indexOf(k) >= 0 || k.indexOf(c.key) >= 0 && c.key.length >= 5))) return { c: c, why: "по похожему названию" }; }
+    return null;
+  }
+  function infoHtml(c, why) {
+    function row(h, main, side) { return '<div class="cl-row" data-h="' + h + '" style="padding:9px 0"><div class="cl-main"><b>' + main[0] + "</b><small>" + main[1] + '</small></div><div class="cl-side"><b>' + (side[0] || "") + "</b><small>" + (side[1] || "") + "</small></div></div>"; }
+    var tasks = c.tasks.slice().sort(function (a, b) { return (a.closed ? 1 : 0) - (b.closed ? 1 : 0); }).slice(0, 6).map(function (t) { return row("#/task/" + t.row, [E(t.workType || "Работа") + (t.closed ? " · закрыто" : ""), E(t.address || "")], [E(t.stage || ""), t.closed ? "" : "срок " + dmy(t.deadline)]); }).join("") || '<div class="x-empty" style="padding:8px">Задач нет</div>';
+    var leads = c.leads.slice().sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 5).map(function (l) { return row("#/kpreg/lead/" + l.row, [E(l.object || l.essence || "Заявка"), dmy(l.date) + (l.owner ? " · " + E(l.owner) : "")], [+l.amount ? money(+l.amount) : "", E(l.status || "")]); }).join("") || '<div class="x-empty" style="padding:8px">Заявок нет</div>';
+    return '<h3>' + E(c.name) + '</h3><p class="x-sub">Найден ' + E(why) + (c.people.length ? " · ведёт: " + E(c.people.join(", ")) : "") + "</p>"
+      + '<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="kpi"><div class="v">' + c.open.length + '</div><div class="l">Задач в работе</div></div><div class="kpi"><div class="v">' + c.live.length + '</div><div class="l">Активных заявок</div></div><div class="kpi"><div class="v" style="font-size:1.05rem">' + money(c.wonSum) + '</div><div class="l">Выиграно</div></div></div>'
+      + '<div class="x-grp" style="padding:4px 0">Задачи и договоры</div>' + tasks + '<div class="x-grp" style="padding:10px 0 4px">Заявки и КП</div>' + leads
+      + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button><button class="x-btn primary" id="clOpen">Открыть карточку клиента</button></div>';
+  }
+  function showInfo(c, why) {
+    var v = U.xmodal(infoHtml(c, why), true);
+    v.querySelectorAll("[data-h]").forEach(function (r) { r.onclick = function () { T.closeModal(); location.hash = r.dataset.h; }; });
+    $("clOpen").onclick = function () { T.closeModal(); location.hash = "#/clients/" + encodeURIComponent(c.key); };
+  }
+  K.forThread = function (title, peer) {
+    U.toast("Ищу клиента…");
+    load(false).then(function () {
+      var r = findFor(title, peer);
+      if (r) { showInfo(r.c, r.why); return; }
+      var v = U.xmodal('<h3>' + E(title || peer || "Собеседник") + '</h3><p class="x-sub">В задачах и заявках такого заказчика не найдено. Введите название заказчика, чтобы связать вручную:</p><div class="x-field"><input id="clFind" placeholder="Название заказчика…"></div><div id="clFound"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>');
+      $("clFind").oninput = function () {
+        var q = norm(this.value), res = q.length < 2 ? [] : S.list.filter(function (c) { return c.key.indexOf(q) >= 0; }).slice(0, 6);
+        $("clFound").innerHTML = res.map(function (c) { return '<div class="cl-row" data-k="' + E(c.key) + '" style="padding:9px 0"><div class="cl-main"><b>' + E(c.name) + "</b><small>" + c.open.length + " задач в работе · " + c.live.length + " активных заявок</small></div></div>"; }).join("") || (q.length >= 2 ? '<div class="x-empty">Не найдено</div>' : "");
+        $("clFound").querySelectorAll(".cl-row").forEach(function (r) { r.onclick = function () { showInfo(S.by[r.dataset.k], "вручную"); }; });
+      };
+    }).catch(function (e) { U.toast("Не удалось загрузить данные: " + E(e)); });
+  };
   K.render = render;
 })();

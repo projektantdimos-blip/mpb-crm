@@ -571,3 +571,41 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .kv-m{flex:1;min-width:160px}.kv-m small{display:block;color:var(--muted);font-size:.78rem}
 .kv-row select{padding:6px 8px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font:inherit;font-size:.8rem}
 @media(max-width:800px){.pr-cols{display:none}.pr-row{grid-template-columns:1fr 1fr}.pr-row b{grid-column:1/-1}}
+
+/* реестр КП: названия заказчика и объекта переносятся на новую строку, видно полностью */
+#kpreg-app table.kpgrid{white-space:normal}
+#kpreg-app table.kpgrid td.cust{white-space:normal;max-width:none;min-width:200px;width:24%;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.3}
+#kpreg-app table.kpgrid td:nth-child(3){min-width:160px;max-width:300px;overflow-wrap:anywhere;line-height:1.3}
+#kpreg-app table.kpgrid td.num,#kpreg-app table.kpgrid td.open,#kpreg-app table.kpgrid th{white-space:nowrap}
+#kpreg-app table.kpgrid td:nth-child(4),#kpreg-app table.kpgrid td:nth-child(8){white-space:nowrap}
+.task-card .cust,.task-card .addr{overflow-wrap:anywhere}
+
+/* этапы по видам работ — оформление как в макете */
+.sg .sg-list{position:static;display:block;padding:0;background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+.sg-wt{display:flex;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.15s}
+.sg-wt:hover{background:var(--surface-2)}.sg-wt.on{background:var(--blue-l);box-shadow:inset 3px 0 0 var(--brand-2)}
+.sg-wt .sq{width:12px;height:36px;border-radius:5px;background:var(--tc);flex:none}.sg-wt b{display:block;font-size:.9rem}.sg-wt small{color:var(--muted);font-size:.76rem}
+.sg-strip{display:flex;gap:6px;flex-wrap:wrap;padding:16px 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface-2)}
+.sg-strip span{font-size:.72rem;font-weight:700;padding:4px 10px;border-radius:20px;background:color-mix(in srgb,var(--tc) 14%,transparent);color:color-mix(in srgb,var(--tc) 70%,var(--ink));border:1px solid color-mix(in srgb,var(--tc) 30%,transparent)}
+.sg-meta{padding:16px 20px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:0 18px}
+.sg-meta .x-qrow,.sg-meta .sg-test{grid-column:1/-1}
+.sg-sel{padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:.86rem}
+.sg-row{grid-template-columns:20px 30px minmax(0,1fr) 170px 74px 40px 96px}
+.sg-row .gp{color:var(--muted);text-align:center}
+@media(max-width:700px){.sg-meta{grid-template-columns:1fr}.sg-row{grid-template-columns:30px minmax(0,1fr) 74px;grid-template-areas:"n nm dy" ". who use" ". mv mv"}.sg-row .gp{display:none}}
+
+/* шаблоны КП и договоров */
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.tpl-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;box-shadow:var(--shadow-s)}
+.tpl-card b{display:block;font-size:.95rem}.tpl-card small{color:var(--muted);font-size:.78rem}
+.tpl-ic{width:38px;height:38px;border-radius:12px;background:var(--blue-l);color:var(--blue);display:grid;place-items:center;flex:none}
+.tpl-card ul{margin:0;padding-left:18px;font-size:.84rem;color:var(--ink)}.tpl-card li{margin:2px 0}
+.tpl-body{font-size:.82rem;color:var(--muted);margin:0;line-height:1.4}
+.tpl-act{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.ct-form{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px}
+.ct-prev{background:#fff;color:#111;border:1px solid var(--line);border-radius:12px;padding:20px;max-height:60vh;overflow:auto;font-size:.82rem}
+.ct-paper .ct-h{display:flex;gap:12px;align-items:center;border-bottom:2px solid #1f5c99;padding-bottom:8px}.ct-paper .ct-h img{height:46px}.ct-paper small{display:block;color:#666}.ct-paper .ct-r{margin-left:auto;text-align:right;font-size:.78rem}
+.ct-paper h2{text-align:center;margin:14px 0 2px;font-size:1.05rem}.ct-paper .ct-t{text-align:center;color:#666;margin-bottom:10px}
+.ct-paper .ct-meta{display:grid;grid-template-columns:100px 1fr;gap:3px 10px;margin-bottom:10px}.ct-paper .ct-meta span{color:#666}
+.ct-paper p{margin:6px 0;line-height:1.45}.ct-paper .ct-sign{display:flex;justify-content:space-between;margin-top:28px}.ct-paper .ct-note{color:#999;font-size:.72rem;margin-top:16px}
+@media(max-width:800px){.ct-form{grid-template-columns:1fr}}

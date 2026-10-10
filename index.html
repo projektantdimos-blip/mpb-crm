@@ -2036,6 +2036,7 @@ function init() {
     h('section', { class: 'card sticky' },
       h('h2', null, 'Проверка'), summaryEl,
       h('div', { class: 'actions' }, dlBtn, pdfBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП'),
+        h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.templates() : alert('Модуль шаблонов не загружен') }, 'Шаблоны КП'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.saveVersion() : alert('Модуль версий не загружен') }, 'Сохранить версию'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.versions() : alert('Модуль версий не загружен') }, 'Версии КП')),
       h('h3', null, 'Предпросмотр'), previewEl));
