@@ -750,3 +750,39 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 #chat-app .chat-wrap{grid-template-columns:320px minmax(0,1fr) 370px}
 @media(max-width:1280px){#chat-app .chat-wrap{grid-template-columns:290px minmax(0,1fr) 340px}}
 @media(max-width:1180px){#chat-app .chat-wrap{grid-template-columns:320px minmax(0,1fr)}}
+/* кнопка «Передать сотруднику» в панели диалога — как остальные кнопки CRM */
+.chat-info .x-btn.cp-w{width:100%;justify-content:center;margin:0}
+.chat-info #qaAssign{margin-bottom:2px;padding:10px 14px}
+.chat-info #qaAssign svg{width:16px;height:16px}
+
+/* «Переписка» на всю ширину и высоту окна, крупнее и читабельнее */
+#chat-app{max-width:none!important;padding:10px 18px 14px!important}
+#chat-app .top{padding:0 0 12px!important}
+#chat-app .chat-wrap{height:calc(100vh - 128px)!important;min-height:620px;grid-template-columns:350px minmax(0,1fr) 440px!important;border-radius:20px}
+@media(max-width:1500px){#chat-app .chat-wrap{grid-template-columns:320px minmax(0,1fr) 410px!important}}
+@media(max-width:1300px){#chat-app .chat-wrap{grid-template-columns:290px minmax(0,1fr) 380px!important}}
+@media(max-width:1100px){#chat-app .chat-wrap{grid-template-columns:300px minmax(0,1fr)!important}.chat-info{display:none}}
+#chat-app .ct .nm{font-size:.95rem}#chat-app .ct .pv{font-size:.88rem}
+#chat-app .cm{font-size:.96rem;line-height:1.5;max-width:min(760px,88%)}
+#chat-app #chatComposer textarea{font-size:.95rem;height:52px}
+.chat-info{padding:22px 22px;gap:20px}
+.chat-info .who b{font-size:1.1rem}
+.cp-body{font-size:.95rem}
+.cp-tabs button{font-size:.86rem;padding:9px 6px}
+.cp-body input,.cp-body select{font-size:.93rem;padding:10px 12px}
+.cp-f label{font-size:.72rem}
+.cp-two{grid-template-columns:110px 1fr}
+.cp-row{display:block;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);margin-bottom:10px}
+.cp-r1{display:flex;gap:8px;align-items:center}.cp-r1 select{flex:1;font-size:.9rem;background:var(--card)}
+.cp-r1 button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1.3rem;line-height:1;padding:0 6px}.cp-r1 button:hover{color:var(--bad)}
+.cp-r2{display:grid;grid-template-columns:90px 130px 1fr;gap:10px;align-items:end;margin-top:10px}
+.cp-r2 label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700}
+.cp-r2 input{margin-top:4px;text-align:right;background:var(--card)}
+.cp-sum{text-align:right;font-weight:800;font-size:1rem;padding-bottom:9px}
+.cp-tot{font-size:1.1rem;padding:14px 2px}
+.cp-acts .x-btn{font-size:.88rem;padding:11px 8px}
+#cpSend{padding:14px;font-size:.95rem}
+.cp-card{padding:12px 14px}.cp-card b{font-size:.92rem}.cp-card small{font-size:.8rem}
+@media(max-width:1600px){#chat-app .chat-wrap{grid-template-columns:300px minmax(0,1fr) 390px!important}}
+@media(max-width:1400px){#chat-app .chat-wrap{grid-template-columns:270px minmax(0,1fr) 370px!important}.cp-r2{grid-template-columns:80px 115px 1fr}}
+@media(max-width:1180px){#chat-app .chat-wrap{grid-template-columns:290px minmax(0,1fr)!important}.chat-info{display:none}}

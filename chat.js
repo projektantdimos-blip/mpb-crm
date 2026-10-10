@@ -318,7 +318,7 @@
     var ci = chInfo(t.channel), av = avUrl(t), ini = (t.title || "?").trim().charAt(0).toUpperCase(), name = t.title || t.peer;
     if (window.MPBD && MPBD.render) {                              // боковая панель с вкладками: клиент / создать клиента / КП
       el.info.innerHTML = '<div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
-        (crmOn() ? '<button class="hbtn cp-assign" id="qaAssign">📨 Передать сотруднику</button>' : "") + '<div id="chatPanel"></div>';
+        (crmOn() ? '<button class="x-btn ghost cp-w" id="qaAssign">' + ic2("send") + 'Передать сотруднику</button>' : "") + '<div id="chatPanel"></div>';
       var qa0 = document.getElementById("qaAssign"); if (qa0) qa0.onclick = function () { assignDialog(t); };
       MPBD.render(document.getElementById("chatPanel"), t, name);
       return;

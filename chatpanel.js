@@ -98,10 +98,10 @@
       s.errors = chk.errors || [];
       body.innerHTML = '<div class="cp-two"><div class="cp-f"><label>№ предложения</label><input id="cpNum" inputmode="numeric" value="' + E(s.num) + '" placeholder="212"></div>'
         + '<div class="cp-f"><label>Объект (заказчик)</label><input id="cpObj" value="' + E(s.object) + '"></div></div><div class="cp-f"><label>Адрес объекта</label><input id="cpAddr" value="' + E(s.address) + '" placeholder="не указывать — оставьте пустым"></div>'
-        + '<div class="cp-cols"><span>Услуга</span><span>Кол-во</span><span>Цена, ₽</span><span></span></div>'
         + s.rows.map(function (r, i) {
-          return '<div class="cp-row" data-i="' + i + '"><select data-f="id">' + kc.CATALOG.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.id ? " selected" : "") + ">" + E(c.title) + "</option>"; }).join("") + '</select>'
-            + '<input data-f="q" type="number" min="1" value="' + r.q + '"><input data-f="p" type="number" min="0" value="' + r.p + '"><button data-del="' + i + '" title="Убрать строку">×</button></div>';
+          return '<div class="cp-row" data-i="' + i + '"><div class="cp-r1"><select data-f="id">' + kc.CATALOG.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.id ? " selected" : "") + ">" + E(c.title) + "</option>"; }).join("") + '</select>'
+            + '<button data-del="' + i + '" title="Убрать строку">×</button></div>'
+            + '<div class="cp-r2"><label>Кол-во<input data-f="q" type="number" min="1" value="' + r.q + '"></label><label>Цена за ед., ₽<input data-f="p" type="number" min="0" value="' + r.p + '"></label><span class="cp-sum">' + money(Math.max(1, +r.q || 1) * (+r.p || 0)) + "</span></div></div>";
         }).join("")
         + '<button class="x-btn ghost cp-w" id="cpAdd">+ Добавить строку</button>'
         + '<div class="cp-tot"><span>Итого</span><b>' + money(total(s)) + '</b></div>'
