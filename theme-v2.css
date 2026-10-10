@@ -803,3 +803,15 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .cl2-mini b{font-size:1.4rem}
 @media(max-width:1280px){.cl2{grid-template-columns:340px minmax(0,1fr)!important}}
 @media(max-width:1100px){.cl2{grid-template-columns:1fr!important}}
+
+/* подсказка имён по «@» в чате Команды */
+.x-ment{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-m);overflow:hidden;z-index:20}
+.x-ment:empty{display:none}
+.x-ment-i{display:flex;gap:10px;align-items:center;padding:9px 14px;cursor:pointer;font-size:.92rem;font-weight:600}
+.x-ment-i:hover,.x-ment-i.on{background:var(--blue-l);color:var(--blue)}
+/* поля даты и времени в «Мои задачи» — как остальные поля */
+.x-opt input[type=date],.x-opt input[type=time]{width:100%;box-sizing:border-box;padding:11px 14px;min-height:46px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:.92rem;outline:0;transition:.15s}
+.x-opt input[type=date]:focus,.x-opt input[type=time]:focus{border-color:var(--brand-2);background:var(--card);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-2) 16%,transparent)}
+.x-opt select{min-height:46px}
+.x-opt input[type=time]::-webkit-calendar-picker-indicator,.x-opt input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.7}
+.x-comp{position:relative}

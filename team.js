@@ -136,9 +136,46 @@
       + '<div class="x-comp"><input type="text" id="tIn" placeholder="Написать в «' + E(room.name) + '»… (@Имя — упомянуть)" autocomplete="off"><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
-    $("tSend").onclick = send; $("tIn").onkeydown = function (e) { if (e.key === "Enter") send(); };
+    $("tSend").onclick = send;
+    mentionBox($("tIn"));
+    $("tIn").onkeydown = function (e) { if (e.key === "Enter" && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) send(); };
     $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
     el.querySelectorAll("[data-ack]").forEach(function (b) { b.onclick = function () { C.call("/team/messages/" + b.dataset.ack + "/ack", { body: {} }).then(function () { return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages"); }).then(function (ms) { S.msgs = ms; paintThread(true); loadRooms(); C.refresh(); }); }; });
+  }
+  /* подсказка имён по «@»: выбираете сотрудника — имя подставляется в сообщение */
+  function mentionBox(inp) {
+    var box = document.createElement("div"); box.id = "tMent"; box.className = "x-ment";
+    inp.parentNode.style.position = "relative"; inp.parentNode.appendChild(box);
+    var sel = 0, list = [], from = -1;
+    function close() { box.innerHTML = ""; list = []; from = -1; }
+    function pick(i) {
+      var name = list[i]; if (!name) return;
+      var v = inp.value, caret = inp.selectionStart;
+      inp.value = v.slice(0, from) + "@" + name + " " + v.slice(caret);
+      var pos = from + name.length + 2; inp.focus(); inp.setSelectionRange(pos, pos); close();
+    }
+    function update() {
+      var caret = inp.selectionStart, before = inp.value.slice(0, caret), m = before.match(/(^|\s)@([^\s@]*)$/);
+      if (!m) { close(); return; }
+      from = caret - m[2].length - 1;
+      var q = m[2].toLowerCase(), me = C.me && C.me.name;
+      var all = (S.users || []).filter(function (n) { return n !== me; });
+      list = all.filter(function (n) { return !q || n.toLowerCase().indexOf(q) === 0 || n.toLowerCase().indexOf(q) > 0; }).slice(0, 6);
+      if (!list.length) { close(); return; }
+      sel = Math.min(sel, list.length - 1);
+      box.innerHTML = list.map(function (n, i) { return '<div class="x-ment-i ' + (i === sel ? "on" : "") + '" data-i="' + i + '">' + ava(n, "sm") + "<span>" + E(n) + "</span></div>"; }).join("");
+      Array.prototype.forEach.call(box.querySelectorAll(".x-ment-i"), function (d) { d.onmousedown = function (e) { e.preventDefault(); pick(+d.dataset.i); }; });
+    }
+    inp.addEventListener("input", function () { sel = 0; update(); });
+    inp.addEventListener("click", update);
+    inp.addEventListener("blur", function () { setTimeout(close, 120); });
+    inp.addEventListener("keydown", function (e) {
+      if (!list.length) return;
+      if (e.key === "ArrowDown") { e.preventDefault(); sel = (sel + 1) % list.length; update(); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); sel = (sel - 1 + list.length) % list.length; update(); }
+      else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); pick(sel); }
+      else if (e.key === "Escape") close();
+    }, true);
   }
   function send() {
     var i = $("tIn"), text = i.value.trim(); if (!text) return;
