@@ -16,7 +16,7 @@
 }
 body{font-family:"Onest","Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;
   background-image:radial-gradient(900px 420px at 85% -80px,rgba(58,134,214,.14),transparent 70%);background-attachment:fixed}
-.wrap{max-width:1500px;margin:0 auto;padding:26px 32px 40px}
+.wrap{max-width:none;margin:0 auto;padding:22px 26px 40px}
 h2.title{font-size:1.7rem;font-weight:800;letter-spacing:-.4px;margin:0 0 4px}
 .hint{font-size:.92rem}
 .toolbar{gap:12px;margin-bottom:18px}

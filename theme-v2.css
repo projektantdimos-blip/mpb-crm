@@ -786,3 +786,20 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 @media(max-width:1600px){#chat-app .chat-wrap{grid-template-columns:300px minmax(0,1fr) 390px!important}}
 @media(max-width:1400px){#chat-app .chat-wrap{grid-template-columns:270px minmax(0,1fr) 370px!important}.cp-r2{grid-template-columns:80px 115px 1fr}}
 @media(max-width:1180px){#chat-app .chat-wrap{grid-template-columns:290px minmax(0,1fr)!important}.chat-info{display:none}}
+
+/* Реестр КП, Команда, Клиенты — на всю ширину окна */
+#kpreg-app .wrap2,#kpreg-app .wrap,#team-app .wrap,#clients-app .wrap{max-width:none!important;padding-left:24px!important;padding-right:24px!important}
+#kpreg-app .gridwrap{max-height:none}
+#kpreg-app table.kpgrid{width:100%;font-size:.92rem}
+#kpreg-app table.kpgrid td,#kpreg-app table.kpgrid th{padding-top:14px;padding-bottom:14px}
+#kpreg-app .lead-card{font-size:.95rem}
+.x-chat{height:calc(100vh - 150px)!important;min-height:600px;grid-template-columns:350px minmax(0,1fr) 340px!important}
+@media(max-width:1400px){.x-chat{grid-template-columns:300px minmax(0,1fr) 300px!important}}
+@media(max-width:1180px){.x-chat{grid-template-columns:300px minmax(0,1fr)!important}.x-info{display:none}}
+.cl2{grid-template-columns:400px minmax(0,1fr)!important}
+.cl2-left{max-height:calc(100vh - 150px)!important}
+.cl2-item{padding:15px 18px}.cl2-t b{font-size:.96rem}.cl2-av{width:46px;height:46px}
+.cl2-hdt h2{font-size:1.6rem}
+.cl2-mini b{font-size:1.4rem}
+@media(max-width:1280px){.cl2{grid-template-columns:340px minmax(0,1fr)!important}}
+@media(max-width:1100px){.cl2{grid-template-columns:1fr!important}}
