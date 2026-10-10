@@ -47,14 +47,14 @@
   /* ====================================================== прайс ====================================================== */
   var G = { draft: null, tab: "price" };
   function render() {
-    var el = $("price-app"), sub = "Цены по услугам конструктора КП — конструктор подсказывает их при составлении предложения";
-    if (!U.gate(el, "Прайс", sub, render)) return;
+    var el = $("price-app"), sub = "Цены хранятся здесь — конструктор КП берёт их автоматически";
+    if (!U.gate(el, "Прайс и шаблоны КП", sub, render)) return;
     if (!K()) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-empty">Загрузка…</div></div>'; setTimeout(render, 400); return; }
     C.call("/price").then(function (d) { doc = d; lsSet(d); G.draft = JSON.parse(JSON.stringify(d.items)); if (G.tab !== "price") paintTpl(); else paint(d); }).catch(function (e) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-panel"><div class="x-empty">' + E(e) + "</div></div></div>"; });
   }
   function paint(d) {
     var el = $("price-app"), adm = isAdmin(), cat = K().CATALOG, dis = adm ? "" : " disabled";
-    el.innerHTML = U.head("Прайс", "Цены по услугам конструктора КП — конструктор подсказывает их при составлении предложения", adm ? '<div class="x-row" style="margin:0"><button class="x-btn primary" id="prSave" disabled>Сохранено</button></div>' : "")
+    el.innerHTML = U.head("Прайс и шаблоны КП", "Цены хранятся здесь — конструктор КП берёт их автоматически", adm ? '<div class="x-row" style="margin:0"><button class="x-btn primary" id="prSave" disabled>Сохранено</button></div>' : "")
       + '<div class="wrap">' + (adm ? "" : '<div class="x-notif on" style="margin-bottom:16px"><span class="dot"></span><div><b>Только просмотр</b><small>Менять прайс может руководитель</small></div></div>')
       + '<div class="x-panel"><div class="sg-h"><h3>Услуги</h3><span class="x-sub" style="margin:0">' + (d.at ? "Обновлено " + dt(d.at) + (d.by ? " · " + E(d.by) : "") : "Прайс ещё не заполнен") + "</span></div>"
       + '<div class="pr-cols"><span>Услуга</span><span>Как считать</span><span>Цена, ₽</span><span>Примечание</span></div>'
@@ -342,7 +342,7 @@
   function bindTabs(el) { var s = el.querySelector("#prTabs"); if (s) s.querySelectorAll("button").forEach(function (b) { b.onclick = function () { G.tab = b.dataset.t; render(); }; }); }
   function paintTpl() {
     var el = $("price-app"), adm = isAdmin();
-    el.innerHTML = U.head("Прайс и шаблоны", "Цены, готовые наборы услуг для КП и шаблоны договоров", "") + '<div class="wrap">' + tabsHtml() + '<div id="tpBody"><div class="x-empty">Загрузка…</div></div></div>';
+    el.innerHTML = U.head("Прайс и шаблоны КП", "Цены хранятся здесь — конструктор КП берёт их автоматически", "") + '<div class="wrap">' + tabsHtml() + '<div id="tpBody"><div class="x-empty">Загрузка…</div></div></div>';
     bindTabs(el);
     loadTpl(true).then(function () {
       var b = $("tpBody");

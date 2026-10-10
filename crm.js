@@ -34,6 +34,7 @@
       if (r.status === 401 && opts.auth !== false && tok()) { C.me = null; setSession(""); emit("logout"); throw "Сессия истекла — войдите снова"; }
       if (!r.ok) {
         return r.json().then(function (j) { return j; }, function () { return {}; }).then(function (j) {
+          if (r.status === 404 && j && j.detail === "Not Found") throw "Эта функция требует обновления сервера моста (загрузите новую папку app и перезапустите — см. гайд). Сайт уже обновлён.";
           throw (j && typeof j.detail === "string") ? j.detail : ("Ошибка сервера " + r.status);
         });
       }
