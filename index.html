@@ -2036,6 +2036,7 @@ function init() {
     h('section', { class: 'card sticky' },
       h('h2', null, 'Проверка'), summaryEl,
       h('div', { class: 'actions' }, dlBtn, pdfBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП'),
+        h('button', { type: 'button', class: 'primary', onclick: () => window.MPBP ? MPBP.sendToChat() : alert('Модуль КП не загружен') }, 'Отправить в чат'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.templates() : alert('Модуль шаблонов не загружен') }, 'Шаблоны КП'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.saveVersion() : alert('Модуль версий не загружен') }, 'Сохранить версию'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.versions() : alert('Модуль версий не загружен') }, 'Версии КП')),
@@ -2058,6 +2059,8 @@ function init() {
   /* доступ для kpv.js: прайс и версии КП */
   window.__kpc = {
     state, CATALOG, refresh, parseIntStrict, fmtPrice,
+    model() { return buildModel(state, false); },
+    check() { return validate(state); },
     total() {
       let s = 0;
       CATALOG.forEach(v => { const x = state.services[v.id]; if (x.on) s += parseIntStrict(x.price) || 0; });

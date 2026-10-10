@@ -225,11 +225,12 @@
     }).join("") || '<div class="x-empty">Заявок нет</div>';
     el.innerHTML = shell(E(c.name), "Карточка клиента", '<button class="x-btn ghost" onclick="location.hash=\'#/clients\'">← Все клиенты</button>',
       (mydups.length ? '<div class="x-notif bad" style="margin-bottom:16px"><span class="dot"></span><div style="flex:1"><b>Возможный дубль</b><small>' + E(mydups[0].reasons.join("; ")) + " · " + mydups[0].clients.length + " " + nz(mydups[0].clients.length, "запись", "записи", "записей") + '</small></div><button class="x-btn primary" id="clMg" style="padding:8px 15px">Проверить и объединить</button></div>' : "")
-      + kp + '<div class="x-two"><div><div class="x-panel" style="margin-bottom:16px"><div class="sg-h"><h3>Заявки и КП</h3></div>' + leads + '</div><div class="x-panel"><div class="sg-h"><h3>Задачи и договоры</h3></div>' + tasks + "</div></div>"
+      + kp + '<div class="x-panel pad" style="margin-bottom:16px"><div class="cl-kp" style="margin:0"><b>Подготовить КП для клиента</b><div class="x-row" style="margin:6px 0 0;justify-content:flex-start"><select id="clTpl" class="sg-sel"><option value="">Пустое КП</option></select><button class="x-btn accent" id="clKp">Подготовить КП</button></div></div></div>' + '<div class="x-two"><div><div class="x-panel" style="margin-bottom:16px"><div class="sg-h"><h3>Заявки и КП</h3></div>' + leads + '</div><div class="x-panel"><div class="sg-h"><h3>Задачи и договоры</h3></div>' + tasks + "</div></div>"
       + '<div class="x-sticky"><div class="x-panel pad" style="margin-bottom:16px"><h3>Контакты</h3>' + (cons.map(function (k) { return '<div class="cl-con"><b>' + E(k.name || "—") + "</b><small>" + (k.text ? link(k.text) : "") + "</small></div>"; }).join("") || '<p class="x-sub" style="margin:0">Контактов в заявках и задачах нет</p>') + "</div>"
       + '<div class="x-panel pad"><h3>Ответственные</h3><p class="x-sub" style="margin:0">' + (c.people.length ? E(c.people.join(", ")) : "—") + "</p>" + (names.length > 1 ? '<h3 style="margin-top:14px">Как записан</h3><p class="x-sub" style="margin:0">' + names.map(E).join("<br>") + "</p>" : "") + "</div></div></div>");
     el.querySelectorAll("[data-h]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.h; }; });
     var mg = $("clMg"); if (mg) mg.onclick = function () { mergeDlg(mydups[0]); };
+    wireKp(c);
   }
 
   /* ---------- «О клиенте» из переписки: найти заказчика по собеседнику и показать его дела ---------- */
@@ -248,19 +249,64 @@
     return '<h3>' + E(c.name) + '</h3><p class="x-sub">Найден ' + E(why) + (c.people.length ? " · ведёт: " + E(c.people.join(", ")) : "") + "</p>"
       + '<div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:12px"><div class="kpi"><div class="v">' + c.open.length + '</div><div class="l">Задач в работе</div></div><div class="kpi"><div class="v">' + c.live.length + '</div><div class="l">Активных заявок</div></div><div class="kpi"><div class="v" style="font-size:1.05rem">' + money(c.wonSum) + '</div><div class="l">Выиграно</div></div></div>'
       + '<div class="x-grp" style="padding:4px 0">Задачи и договоры</div>' + tasks + '<div class="x-grp" style="padding:10px 0 4px">Заявки и КП</div>' + leads
+      + '<div class="cl-kp"><b>Коммерческое предложение</b><div class="x-row" style="margin:6px 0 0;justify-content:flex-start"><select id="clTpl" class="sg-sel"><option value="">Пустое КП</option></select><button class="x-btn accent" id="clKp">Подготовить КП</button></div></div>'
       + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button><button class="x-btn primary" id="clOpen">Открыть карточку клиента</button></div>';
   }
   function showInfo(c, why) {
     var v = U.xmodal(infoHtml(c, why), true);
     v.querySelectorAll("[data-h]").forEach(function (r) { r.onclick = function () { T.closeModal(); location.hash = r.dataset.h; }; });
     $("clOpen").onclick = function () { T.closeModal(); location.hash = "#/clients/" + encodeURIComponent(c.key); };
+    wireKp(c);
   }
-  K.forThread = function (title, peer) {
+  function addrOf(c) {
+    var t = c.tasks.filter(function (x) { return x.address; }).sort(function (a, b) { return String(b.startDate).localeCompare(String(a.startDate)); })[0];
+    if (t) return t.address;
+    var l = c.leads.filter(function (x) { return x.object; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0];
+    return l ? l.object : "";
+  }
+  function wireKp(c) {                                           // «Подготовить КП» из окна «О клиенте» / карточки клиента
+    var sel = $("clTpl"), go = $("clKp"), tpls = [];
+    if (!go) return;
+    if (window.MPBP && MPBP.templateList) MPBP.templateList().then(function (l) { tpls = l; if (sel) sel.innerHTML += l.map(function (t, i) { return "<option value=\"" + i + "\">" + E(t.name) + "</option>"; }).join(""); }).catch(function () {});
+    go.onclick = function () {
+      if (!window.MPBP) { U.toast("Модуль КП не загружен — обновите страницу"); return; }
+      var hdr = { object: c.name, address: addrOf(c) };
+      MPBP.prepareKp(hdr, sel && sel.value !== "" ? tpls[+sel.value] : null, S.thread);
+    };
+  }
+  S.thread = null;
+  /* «Создать клиента» из диалога: клиент = заявка в реестре КП (так он появляется в «Клиентах», календаре и автоматизациях) */
+  K.createClient = function (title, peer, tid) {
+    if (tid) S.thread = { id: tid, title: title };
+    var d = new Date(), today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    var funnels = (window.FUNNEL_SOURCES && FUNNEL_SOURCES.length) ? FUNNEL_SOURCES : ["Переписка"];
+    var me = (window.MPBC && MPBC.me && MPBC.me.name) || "";
+    var isMail = /@/.test(peer || ""), phone = (peer || "");
+    var v = U.xmodal('<h3>Создать клиента</h3><p class="x-sub">В реестре КП появится новая заявка со статусом «Новое обращение»; клиент сразу будет виден в разделе «Клиенты»</p>'
+      + '<div class="x-field"><label>Заказчик</label><input id="ncCust" value="' + E(title || "") + '"></div><div class="x-field"><label>Контактное лицо</label><input id="ncContact" value="' + E(isMail ? "" : (title || "")) + '"></div>'
+      + '<div class="x-field"><label>Телефон / почта</label><input id="ncPhone" value="' + E(phone) + '"></div><div class="x-field"><label>Объект / что нужно</label><input id="ncObj" placeholder="адрес или кратко: что хочет клиент"></div>'
+      + '<div class="x-field"><label>Откуда клиент</label><select id="ncFun">' + funnels.map(function (f) { return "<option>" + E(f) + "</option>"; }).join("") + '</select></div>'
+      + '<div class="x-field"><label>Ответственный</label><input id="ncOwn" value="' + E(me) + '"></div><div class="x-err" id="ncErr"></div>'
+      + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="ncGo">Создать клиента</button></div>');
+    $("ncGo").onclick = function () {
+      var name = $("ncCust").value.trim();
+      if (!name) { $("ncErr").textContent = "Укажите заказчика"; return; }
+      var go = $("ncGo"); go.disabled = true; go.textContent = "Создаю…";
+      var data = { date: today, customer: name, funnel: $("ncFun").value, contact: $("ncContact").value.trim(), phoneEmail: $("ncPhone").value.trim(), object: $("ncObj").value.trim(), essence: "", amount: 0, status: "Новое обращение", owner: $("ncOwn").value.trim(), lastContact: today, comment: "Создано из переписки" };
+      callServer("api_kpregCreate", data).then(function () {
+        S.at = 0; T.closeModal(); U.toast("Клиент «" + name + "» создан");
+        K.forThread(name, $("ncPhone") ? "" : peer, tid);
+      }).catch(function (e) { go.disabled = false; go.textContent = "Создать клиента"; $("ncErr").textContent = String(e); });
+    };
+  };
+  K.forThread = function (title, peer, tid) {
+    if (tid) S.thread = { id: tid, title: title };
     U.toast("Ищу клиента…");
     load(false).then(function () {
       var r = findFor(title, peer);
       if (r) { showInfo(r.c, r.why); return; }
-      var v = U.xmodal('<h3>' + E(title || peer || "Собеседник") + '</h3><p class="x-sub">В задачах и заявках такого заказчика не найдено. Введите название заказчика, чтобы связать вручную:</p><div class="x-field"><input id="clFind" placeholder="Название заказчика…"></div><div id="clFound"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>');
+      var v = U.xmodal('<h3>' + E(title || peer || "Собеседник") + '</h3><p class="x-sub">В задачах и заявках такого заказчика не найдено. Создайте клиента или найдите существующего вручную:</p><div class="x-row" style="justify-content:flex-start;margin:0 0 10px"><button class="x-btn accent" id="clNew">➕ Создать клиента</button></div><div class="x-field"><input id="clFind" placeholder="Или найти по названию…"></div><div id="clFound"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>');
+      $("clNew").onclick = function () { T.closeModal(); K.createClient(title, peer, tid); };
       $("clFind").oninput = function () {
         var q = norm(this.value), res = q.length < 2 ? [] : S.list.filter(function (c) { return c.key.indexOf(q) >= 0; }).slice(0, 6);
         $("clFound").innerHTML = res.map(function (c) { return '<div class="cl-row" data-k="' + E(c.key) + '" style="padding:9px 0"><div class="cl-main"><b>' + E(c.name) + "</b><small>" + c.open.length + " задач в работе · " + c.live.length + " активных заявок</small></div></div>"; }).join("") || (q.length >= 2 ? '<div class="x-empty">Не найдено</div>' : "");

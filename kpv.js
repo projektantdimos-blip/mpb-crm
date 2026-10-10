@@ -186,6 +186,40 @@
     if (num) showNum(num, true); else showAll("");
   };
 
+  /* ---------- отправить КП в чат ---------- */
+  function kpText() {
+    var m = K().model(), nb = /\u00a0/g;
+    var lines = ["Коммерческое предложение № " + m.num + " от " + m.date, "Объект: " + m.object];
+    if (m.address) lines.push(m.address);
+    lines.push("");
+    m.rows.forEach(function (r, i) { lines.push((i + 1) + ". " + r.lines.join(" ") + " — " + r.priceLines.join(" / ")); });
+    lines.push("", "Итого: " + m.total + " (НДС не облагается, АУСН)", "");
+    m.note.forEach(function (n) { lines.push(n); });
+    return lines.join("\n").replace(nb, " ");
+  }
+  function doSend(th) {
+    var text = kpText(), res = K().check();
+    if (!res.ok && !confirm("В КП есть незаполненные или неверные поля (" + res.errors.length + "). Отправить всё равно?")) return;
+    if (!confirm("Отправить КП в диалог «" + (th.title || th.id) + "»?\n\n" + text.slice(0, 400) + (text.length > 400 ? "…" : ""))) return;
+    window.__chatSend(th.id, text).then(function () {
+      T.closeModal(); U.toast("КП отправлено в диалог «" + (th.title || th.id) + "»");
+      var s = K().state, num = String(s.num || "").trim();
+      if (num && C.loggedIn && C.loggedIn()) C.call("/kp/versions", { body: { num: num, object: s.object || "", total: K().total(), state: snapshot(), note: "Отправлено в чат: " + (th.title || th.id), status: "sent" } }).then(function (r) { U.toast("Версия " + r.version + " сохранена со статусом «Отправлено»"); }).catch(function () {});
+    }).catch(function (e) { U.toast("Не отправлено: " + E(e)); });
+  }
+  P.sendToChat = function () {
+    if (!window.__chatSend) { U.toast("Чат не загружен — обновите страницу"); return; }
+    if (P.thread) { doSend(P.thread); return; }
+    var all = window.__chatThreads ? window.__chatThreads() : [];
+    if (!all.length) { U.toast("Нет диалогов: откройте «Переписку» и убедитесь, что мост подключён"); return; }
+    var v = U.xmodal('<h3>Отправить КП в чат</h3><p class="x-sub">Выберите диалог. КП уйдёт текстом сообщения: услуги, цены и итог</p><div class="x-field"><input id="scQ" placeholder="Поиск по имени…"></div><div id="scList" style="max-height:46vh;overflow:auto"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button></div>', true);
+    function draw() {
+      var q = ($("scQ").value || "").toLowerCase();
+      $("scList").innerHTML = all.filter(function (t) { return !q || (t.title || t.peer || "").toLowerCase().indexOf(q) >= 0; }).slice(0, 40).map(function (t, i) { return '<div class="cl-row" data-id="' + E(t.id) + '" style="padding:9px 0"><div class="cl-main"><b>' + E(t.title || t.peer) + "</b><small>" + E(t.channel || "") + " · " + E(t.peer || "") + "</small></div></div>"; }).join("") || '<div class="x-empty">Ничего не найдено</div>';
+      $("scList").querySelectorAll(".cl-row").forEach(function (r) { r.onclick = function () { var th = all.filter(function (t) { return t.id === r.dataset.id; })[0]; doSend(th); }; });
+    }
+    $("scQ").oninput = draw; draw();
+  };
   /* ====================================================== шаблоны КП и договоров ====================================================== */
   var TPL = null;
   function loadTpl(force) {
@@ -196,8 +230,16 @@
   function saveTpl(patch) {
     return C.call("/templates", { body: { kp: patch.kp || TPL.kp, contracts: patch.contracts || TPL.contracts } }).then(function (d) { TPL = d; return d; });
   }
-  P.useTemplate = function (t) {
-    var saved = snapshot();
+  P.templateList = function () { return loadTpl(false).then(function (d) { return d.kp; }); };
+  P.thread = null;                                                // диалог, из которого начали готовить КП (для «Отправить в чат»)
+  P.prepareKp = function (hdr, t, thread) {                      // КП для клиента: объект и адрес подставляем, услуги — по шаблону или пустое
+    P.thread = thread || null;
+    if (t) return P.useTemplate(t, hdr);
+    T.closeModal(); location.hash = "#/kpc";
+    setTimeout(function () { K().load({ object: hdr.object, address: hdr.address || "", services: {} }); U.toast("КП для «" + hdr.object + "»: отметьте услуги и укажите № предложения"); }, 150);
+  };
+  P.useTemplate = function (t, hdr) {
+    var saved = hdr ? { object: hdr.object, address: hdr.address || "" } : snapshot();
     saved.services = JSON.parse(JSON.stringify(t.state.services || {}));
     if (t.state.deadline) saved.deadline = t.state.deadline;
     if (t.state.custom) saved.custom = t.state.custom;
@@ -207,7 +249,7 @@
     });
     T.closeModal();
     location.hash = "#/kpc";
-    setTimeout(function () { K().load(saved); U.toast("Шаблон «" + t.name + "» применён — укажите объёмы и цены"); }, 150);
+    setTimeout(function () { K().load(saved); U.toast("Шаблон «" + t.name + "» применён" + (hdr ? " для «" + hdr.object + "»" : "") + " — укажите № предложения, объёмы и цены"); }, 150);
   };
   function kpTplCards(withDel) {
     return '<div class="tpl-grid">' + (TPL.kp.map(function (t, i) {

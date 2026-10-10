@@ -8,14 +8,13 @@
   function $(id) { return document.getElementById(id); }
 
   var S = { tab: "rules", rules: [], meta: null, status: null, log: [] };
-  var TO_RU = { responsible: "исполнителя этапа / ответственного за заявку", owner: "ответственного за заявку", manager: "ответственного за заказчика", admins: "руководителей", all: "всех сотрудников" };
-  function dn(n) { n = Math.abs(+n); var m = n % 100, k = n % 10; return n + " " + ((m >= 11 && m <= 14) ? "дней" : k === 1 ? "день" : (k >= 2 && k <= 4) ? "дня" : "дней"); }
+  var TO_RU = { responsible: "исполнителю этапа / ответственному за заявку", owner: "ответственному за заявку", manager: "ответственному за заказчика", admins: "руководителям", all: "всем сотрудникам" };
   function toRu(t) { return t.indexOf("user:") === 0 ? t.slice(5) : (TO_RU[t] || t); }
   function isAdmin() { return C.me && C.me.role === "admin"; }
 
   function trigText(r) {
     var m = S.meta && S.meta.triggers[r.trigger], p = r.params || {}, l = m ? m.label : r.trigger;
-    l = p.days != null ? l.replace(/N дн\S*/, dn(p.days)) : l;
+    l = l.replace("N", p.days != null ? p.days : "N");
     if (r.trigger === "lead_no_reply") l += " (статус «" + p.status + "»)";
     if (r.trigger === "lead_status") l = "Заявка получила статус «" + p.status + "»";
     if (r.trigger === "stage_reached") l = "Задача дошла до этапа «" + p.stage + "»";
@@ -23,8 +22,8 @@
   }
   function actNodes(r) {
     return r.actions.map(function (a) {
-      if (a.type === "notify") return '<span class="node a">' + ic(a.urgent ? "flame" : "bell") + "Уведомить: " + E(toRu(a.to)) + (a.urgent ? " · срочно" : "") + "</span>";
-      if (a.type === "reminder") return '<span class="node a">' + ic("clock") + "Напомнить: " + E(toRu(a.to)) + "</span>";
+      if (a.type === "notify") return '<span class="node a">' + ic(a.urgent ? "flame" : "bell") + "Уведомить " + E(toRu(a.to)) + (a.urgent ? " · срочно" : "") + "</span>";
+      if (a.type === "reminder") return '<span class="node a">' + ic("clock") + "Поставить напоминание: " + E(toRu(a.to)) + "</span>";
       if (a.type === "room_message") return '<span class="node a">' + ic("chat") + "Написать в чат задачи" + (a.urgent ? " · срочно" : "") + "</span>";
       if (a.type === "create_task") return '<span class="node a warn">' + ic("tasks") + "Создать задачу в таблице</span>";
       return "";
@@ -36,9 +35,9 @@
     var el = $("auto-app"), sub = "Система сама напоминает, переносит этапы и сообщает о просрочках — вам не нужно держать это в голове";
     if (!U.gate(el, "Автоматизация", sub, render)) return;
     el.innerHTML = U.head("Автоматизация", sub, isAdmin() ? '<button class="x-btn accent" id="auNew">' + ic("plus") + "Новая автоматизация</button>" : "")
-      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
+      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="mail" class="' + (S.tab === "mail" ? "on" : "") + '">' + ic("chat") + 'Письма</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
     $("auTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { S.tab = b.dataset.t; render(); }; });
-    var nb = $("auNew"); if (nb) nb.onclick = function () { editor(null); };
+    var nb = $("auNew"); if (nb) nb.onclick = function () { if (S.tab === "mail") mailEditor(null); else editor(null); };
     load();
   }
   function load() {
@@ -58,6 +57,7 @@
   function paint() {
     var b = $("auBody"); if (!b) return;
     if (S.tab === "bot") { paintBot(b); return; }
+    if (S.tab === "mail") { paintMail(b); return; }
     b.innerHTML = statusCard() + '<div class="x-two"><div class="x-panel">' + (S.rules.map(function (r) {
       return '<div class="auto ' + (r.enabled ? "" : "offr") + '" data-id="' + r.id + '">' + (isAdmin() ? '<button class="x-sw ' + (r.enabled ? "on" : "") + '" data-sw="' + r.id + '" title="Включить/выключить"></button>' : '<span class="x-pill ' + (r.enabled ? "ok" : "") + '">' + (r.enabled ? "вкл" : "выкл") + "</span>")
         + '<div class="fl"><span class="node t">' + ic("clock") + E(trigText(r)) + '</span><span class="arr">' + ic("arrow") + "</span>" + actNodes(r) + '</div><span class="runs"><b>' + r.runs + "</b> срабат.<br>" + agoText(r.last_ts) + "</span></div>";
@@ -141,6 +141,56 @@
       };
     }
     draw();
+  }
+
+  /* ---------- письма: правила передачи сотрудникам ---------- */
+  var MR = { rules: [], people: [] };
+  function kwText(a) { return (a || []).join(", "); }
+  function ruleText(m) {
+    var p = [];
+    if ((m.subject || []).length) p.push("в теме: " + kwText(m.subject));
+    if ((m.files || []).length) p.push("в названии файла: " + kwText(m.files));
+    if ((m.text || []).length) p.push("в тексте: " + kwText(m.text));
+    if ((m.from || []).length) p.push("от: " + kwText(m.from));
+    if (m.attach) p.push("только с вложением");
+    return p.join(" · ");
+  }
+  function paintMail(b) {
+    b.innerHTML = '<div class="x-empty">Загрузка…</div>';
+    Promise.all([C.call("/mail/rules"), C.call("/people")]).then(function (r) {
+      MR.rules = r[0]; MR.people = r[1];
+      b.innerHTML = '<div class="x-two"><div class="x-panel">' + (MR.rules.map(function (x) {
+        return '<div class="auto ' + (x.enabled ? "" : "offr") + '" data-mr="' + x.id + '"><div class="fl"><span class="node t">' + ic("chat") + E(x.name) + '</span><span class="arr">' + ic("arrow") + '</span><span class="node a">' + ic("user") + "Передать: " + E(x.user || "—") + '</span></div><span class="runs"><b>' + x.runs + "</b> передано<br>" + E(ruleText(x.match)) + "</span></div>";
+      }).join("") || '<div class="x-empty">Правил пока нет. Нажмите «Новая автоматизация» — например, «письма со счетами → бухгалтеру».</div>') + "</div>"
+        + '<div class="x-panel pad"><h3>Как это работает</h3><p class="x-sub">Каждое новое входящее письмо проверяется по правилам по порядку. Подошло — оно передаётся сотруднику: в «Переписке» у диалога появляется отметка «→ имя», сотрудник получает уведомление и видит письмо во вкладке «Мне передали».</p><p class="x-sub" style="margin:0">Письма можно также передавать вручную кнопкой «📨 Передать» в диалоге.</p></div></div>';
+      if (isAdmin()) b.querySelectorAll("[data-mr]").forEach(function (row) { row.onclick = function () { mailEditor(MR.rules.filter(function (x) { return x.id === +row.dataset.mr; })[0]); }; });
+    }).catch(function (e) { b.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
+  }
+  function mailEditor(rule) {
+    if (!isAdmin()) { U.toast("Правила настраивает руководитель"); return; }
+    var r = rule ? JSON.parse(JSON.stringify(rule)) : { name: "", user_id: 0, match: { subject: [], files: ["счет", "счёт", "invoice"], text: [], from: [], attach: true }, note: "", enabled: true };
+    function people() { return MR.people.length ? Promise.resolve(MR.people) : C.call("/people").then(function (p) { MR.people = p; return p; }); }
+    people().then(function (ppl) {
+      U.xmodal('<h3>' + (rule ? "Правило передачи писем" : "Новое правило передачи писем") + '</h3><p class="x-sub">Если новое письмо подходит под условия — оно передаётся сотруднику. Условия соединяются «и»; слова внутри одного поля — «или»</p>'
+        + '<div class="x-field"><label>Название</label><input id="mrName" value="' + E(r.name) + '" placeholder="Например: Счета на оплату — бухгалтеру"></div>'
+        + '<div class="x-field"><label>Кому передавать</label><select id="mrUser">' + ppl.map(function (p) { return '<option value="' + p.id + '"' + (p.id === r.user_id ? " selected" : "") + ">" + E(p.name) + (p.title ? " — " + E(p.title) : "") + "</option>"; }).join("") + "</select></div>"
+        + '<div class="x-field"><label>Слова в теме письма (через запятую)</label><input id="mrSubj" value="' + E(kwText(r.match.subject)) + '" placeholder="счёт, оплата"></div>'
+        + '<div class="x-field"><label>Слова в названии вложенного файла</label><input id="mrFiles" value="' + E(kwText(r.match.files)) + '" placeholder="счет, счёт, invoice"></div>'
+        + '<div class="x-field"><label>Слова в тексте письма</label><input id="mrText" value="' + E(kwText(r.match.text)) + '"></div>'
+        + '<div class="x-field"><label>Отправитель содержит (адрес или имя)</label><input id="mrFrom" value="' + E(kwText(r.match.from)) + '" placeholder="@postavshik.ru"></div>'
+        + '<div class="x-qrow"><div><b>Только письма с вложением</b><small>Письмо без файла под правило не подойдёт</small></div><button type="button" class="x-sw ' + (r.match.attach ? "on" : "") + '" id="mrAtt"></button></div>'
+        + '<div class="x-field"><label>Что сказать сотруднику (необязательно)</label><input id="mrNote" value="' + E(r.note || "") + '" placeholder="Счёт на оплату"></div><div class="x-err" id="mrErr"></div>'
+        + '<div class="x-row">' + (rule ? '<button class="x-btn ghost" id="mrDel" style="margin-right:auto;color:var(--bad)">Удалить</button><button class="x-btn ghost" id="mrApply">Применить к письмам за 30 дней</button>' : "") + '<button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="mrSave">Сохранить</button></div>', true);
+      var att = r.match.attach; function $e(id) { return document.getElementById(id); }
+      $e("mrAtt").onclick = function () { att = !att; this.classList.toggle("on", att); };
+      function kws(id) { return $e(id).value.split(/[,;\n]/).map(function (x) { return x.trim(); }).filter(Boolean); }
+      $e("mrSave").onclick = function () {
+        C.call("/mail/rules", { body: { id: rule ? rule.id : 0, name: $e("mrName").value, user_id: +$e("mrUser").value, match: { subject: kws("mrSubj"), files: kws("mrFiles"), text: kws("mrText"), from: kws("mrFrom"), attach: att }, note: $e("mrNote").value, enabled: rule ? rule.enabled : true } })
+          .then(function () { T.closeModal(); U.toast("Правило сохранено"); paintMail($("auBody")); }).catch(function (e) { $e("mrErr").textContent = String(e); });
+      };
+      var del = $e("mrDel"); if (del) del.onclick = function () { if (confirm("Удалить правило?")) C.call("/mail/rules/" + rule.id + "/delete", { body: {} }).then(function () { T.closeModal(); paintMail($("auBody")); }); };
+      var ap = $e("mrApply"); if (ap) ap.onclick = function () { C.call("/mail/rules/" + rule.id + "/apply", { body: {} }).then(function (x) { U.toast("Передано писем: " + x.assigned + " (без уведомлений)"); }).catch(function (e) { $e("mrErr").textContent = String(e); }); };
+    });
   }
 
   A.render = render;

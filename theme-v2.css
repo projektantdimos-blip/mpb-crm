@@ -609,3 +609,8 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .ct-paper .ct-meta{display:grid;grid-template-columns:100px 1fr;gap:3px 10px;margin-bottom:10px}.ct-paper .ct-meta span{color:#666}
 .ct-paper p{margin:6px 0;line-height:1.45}.ct-paper .ct-sign{display:flex;justify-content:space-between;margin-top:28px}.ct-paper .ct-note{color:#999;font-size:.72rem;margin-top:16px}
 @media(max-width:800px){.ct-form{grid-template-columns:1fr}}
+.cl-kp{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}.cl-kp b{font-size:.86rem}
+
+/* передача писем сотрудникам */
+.as-pill{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:#c0612a;white-space:nowrap;margin-left:6px}
+.as-bar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--accent-soft);color:var(--ink);font-size:.84rem;border-bottom:1px solid var(--line)}

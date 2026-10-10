@@ -138,13 +138,14 @@
         '<button type="button" id="chatPush" title="Уведомления на этом устройстве">🔔</button>' +
         '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
-        '<section class="chat-thread"><div id="chatHead"></div><div id="chatMsgs"></div>' +
+        '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
         '<div id="chatComposer"><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
       '</div>';
     el.banner = document.getElementById("chatBanner");
     el.wrap = document.getElementById("chatWrap");
     el.threads = document.getElementById("chatThreads");
     el.head = document.getElementById("chatHead");
+    el.assign = document.getElementById("chatAssign");
     el.msgs = document.getElementById("chatMsgs");
     el.text = document.getElementById("chatText");
     el.send = document.getElementById("chatSend");
@@ -165,8 +166,50 @@
     renderChips(); renderThreads(); renderThread();
   }
 
+  /* ---------- передача писем сотрудникам (нужен вход в CRM) ---------- */
+  st.assign = [];
+  function crmOn() { return !!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn() && MPBC.me); }
+  function myOpen() { return crmOn() ? st.assign.filter(function (a) { return a.user_id === MPBC.me.id && a.status === "open"; }) : []; }
+  function assignsFor(tid) { return st.assign.filter(function (a) { return a.thread_id === tid && a.status === "open"; }); }
+  function assignPill(t) {
+    var l = assignsFor(t.id); if (!l.length) return "";
+    return '<span class="as-pill" title="Передано: ' + esc(l.map(function (a) { return a.user; }).join(", ")) + '">→ ' + esc(l[0].user) + (l.length > 1 ? " +" + (l.length - 1) : "") + "</span>";
+  }
+  function loadAssign() {
+    if (!crmOn()) { if (st.assign.length) { st.assign = []; } return Promise.resolve(); }
+    return MPBC.call("/mail/assignments?status=open").then(function (l) { st.assign = l; if (st.built) { renderChips(); renderThreads(); renderAssign(); } }).catch(function () {});
+  }
+  function renderAssign() {
+    if (!el.assign) return;
+    var t = curThread(), l = t ? assignsFor(t.id) : [];
+    el.assign.innerHTML = l.map(function (a) {
+      return '<div class="as-bar"><span>📨 Передано: <b>' + esc(a.user) + "</b>" + (a.by_name ? " · от " + esc(a.by_name) : " · автоматически") + (a.note ? " — " + esc(a.note) : "") + '</span><button class="hbtn" data-done="' + a.id + '">Готово</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(el.assign.querySelectorAll("[data-done]"), function (b) {
+      b.onclick = function () { MPBC.call("/mail/assignments/" + b.getAttribute("data-done") + "/done", { body: { done: true } }).then(loadAssign).catch(function (e) { alert(String(e)); }); };
+    });
+  }
+  function assignDialog(t) {
+    if (!crmOn()) { alert("Войдите в «Личном кабинете», чтобы передавать письма сотрудникам"); return; }
+    var U = window.MPBT && MPBT.util; if (!U) return;
+    var lastIn = null; for (var i = st.msgs.length - 1; i >= 0; i--) { if (st.msgs[i].direction === "in") { lastIn = st.msgs[i]; break; } }
+    MPBC.call("/people").then(function (people) {
+      var others = people.filter(function (p) { return p.id !== MPBC.me.id; });
+      var v = U.xmodal('<h3>Передать сотруднику</h3><p class="x-sub">' + esc(t.title || t.peer) + (lastIn && lastIn.subject ? " · " + esc(lastIn.subject) : "") + '</p>'
+        + '<div class="x-field"><label>Кому</label><select id="asTo">' + others.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + (p.title ? " — " + esc(p.title) : "") + "</option>"; }).join("") + '</select></div>'
+        + '<div class="x-field"><label>Что нужно сделать</label><input id="asNote" maxlength="300" placeholder="Например: оплатить счёт до пятницы"></div><div class="x-err" id="asErr"></div>'
+        + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="asGo">Передать</button></div>');
+      document.getElementById("asGo").onclick = function () {
+        MPBC.call("/mail/assign", { body: { thread_id: t.id, user_id: +document.getElementById("asTo").value, note: document.getElementById("asNote").value, message_id: lastIn ? lastIn.id : 0 } })
+          .then(function (r) { MPBT.closeModal(); U.toast(r.already ? "Уже передано этому сотруднику" : "Передано"); loadAssign(); })
+          .catch(function (e) { document.getElementById("asErr").textContent = String(e); });
+      };
+    }).catch(function (e) { alert(String(e)); });
+  }
+
   function renderChips() {
     var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"]];
+    if (crmOn()) items.push(["mine", "Мне передали" + (myOpen().length ? " · " + myOpen().length : "")]);
     el.chips.innerHTML = items.map(function (i) {
       return '<button data-f="' + i[0] + '" class="' + (st.filter === i[0] ? "on" : "") + '">' + i[1] + "</button>";
     }).join("");
@@ -177,7 +220,8 @@
 
   function visibleThreads() {
     return st.threads.filter(function (t) {
-      if (st.filter !== "all" && t.channel !== st.filter) return false;
+      if (st.filter === "mine") { if (!myOpen().some(function (a) { return a.thread_id === t.id; })) return false; }
+      else if (st.filter !== "all" && t.channel !== st.filter) return false;
       if (st.q && (t.title + " " + t.last_text + " " + t.peer).toLowerCase().indexOf(st.q) < 0) return false;
       return true;
     });
@@ -194,7 +238,7 @@
       return '<div class="ct' + (t.id === st.sel ? " on" : "") + '" data-id="' + esc(t.id) + '">' +
         '<div class="ava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
         '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + "</span></div>" +
-        '<div class="r2"><span class="pv">' + esc(t.last_text) + "</span>" + (t.unread ? '<span class="un">' + t.unread + "</span>" : "") + "</div></div></div>";
+        '<div class="r2"><span class="pv">' + esc(t.last_text) + "</span>" + assignPill(t) + (t.unread ? '<span class="un">' + t.unread + "</span>" : "") + "</div></div></div>";
     }).join("");
     Array.prototype.forEach.call(el.threads.querySelectorAll(".ct"), function (d) {
       d.onclick = function () { openThread(d.getAttribute("data-id")); };
@@ -223,6 +267,7 @@
     el.wrap.classList.toggle("has-sel", !!t);
     el.text.disabled = el.send.disabled = !t || st.sending;
     if (!t) {
+      if (el.assign) el.assign.innerHTML = "";
       el.head.innerHTML = '<b style="color:var(--muted);font-weight:400">Выберите переписку слева</b>';
       el.msgs.innerHTML = "";
       return;
@@ -233,6 +278,8 @@
       (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
         (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">⇅</button>" : "") +
       '<button class="hbtn" id="chatInfo" title="О клиенте: задачи, КП, контакты">👤 О клиенте</button>' +
+      (crmOn() ? '<button class="hbtn" id="chatAssignBtn" title="Передать письмо или диалог сотруднику">📨 Передать</button>' : "") +
+      '<button class="hbtn" id="chatNew" title="Создать клиента (заявку в реестре КП) из этого диалога">➕ Создать клиента</button>' +
       '<button class="hbtn" id="chatAv" title="Загрузить фото">📷</button>' +
       (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>' +
@@ -240,7 +287,10 @@
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
-    document.getElementById("chatInfo").onclick = function () { if (window.MPBK && MPBK.forThread) MPBK.forThread(t.title || t.peer, t.peer); else alert("Раздел «Клиенты» не загружен — обновите страницу"); };
+    document.getElementById("chatInfo").onclick = function () { if (window.MPBK && MPBK.forThread) MPBK.forThread(t.title || t.peer, t.peer, t.id); else alert("Раздел «Клиенты» не загружен — обновите страницу"); };
+    var asb = document.getElementById("chatAssignBtn"); if (asb) asb.onclick = function () { assignDialog(t); };
+    renderAssign();
+    document.getElementById("chatNew").onclick = function () { if (window.MPBK && MPBK.createClient) MPBK.createClient(t.title || t.peer, t.peer, t.id); else alert("Раздел «Клиенты» не загружен — обновите страницу"); };
     document.getElementById("chatAv").onclick = function () { document.getElementById("chatAvFile").click(); };
     document.getElementById("chatAvFile").onchange = function () { if (this.files[0]) uploadAvatar(t.id, this.files[0]); this.value = ""; };
     var del = document.getElementById("chatAvDel");
@@ -423,6 +473,7 @@
       if (st.built) renderThreads();
       applyBadge();
       loadAvatars();
+      loadAssign();
     }, function (e) { if (e !== "NOCFG") setErr(String(e)); });
   }
 
@@ -459,6 +510,12 @@
     });
   }
 
+  /* для «Конструктора КП»: отправить готовое предложение в диалог */
+  window.__chatThreads = function () { return st.threads.slice(); };
+  window.__chatSend = function (tid, text) {
+    return api("/api/threads/" + encodeURIComponent(tid) + "/send", { method: "POST", body: { text: text } }).then(function () { try { loadThreads(); if (st.sel === tid) loadMessages(false); } catch (e) {} });
+  };
+
   /* ---------- показ / опрос ---------- */
   function inChat() { return location.hash.indexOf("#/chat") === 0; }
 
@@ -466,7 +523,11 @@
     var c = cfg();
     if (!c.url || !c.key) { buildSetup(); return; }
     if (!st.built) build();
-    loadThreads().then(function () { if (st.sel) loadMessages(true); });
+    loadThreads().then(function () {
+      var m = location.hash.match(/[?&]t=([^&]+)/);
+      if (m) { var tid = decodeURIComponent(m[1]); if (st.sel !== tid && st.threads.some(function (x) { return x.id === tid; })) openThread(tid); }
+      if (st.sel) loadMessages(true);
+    });
   }
 
   function refreshNow() {
