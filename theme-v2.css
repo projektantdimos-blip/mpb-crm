@@ -868,3 +868,77 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .kpc-scope .paper .miss{background:#fff1d6;color:#a45b00;border-radius:5px;padding:0 5px;font-size:.78em}
 .kpc-scope .paper .emptyrow{text-align:center;color:#9aa5b3;padding:22px}
 @media(max-width:1100px){.kpc-scope .layout{grid-template-columns:1fr!important}}
+
+/* плитки-фильтры в «Задачах» */
+.kpi.click{cursor:pointer;user-select:none}
+.kpi.click:active{transform:scale(.99)}
+.kpi.on{outline:3px solid color-mix(in srgb,var(--brand-2) 55%,transparent);outline-offset:2px}
+.kpi.hero.on{outline-color:color-mix(in srgb,var(--blue) 60%,transparent)}
+/* «По исполнителям»: названия заказчиков переносятся, карточка не вылезает из колонки */
+.board-col .task-card{min-width:0}
+.board-col .task-card .row1{flex-wrap:wrap;gap:6px 8px;align-items:flex-start}
+.board-col .task-card .cust{flex:1 1 100%;min-width:0;overflow-wrap:anywhere;word-break:break-word;font-size:.95rem;line-height:1.3}
+.board-col .task-card .worktype{white-space:normal;max-width:100%}
+.board-col .task-card .addr,.board-col .task-card .meta{overflow-wrap:anywhere}
+.board-col .task-card .badges{flex-wrap:wrap}
+.board-col .task-card .prog .lab{flex-wrap:wrap;gap:4px}
+.board-col .task-card .prog .lab b{white-space:normal}
+
+/* клиенты: фильтры и ИНН */
+.cl2-chips{display:flex;gap:6px;flex-wrap:wrap}
+.cl2-chips button{display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:30px;border:1px solid var(--line);background:var(--card);color:var(--muted);font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+.cl2-chips button i{font-style:normal;background:var(--surface-2);border-radius:20px;padding:0 7px;font-size:.72rem;color:var(--ink)}
+.cl2-chips button.on{background:var(--blue-l);border-color:transparent;color:var(--blue)}
+.cl2-sort{padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-size:.82rem}
+.cl2-inn{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:12px 16px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.cl2-inn label{font-size:.7rem;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);font-weight:700}
+.cl2-inn input{width:170px;padding:9px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);color:var(--ink);font:inherit;letter-spacing:.5px}
+.cl2-inn small{color:var(--muted);flex:1;min-width:200px}
+
+/* конструктор: услуги — выпадающий список, в предложении только выбранные */
+.kpc-scope .svc:not(.on){display:none}
+.kpc-scope .svc-bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.kpc-scope .svc-pick{flex:1;min-width:240px;padding:12px 40px 12px 14px;border:1.5px dashed var(--brand-2);border-radius:14px;background:var(--blue-l);color:var(--blue);font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--blue) 50%),linear-gradient(135deg,var(--blue) 50%,transparent 50%);background-position:calc(100% - 20px) 50%,calc(100% - 14px) 50%;background-size:6px 6px;background-repeat:no-repeat}
+.kpc-scope .svc-pick:focus{outline:0;box-shadow:0 0 0 4px color-mix(in srgb,var(--brand-2) 18%,transparent)}
+.kpc-scope .svc-count{color:var(--muted);font-size:.84rem;font-weight:600}
+.kpc-scope .card{padding:18px 20px;margin-bottom:14px}
+.kpc-scope .layout{margin-top:8px!important}
+.kpc-scope .left .card:first-child .row2 + *{margin-top:0}
+.kpc-scope .right .sticky{max-height:calc(100vh - 110px)}
+.kpc-scope .paper{padding:26px 30px;font-size:.84rem}
+
+/* ===== телефон: «Переписка» — панель клиента/КП открывается поверх диалога ===== */
+.chat-infobtn{display:none}
+.cp-close{display:none}
+@media(max-width:1100px){
+  #chat-app #chatHead .chat-infobtn{display:inline-flex;width:auto!important;padding:0 12px;align-items:center;font-size:.8rem;font-weight:700;color:var(--blue);border-color:var(--brand-2);white-space:nowrap}
+  #chat-app .chat-wrap{position:relative}
+  #chat-app .chat-wrap.show-info .chat-info{display:flex!important;position:absolute;inset:0;z-index:6;background:var(--card);border-left:0;padding:14px 16px}
+  .cp-close{display:inline-flex;align-self:flex-start;border:0;background:none;color:var(--blue);font:inherit;font-weight:700;font-size:.92rem;padding:4px 0;cursor:pointer}
+}
+/* ===== телефон: общие исправления выхода за край экрана ===== */
+@media(max-width:760px){
+  .cl2>*{min-width:0}.cl2-left{max-height:none!important;position:static!important}
+  .cl2-list{max-height:320px}
+  .cl2-chips button{padding:6px 9px}
+  .cl2-mini{grid-template-columns:repeat(2,1fr)!important}
+  .cl2-hd{gap:12px}.cl2-act{width:100%}.cl2-act .x-btn{flex:1;justify-content:center}
+  .cl2-inn input{width:100%}
+  .kpc-scope .layout{grid-template-columns:minmax(0,1fr)!important;padding:0 12px!important}
+  .kpc-scope .left,.kpc-scope .right{min-width:0}
+  .kpc-scope .row2{grid-template-columns:1fr}
+  .kpc-scope .card{padding:14px}
+  .kpc-scope .right .sticky{position:static;max-height:none}
+  .kpc-scope .paper{padding:18px 16px}
+  .kpc-scope .actions button{min-width:100%}
+  .x-chcards{grid-template-columns:minmax(0,1fr)!important}
+  .x-chat>*{min-width:0}.x-chat{overflow:hidden}
+  .x-nb{width:34px}
+  #price-app .pr-row,.pr-cols{padding-left:12px;padding-right:12px}
+  .sg>*{min-width:0}
+  .chat-info{padding:14px}
+  .cp-r2{grid-template-columns:76px 104px 1fr}
+  .tpl-grid{grid-template-columns:1fr}
+}
+@media(max-width:1180px){.x-two{grid-template-columns:minmax(0,1fr)!important}.x-two>*{min-width:0}}
+@media(max-width:760px){.x-chc{min-width:0}.x-mx{display:block;overflow-x:auto;max-width:100%}.x-day,.x-rm{max-width:100%}.x-dlg .m b,.x-dlg .m span{max-width:100%}.x-chat .x-dlgs{min-width:0}}

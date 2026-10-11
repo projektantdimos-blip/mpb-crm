@@ -11,7 +11,7 @@
   var TASK_KEYS = ["customer", "address", "contractNo", "workType", "startDate", "dueDate", "stage", "deadline", "siteContact", "siteContactPhone", "comment", "closed", "manager"];
   var LEAD_KEYS = ["date", "customer", "contact", "phoneEmail", "funnel", "object", "essence", "amount", "status", "lastContact", "owner", "comment"];
   var LEGAL = { ооо: 1, оао: 1, зао: 1, пао: 1, ао: 1, ип: 1, тоо: 1, нко: 1, мбоу: 1, гбоу: 1, мдоу: 1, мбдоу: 1, оу: 1 };
-  var S = { at: 0, tasks: [], leads: [], list: [], by: {}, dups: [], q: "", sort: "act", tab: "all", busy: false };
+  var S = { at: 0, tasks: [], leads: [], list: [], by: {}, dups: [], q: "", sort: "act", tab: "all", busy: false, f: "all", meta: {} };
   var DKEY = "mpb_notdup";
 
   /* ---------- нормализация ---------- */
@@ -66,6 +66,8 @@
     list.forEach(function (c) {
       var best = "", n = 0; Object.keys(c.names).forEach(function (r) { if (c.names[r] > n || (c.names[r] === n && r.length > best.length)) { best = r; n = c.names[r]; } });
       c.name = best;
+      var mt = (S.meta || {})[c.key] || {};
+      c.innAuto = detectInn(c); c.inn = mt.inn || c.innAuto; c.innManual = !!mt.inn;
       c.open = c.tasks.filter(function (t) { return !t.closed; });
       c.closedN = c.tasks.length - c.open.length;
       c.won = c.leads.filter(function (l) { return l.status === "Выиграно"; });
@@ -92,6 +94,9 @@
     [[byP, "Совпадает телефон "], [byM, "Совпадает почта "]].forEach(function (pair) {
       Object.keys(pair[0]).forEach(function (v) { var cs = pair[0][v]; if (cs.length >= 2 && cs.length <= 3) for (var x = 1; x < cs.length; x++) link(cs[0].key, cs[x].key, pair[1] + (pair[1].indexOf("телефон") > 0 ? "+7 " + v.slice(0, 3) + " … " + v.slice(-4) : v)); });
     });
+    var byI = {};
+    list.forEach(function (c) { if (c.inn) (byI[c.inn] = byI[c.inn] || []).push(c); });
+    Object.keys(byI).forEach(function (n) { var cs = byI[n]; for (var x = 1; x < cs.length; x++) link(cs[0].key, cs[x].key, "Совпадает ИНН " + n); });
     var groups = {};
     list.forEach(function (c) { var r = f(c.key); (groups[r] = groups[r] || []).push(c); });
     var out = [], hid = dismissed();
@@ -109,9 +114,39 @@
   }
 
   /* ---------- загрузка ---------- */
+  var INN_RE = /ИНН[^0-9]{0,15}(\d{10}|\d{12})(?!\d)/i;
+  /* ИНН клиентов лежат в таблице на листе «КЛИЕНТЫ» (api_clientsList / api_clientsSave); если лист ещё не подключён,
+     используется запасное хранилище на мосте */
+  S.sheetOk = null;
+  function metaLoad() {
+    var m = {};
+    return callServer("api_clientsList").then(function (rows) {
+      S.sheetOk = true;
+      (rows || []).forEach(function (r) { m[r.key] = { inn: r.inn, note: r.note }; });
+    }, function () { S.sheetOk = false; }).then(function () {
+      if (!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn())) { S.meta = m; return; }
+      return MPBC.call("/clients/meta").then(function (b) { Object.keys(b || {}).forEach(function (k) { if (!m[k]) m[k] = b[k]; }); }).catch(function () {}).then(function () { S.meta = m; });
+    });
+  }
+  function metaSave(c, inn) {
+    var who = (window.MPBC && MPBC.me && MPBC.me.name) || "";
+    return callServer("api_clientsSave", c.key, c.name, inn, "", who).then(function () { return "sheet"; }, function (e) {
+      if (window.MPBC && MPBC.loggedIn && MPBC.loggedIn()) return MPBC.call("/clients/meta", { body: { key: c.key, inn: inn } }).then(function () { return "bridge"; });
+      throw e;
+    });
+  }  function detectInn(c) {
+    var txt = [];
+    c.leads.forEach(function (l) { txt.push(l.comment, l.essence, l.object, l.contact, l.phoneEmail, l.customer); });
+    c.tasks.forEach(function (t) { txt.push(t.comment, t.address, t.siteContact, t.customer); });
+    var m = INN_RE.exec(txt.filter(Boolean).join(" ; "));
+    return m ? m[1] : "";
+  }
   function load(force) {
     if (!force && Date.now() - S.at < 60000 && S.list.length) return Promise.resolve();
-    return Promise.all([callServer("api_listTasks"), callServer("api_kpregList")]).then(function (r) { S.tasks = r[0] || []; S.leads = r[1] || []; S.at = Date.now(); build(); });
+    return Promise.all([callServer("api_listTasks"), callServer("api_kpregList")]).then(function (r) {
+      S.tasks = r[0] || []; S.leads = r[1] || [];
+      return metaLoad().then(function () { S.at = Date.now(); build(); });
+    });
   }
   function route() { var h = decodeURIComponent(location.hash || ""); h = h.replace(/^#\/clients\/?/, ""); return h; }
   function shell(title, sub, extra, body) { return U.head(title, sub, extra || "") + '<div class="wrap">' + body + "</div>"; }
@@ -123,6 +158,7 @@
   function paint() {
     var r = route();
     S.tab = r === "dups" ? "dups" : "all";
+    if (r === "dups") S.f = "dups";
     paintMain(r && r !== "dups" ? S.by[r] : null);
   }
   function kindOf(c) {
@@ -134,28 +170,33 @@
   function filtered() {
     var q = norm(S.q), raw = S.q.toLowerCase(), digits = S.q.replace(/\D/g, "");
     var list = S.list.filter(function (c) {
-      if (S.tab === "dups" && !c.dup) return false;
+      if (S.f === "dups" && !c.dup) return false;
+      if (S.f === "inn" && !c.inn) return false;
+      if (S.f === "noinn" && c.inn) return false;
+      if (S.f === "work" && !c.open.length && !c.live.length) return false;
       if (!q && !raw) return true;
-      return c.key.indexOf(q) >= 0 || Object.keys(c.names).some(function (n) { return n.toLowerCase().indexOf(raw) >= 0; }) || (digits.length >= 4 && Object.keys(c.phones).some(function (p) { return p.indexOf(digits) >= 0; }));
+      return c.key.indexOf(q) >= 0 || Object.keys(c.names).some(function (n) { return n.toLowerCase().indexOf(raw) >= 0; }) || (digits.length >= 4 && (Object.keys(c.phones).some(function (p) { return p.indexOf(digits) >= 0; }) || (c.inn && c.inn.indexOf(digits) >= 0)));
     });
     return list.sort(S.sort === "name" ? function (a, b) { return a.name.localeCompare(b.name, "ru"); } : S.sort === "sum" ? function (a, b) { return (b.wonSum + b.liveSum) - (a.wonSum + a.liveSum); } : function (a, b) { return a.activity < b.activity ? 1 : a.activity > b.activity ? -1 : 0; });
   }
   function listHtml(list, sel) {
     return list.map(function (c) {
       var pill = c.dup ? '<span class="x-pill soon">дубль?</span>' : c.open.length ? '<span class="x-pill blue">' + c.open.length + " в работе</span>" : "";
-      return '<div class="cl2-item ' + (sel && sel.key === c.key ? "on" : "") + '" data-k="' + E(c.key) + '"><span class="cl2-av">' + E((c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?").toUpperCase()) + '</span><div class="cl2-t"><b>' + E(c.name) + "</b><small>" + E(kindOf(c)) + "</small></div>" + pill + "</div>";
+      return '<div class="cl2-item ' + (sel && sel.key === c.key ? "on" : "") + '" data-k="' + E(c.key) + '"><span class="cl2-av">' + E((c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?").toUpperCase()) + '</span><div class="cl2-t"><b>' + E(c.name) + "</b><small>" + E(kindOf(c)) + (c.inn ? " · ИНН " + E(c.inn) : "") + "</small></div>" + pill + "</div>";
     }).join("") || '<p class="cl2-none">Не найдено</p>';
   }
   function paintMain(sel) {
     var el = $("clients-app"), list = filtered(), nd = S.dups.length;
     if (!sel && list.length) sel = list[0];
     el.innerHTML = shell("Клиенты", "Единая карточка заказчика: заявки, договоры, задачи, КП и переписка — вместе", '<button class="x-btn accent" id="clNewTop">' + ic("plus") + "Новый клиент</button>",
-      '<div class="cl2"><div class="x-panel cl2-left"><div class="cl2-top"><label class="cl2-search">' + ic("search") + '<input id="clQ" placeholder="Найти клиента, телефон…" value="' + E(S.q) + '"></label>'
-      + '<div class="cl2-tabs"><button data-t="all" class="' + (S.tab === "all" ? "on" : "") + '">Все · ' + S.list.length + '</button><button data-t="dups" class="' + (S.tab === "dups" ? "on" : "") + '">Дубли' + (nd ? " · " + nd : "") + '</button></div></div>'
+      '<div class="cl2"><div class="x-panel cl2-left"><div class="cl2-top"><label class="cl2-search">' + ic("search") + '<input id="clQ" placeholder="Название, ИНН или телефон…" value="' + E(S.q) + '"></label>'
+      + '<div class="cl2-chips">' + [["all", "Все", S.list.length], ["work", "В работе", S.list.filter(function (c) { return c.open.length || c.live.length; }).length], ["inn", "С ИНН", S.list.filter(function (c) { return c.inn; }).length], ["noinn", "Без ИНН", S.list.filter(function (c) { return !c.inn; }).length], ["dups", "Дубли", nd]].map(function (x) { return '<button data-f="' + x[0] + '" class="' + (S.f === x[0] ? "on" : "") + '">' + x[1] + ' <i>' + x[2] + "</i></button>"; }).join("")
+      + '</div><select id="clSort" class="cl2-sort"><option value="act"' + (S.sort === "act" ? " selected" : "") + '>По активности</option><option value="name"' + (S.sort === "name" ? " selected" : "") + '>По названию А–Я</option><option value="sum"' + (S.sort === "sum" ? " selected" : "") + '>По сумме</option></select></div>'
       + '<div id="clList" class="cl2-list">' + listHtml(list, sel) + '</div></div><div id="clCard" class="cl2-card"></div></div>');
     $("clNewTop").onclick = function () { K.createClient("", "", null); };
     var qi = $("clQ"); qi.oninput = function () { S.q = qi.value; var pos = qi.selectionStart; var l2 = filtered(); $("clList").innerHTML = listHtml(l2, sel); bindList(sel); };
-    el.querySelectorAll(".cl2-tabs button").forEach(function (b) { b.onclick = function () { location.hash = b.dataset.t === "dups" ? "#/clients/dups" : "#/clients"; }; });
+    el.querySelectorAll(".cl2-chips button").forEach(function (b) { b.onclick = function () { S.f = b.dataset.f; if (location.hash.indexOf("#/clients/dups") === 0) history.replaceState(null, "", "#/clients"); paintMain(sel); }; });
+    $("clSort").onchange = function () { S.sort = this.value; paintMain(sel); };
     bindList(sel);
     var card = $("clCard");
     if (!sel) { card.innerHTML = '<div class="x-panel"><div class="x-empty">' + (S.tab === "dups" ? "Дублей не найдено — каждый заказчик записан одним способом" : "Клиентов пока нет. Нажмите «Новый клиент» или создайте клиента из переписки.") + "</div></div>"; return; }
@@ -227,13 +268,18 @@
     card.innerHTML = '<div class="x-panel pad"><div class="cl2-hd"><span class="cl2-av lg">' + E((c.name.replace(/[^A-Za-zА-Яа-я0-9]/, "").charAt(0) || "?").toUpperCase()) + '</span><div class="cl2-hdt"><h2>' + E(c.name) + "</h2><p>" + E(kindOf(c)) + (c.people.length ? " · ответственный: " + E(c.people.join(", ")) : "") + "</p>"
       + '<div class="cl2-tags">' + Object.keys(tags).slice(0, 5).map(function (t) { return '<span class="x-pill blue">' + E(t) + "</span>"; }).join("") + "</div></div>"
       + '<div class="cl2-act"><button class="x-btn ghost" id="clMsg">' + ic("chat") + 'Написать</button><button class="x-btn primary" id="clKp">' + ic("file") + "Создать КП</button></div></div></div>"
+      + '<div class="cl2-inn"><label>ИНН</label><input id="clInn" inputmode="numeric" maxlength="12" value="' + E(c.inn || "") + '" placeholder="10 или 12 цифр"><button class="x-btn ghost" id="clInnSave">Сохранить</button><small>' + (c.innManual ? "задан вручную" : c.innAuto ? "найден в тексте заявок — проверьте и сохраните" : "ИНН помогает находить дубли: клиенты с одинаковым ИНН объединяются в одну группу") + "</small></div>"
       + (others.length ? '<div class="cl2-dup">' + ic("alert") + "<span>Возможный дубль: «" + E(others.map(function (x) { return x.name; }).join("», «")) + "». Один и тот же заказчик? Объедините карточки, чтобы история не раздваивалась.</span>" + '<button class="x-btn primary" id="clMerge">' + ic("repeat") + "Объединить</button></div>" : "")
       + '<div class="x-panel pad" style="margin-top:16px"><h3>Путь клиента</h3><p class="x-sub">От первой заявки до обслуживания — всё связано автоматически</p>' + chainHtml(chainOf(c)) + "</div>"
       + '<div class="cl2-mini"><div><small>Договоры, сумма</small><b>' + money(c.wonSum) + "</b></div><div><small>КП в работе</small><b>" + c.live.length + "</b></div><div><small>Задач в работе</small><b>" + c.open.length + "</b></div><div><small>Объектов на ТО</small><b>" + toN + "</b></div></div>"
       + '<div class="cl2-two"><div class="x-panel pad"><h3>История</h3><p class="x-sub">Все события по клиенту в одной ленте</p><div class="tl">' + timeline(c) + "</div></div>"
       + '<div class="x-panel pad"><h3>Связанное</h3><p class="x-sub">' + (cons.length ? "Контакт: " + cons.slice(0, 2).map(function (k) { return E(k.name || "") + (k.text ? " · " + link(k.text) : ""); }).join("; ") : "Контактов нет") + "</p>"
       + rel("Заявки и КП", leadsH) + rel("Договоры", contrH) + rel("Задачи", tasksH) + "</div></div>";
-    card.querySelectorAll("[data-go]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.go; }; });
+    $("clInnSave").onclick = function () {
+      var v = $("clInn").value.replace(/\D/g, "");
+      if (v && v.length !== 10 && v.length !== 12) { U.toast("ИНН — 10 цифр (организация) или 12 (ИП)"); return; }
+      metaSave(c, v).then(function (where) { S.at = 0; U.toast(v ? (where === "sheet" ? "ИНН сохранён в таблице (лист «КЛИЕНТЫ»)" : "ИНН сохранён на мосте (лист «КЛИЕНТЫ» в таблице не подключён)") : "ИНН очищен"); return load(true); }).then(function () { location.hash = "#/clients/" + encodeURIComponent(c.key); paint(); }).catch(function (e) { U.toast(E(e)); });
+    };    card.querySelectorAll("[data-go]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.go; }; });
     $("clMsg").onclick = function () {
       var th = threadFor(c);
       if (th) location.hash = "#/chat?t=" + encodeURIComponent(th.id);

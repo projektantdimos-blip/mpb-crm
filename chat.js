@@ -279,6 +279,7 @@
       '<div class="hava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
       '<div class="hmain"><b>' + esc(t.title || t.peer) + "</b><small>" + esc(t.peer) + "</small></div>" +
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
+      '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Клиент, создание клиента и КП">Клиент · КП</button>' +
       (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
         (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">⇅</button>" : "") +
       '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">📷</button>' +
@@ -289,6 +290,7 @@
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
     renderAssign();
     renderInfo(t);
+    document.getElementById("chatInfoBtn").onclick = function () { el.wrap.classList.add("show-info"); };
     document.getElementById("chatAv").onclick = function () { document.getElementById("chatAvFile").click(); };
     document.getElementById("chatAvFile").onchange = function () { if (this.files[0]) uploadAvatar(t.id, this.files[0]); this.value = ""; };
     var del = document.getElementById("chatAvDel");
@@ -317,8 +319,9 @@
     if (!t) { el.info.innerHTML = '<div class="chat-empty">Выберите диалог слева</div>'; return; }
     var ci = chInfo(t.channel), av = avUrl(t), ini = (t.title || "?").trim().charAt(0).toUpperCase(), name = t.title || t.peer;
     if (window.MPBD && MPBD.render) {                              // боковая панель с вкладками: клиент / создать клиента / КП
-      el.info.innerHTML = '<div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
+      el.info.innerHTML = '<button class="cp-close" id="cpClose">← К диалогу</button><div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
         (crmOn() ? '<button class="x-btn ghost cp-w" id="qaAssign">' + ic2("send") + 'Передать сотруднику</button>' : "") + '<div id="chatPanel"></div>';
+      document.getElementById("cpClose").onclick = function () { el.wrap.classList.remove("show-info"); };
       var qa0 = document.getElementById("qaAssign"); if (qa0) qa0.onclick = function () { assignDialog(t); };
       MPBD.render(document.getElementById("chatPanel"), t, name);
       return;
