@@ -138,7 +138,7 @@
         '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
-        '<div id="chatComposer"><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
+        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">📎</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
         '<aside class="chat-info" id="chatInfoPane"></aside>' +
       '</div>';
     el.banner = document.getElementById("chatBanner");
@@ -154,6 +154,16 @@
     el.chips = document.getElementById("chatChips");
     el.q.oninput = function () { st.q = el.q.value.trim().toLowerCase(); renderThreads(); };
     el.send.onclick = sendMsg;
+    el.fileBar = document.getElementById("chatFileBar");
+    var fileIn = document.getElementById("chatFile");
+    document.getElementById("chatAttach").onclick = function () { fileIn.click(); };
+    fileIn.onchange = function () {
+      var f = fileIn.files && fileIn.files[0]; fileIn.value = "";
+      if (!f) return;
+      if (f.size > 10 * 1024 * 1024) { setErr("Файл больше 10 МБ"); return; }
+      st.file = f; showFileBar(); setErr("");
+    };
+    el.fileBar.onclick = function (e) { if (e.target.getAttribute && e.target.getAttribute("data-x")) { st.file = null; showFileBar(); } };
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
     document.getElementById("chatPush").onclick = togglePush;
     showSync();
@@ -536,12 +546,33 @@
     }
   }
 
+  function showFileBar() {
+    if (!el.fileBar) return;
+    var f = st.file;
+    el.fileBar.hidden = !f;
+    el.fileBar.innerHTML = f ? '📄 ' + esc(f.name) + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ <button type="button" data-x="1" title="Убрать">✕</button>' : "";
+  }
+  function readB64(f) {
+    return new Promise(function (ok, bad) {
+      var r = new FileReader();
+      r.onload = function () { var s = String(r.result || ""); ok(s.slice(s.indexOf(",") + 1)); };
+      r.onerror = function () { bad("Не удалось прочитать файл"); };
+      r.readAsDataURL(f);
+    });
+  }
+
   function sendMsg() {
-    var t = curThread(), text = el.text.value.trim();
-    if (!t || !text || st.sending) return;
+    var t = curThread(), text = el.text.value.trim(), f = st.file;
+    if (!t || (!text && !f) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
-    api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } }).then(function () {
-      el.text.value = ""; setErr("");
+    var job = f
+      ? readB64(f).then(function (data) {
+          return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: { text: text, filename: f.name, mime: f.type || "application/octet-stream", data: data } });
+        })
+      : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
+    job.then(function (r) {
+      el.text.value = ""; setErr(""); st.file = null; showFileBar();
+      if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
       return Promise.all([loadMessages(false), loadThreads()]);
     }).then(null, function (e) { setErr(String(e)); }).then(function () {
       st.sending = false; el.send.textContent = "Отправить"; el.send.disabled = !curThread();
@@ -550,8 +581,8 @@
 
   /* для «Конструктора КП»: отправить готовое предложение в диалог */
   window.__chatThreads = function () { return st.threads.slice(); };
-  window.__chatSendFile = function (tid, text, filename, b64) {
-    return api("/api/threads/" + encodeURIComponent(tid) + "/send-file", { method: "POST", body: { text: text, filename: filename, mime: "application/pdf", data: b64 } })
+  window.__chatSendFile = function (tid, text, filename, b64, mime) {
+    return api("/api/threads/" + encodeURIComponent(tid) + "/send-file", { method: "POST", body: { text: text, filename: filename, mime: mime || "application/pdf", data: b64 } })
       .then(function (r) { try { loadThreads(); if (st.sel === tid) loadMessages(false); } catch (e) {} return r; });
   };
   window.__chatSend = function (tid, text) {

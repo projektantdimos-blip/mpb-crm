@@ -942,3 +942,11 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 }
 @media(max-width:1180px){.x-two{grid-template-columns:minmax(0,1fr)!important}.x-two>*{min-width:0}}
 @media(max-width:760px){.x-chc{min-width:0}.x-mx{display:block;overflow-x:auto;max-width:100%}.x-day,.x-rm{max-width:100%}.x-dlg .m b,.x-dlg .m span{max-width:100%}.x-chat .x-dlgs{min-width:0}}
+
+/* вложения в ответе клиенту */
+#chat-app #chatComposer{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+#chat-app #chatComposer textarea{flex:1 1 220px;min-width:0}
+#chat-app #chatComposer .chat-attach{background:var(--surface-2);color:var(--text);border:1px solid var(--line);box-shadow:none;height:52px;width:48px;padding:0;font-size:1.2rem;cursor:pointer}
+#chat-app .chat-filebar{flex:1 1 100%;display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:6px 10px}
+#chat-app .chat-filebar[hidden]{display:none}
+#chat-app .chat-filebar button{background:none;border:0;box-shadow:none;color:var(--muted);cursor:pointer;padding:0 4px;margin-left:auto}
