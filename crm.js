@@ -21,6 +21,15 @@
   C.configured = function () { var c = cfg(); return !!(c.url && c.key); };
   C.loggedIn = function () { return !!(C.me && tok()); };
 
+  C.blob = function (path) {                       // скачать файл (вложение внутреннего чата)
+    var c = cfg();
+    if (!c.url || !c.key) return Promise.reject("Мост не подключён");
+    var h = { "X-Api-Key": c.key }; if (tok()) h["X-Session"] = tok();
+    return fetch(c.url + "/api/crm" + path, { headers: h, cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw "Не удалось скачать файл (" + r.status + ")";
+      return r.blob();
+    });
+  };
   C.call = function (path, opts) {
     opts = opts || {};
     var c = cfg();

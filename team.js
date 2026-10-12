@@ -117,10 +117,40 @@
       return C.call("/team/rooms/" + encodeURIComponent(id) + "/read", { body: {} }).then(loadRooms).then(function () { C.refresh(); });
     }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
   }
+  function fsize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + " МБ" : Math.max(1, Math.round(n / 1024)) + " КБ"; }
+  S.files = [];
+  function addFiles(list) {
+    var msg = "";
+    Array.prototype.forEach.call(list || [], function (f) {
+      var sum = S.files.reduce(function (a, x) { return a + x.size; }, 0);
+      if (!f.size) msg = "Файл «" + f.name + "» пустой";
+      else if (f.size > 10485760) msg = "Файл «" + f.name + "» больше 10 МБ";
+      else if (S.files.length >= 10) msg = "Не больше 10 файлов за раз";
+      else if (sum + f.size > 26214400) msg = "Файлы вместе больше 25 МБ";
+      else S.files.push(f);
+    });
+    if (msg) toast(msg);
+    paintFiles();
+  }
+  function paintFiles() {
+    var b = $("tFiles"); if (!b) return;
+    b.hidden = !S.files.length;
+    b.innerHTML = S.files.map(function (f, i) { return '<span class="x-fchip">' + ic("file") + '<span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + '</small><button type="button" data-x="' + i + '" title="Убрать">×</button></span>'; }).join("");
+    Array.prototype.forEach.call(b.querySelectorAll("[data-x]"), function (x) { x.onclick = function () { S.files.splice(+x.dataset.x, 1); paintFiles(); }; });
+  }
+  function readB64(f) {
+    return new Promise(function (ok, bad) {
+      var r = new FileReader();
+      r.onload = function () { var s = String(r.result || ""); ok(s.slice(s.indexOf(",") + 1)); };
+      r.onerror = function () { bad("Не удалось прочитать файл"); };
+      r.readAsDataURL(f);
+    });
+  }
   function msgHtml(m) {
     var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0;
     return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small></div><div class="tx">'
-      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + E(m.text) + "</div>"
+      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((m.files && m.files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
+      + ((m.files && m.files.length) ? '<div class="x-files">' + m.files.map(function (f) { return '<button type="button" class="x-file" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="fi">' + ic("file") + '</span><span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + "</small></button>"; }).join("") + "</div>" : "") + "</div>"
       + (m.urgent ? '<div class="x-ack">' + ic("check") + (m.acks.length ? "Прочитали: " + E(m.acks.join(", ")) : "Пока никто не подтвердил") + (!me && !mine ? '<button data-ack="' + m.id + '">Прочитал(а)</button>' : "") + "</div>" : "") + "</div></div>";
   }
   function paintThread(keep) {
@@ -133,10 +163,26 @@
     el.innerHTML = '<div class="x-th-h"><span class="x-rm ' + (room.kind === "task" ? "task" : "") + '">' + ic(room.kind === "task" ? "tasks" : (ROOM_IC[room.id] || "hash")) + "</span><div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div></div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-comp"><input type="text" id="tIn" placeholder="Написать в «' + E(room.name) + '»… (@Имя — упомянуть)" autocomplete="off"><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+      + '<div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><input type="text" id="tIn" placeholder="Написать в «' + E(room.name) + '»… (@Имя — упомянуть)" autocomplete="off"><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
+    $("tAttach").onclick = function () { $("tFile").click(); };
+    $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
+    paintFiles();
+    var th = el;
+    th.ondragover = function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0) { e.preventDefault(); th.classList.add("drop"); } };
+    th.ondragleave = function (e) { if (!th.contains(e.relatedTarget)) th.classList.remove("drop"); };
+    th.ondrop = function (e) { th.classList.remove("drop"); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } };
+    $("tIn").onpaste = function (e) { var fl = e.clipboardData && e.clipboardData.files; if (fl && fl.length) { e.preventDefault(); addFiles(fl); } };
+    el.querySelectorAll("[data-tf]").forEach(function (b) {
+      b.onclick = function () {
+        C.blob("/team/files/" + b.dataset.tf).then(function (bl) {
+          var a = document.createElement("a"); a.href = URL.createObjectURL(bl); a.download = b.dataset.name || "file";
+          document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+        }).catch(function (e) { toast(E(e)); });
+      };
+    });
     mentionBox($("tIn"));
     $("tIn").onkeydown = function (e) { if (e.key === "Enter" && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) send(); };
     $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
@@ -178,10 +224,12 @@
     }, true);
   }
   function send() {
-    var i = $("tIn"), text = i.value.trim(); if (!text) return;
+    var i = $("tIn"), text = i.value.trim(), fs = S.files.slice(); if (!text && !fs.length) return;
     var urgent = S.urg; i.disabled = true;
-    C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent } }).then(function () {
-      S.urg = false; i.value = "";
+    Promise.all(fs.map(readB64)).then(function (d) {
+      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
+    }).then(function () {
+      S.urg = false; i.value = ""; S.files = [];
       return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId);
     }).then(function (ms) { if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; } paintThread(); loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
       .catch(function (e) { i.disabled = false; toast(E(e)); });

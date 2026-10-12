@@ -1059,3 +1059,25 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 #chat-app .ct.is-un .nm{font-weight:800}
 #chat-app .ct.is-un .pv{color:var(--ink)}
 @media(max-width:760px){#chat-app .ct .udot{width:14px;height:14px;min-width:14px}}
+/* ===== внутренние чаты: вложения ===== */
+.x-comp{flex-wrap:wrap}
+.x-attach{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:13px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);cursor:pointer;padding:0;transition:.15s}
+.x-attach:hover{color:var(--blue);border-color:var(--brand-2);background:color-mix(in srgb,var(--blue) 8%,var(--card))}
+.x-attach svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.x-filebar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px 0}
+.x-filebar[hidden]{display:none}
+.x-fchip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:5px 6px 5px 10px;font-size:.84rem}
+.x-fchip svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;flex:none;color:var(--muted)}
+.x-fchip .fn{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x-fchip small{color:var(--muted)}
+.x-fchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0 5px}
+.x-files{display:flex;flex-direction:column;gap:5px;margin-top:6px;align-items:flex-start}
+.x-file{display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:7px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--blue);font:inherit;font-size:.86rem;cursor:pointer;text-align:left}
+.x-file:hover{border-color:var(--blue)}
+.x-file svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;flex:none}
+.x-file .fn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x-file small{color:var(--muted);margin-left:6px}
+.x-me .x-file,.x-msg.me .x-file{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:inherit}
+.x-thread{position:relative}
+.x-thread.drop::after,#tThread.drop::after{content:"Отпустите файлы, чтобы прикрепить";position:absolute;inset:8px;z-index:8;display:grid;place-items:center;border:2px dashed var(--blue);border-radius:16px;background:color-mix(in srgb,var(--card) 88%,var(--blue));color:var(--blue);font-weight:700;pointer-events:none}
+#tThread{position:relative}
