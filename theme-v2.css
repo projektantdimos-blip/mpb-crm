@@ -1029,3 +1029,24 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   #chat-app .chat-chips button[data-f="mine"]{flex:none;order:0}
   #chat-app #chatMsgs{padding:12px 10px}
 }
+/* ===== переключатель «Все диалоги | Мне передали» и меню в шапке диалога ===== */
+#chat-app .chat-chips{display:flex;flex-direction:column;gap:8px;flex-wrap:nowrap;overflow:visible}
+#chat-app .chat-chips .seg{display:grid;grid-template-columns:1fr 1.25fr;gap:4px;padding:4px;border-radius:16px;background:color-mix(in srgb,var(--blue) 10%,var(--surface-2));border:1px solid color-mix(in srgb,var(--blue) 22%,var(--line))}
+#chat-app .chat-chips .seg button,#chat-app .chat-chips .seg button[data-f="mine"]{flex:none;order:0;display:flex;align-items:center;justify-content:center;gap:7px;padding:10px 8px;border-radius:12px;border:0;background:transparent;color:var(--ink);font-size:.88rem;font-weight:700;text-align:center;cursor:pointer;transition:.15s}
+#chat-app .chat-chips .seg button:hover{background:color-mix(in srgb,var(--blue) 12%,transparent)}
+#chat-app .chat-chips .seg button.on{background:linear-gradient(135deg,var(--brand-2),var(--blue));color:#fff;box-shadow:0 6px 14px color-mix(in srgb,var(--blue) 35%,transparent)}
+#chat-app .chat-chips .seg button[data-f="mine"].on{background:linear-gradient(135deg,#f4a261,#e8663c);box-shadow:0 6px 14px color-mix(in srgb,#e8663c 40%,transparent)}
+#chat-app .chat-chips .seg button[data-f="mine"]:not(.on){color:#c2501f}
+#chat-app .chat-chips .seg .cnt{min-width:20px;padding:0 6px;border-radius:10px;background:#e8663c;color:#fff;font-size:.74rem;line-height:20px}
+#chat-app .chat-chips .seg button.on .cnt{background:rgba(255,255,255,.3)}
+#chat-app .chat-chips .chs{display:flex;flex-wrap:wrap;gap:6px}
+#chat-app .chat-chips .chs.dim{opacity:.55}
+#chat-app #chatHead .hmain{flex:0 1 auto;max-width:42%}
+#chat-app #chatHead .hacts{display:flex;gap:6px;align-items:center;padding-left:10px;margin-left:2px;border-left:1px solid var(--line)}
+#chat-app #chatHead .chat-pill{margin-left:auto}
+@media(max-width:760px){
+  #chat-app .chat-tools .chat-chips{overflow:visible;flex-wrap:nowrap}
+  #chat-app .chat-chips .chs{flex-wrap:nowrap;overflow-x:auto}
+  #chat-app #chatHead .hacts{border-left:0;padding-left:0;margin-left:auto}
+  #chat-app #chatHead .hmain{max-width:none;flex:1 1 auto}
+}
