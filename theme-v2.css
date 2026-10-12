@@ -1050,3 +1050,12 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   #chat-app #chatHead .hacts{border-left:0;padding-left:0;margin-left:auto}
   #chat-app #chatHead .hmain{max-width:none;flex:1 1 auto}
 }
+/* ===== точка «прочитано / непрочитано» на строке диалога ===== */
+#chat-app .ct{align-items:center;position:relative}
+#chat-app .ct .udot{flex:none;width:12px;height:12px;min-width:12px;padding:0;margin:0 -2px 0 -4px;border-radius:50%;border:1.6px solid var(--border-strong);background:transparent;cursor:pointer;position:relative;transition:.15s}
+#chat-app .ct .udot::after{content:"";position:absolute;inset:-12px -8px}
+#chat-app .ct .udot:hover{border-color:var(--blue);background:color-mix(in srgb,var(--blue) 25%,transparent)}
+#chat-app .ct .udot.on{background:var(--blue);border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent)}
+#chat-app .ct.is-un .nm{font-weight:800}
+#chat-app .ct.is-un .pv{color:var(--ink)}
+@media(max-width:760px){#chat-app .ct .udot{width:14px;height:14px;min-width:14px}}

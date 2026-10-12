@@ -324,11 +324,15 @@
     }
     el.threads.innerHTML = list.map(function (t) {
       var ci = chInfo(t.channel), ini = (t.title || "?").trim().charAt(0).toUpperCase(), av = avUrl(t);
-      return '<div class="ct' + (t.id === st.sel ? " on" : "") + '" data-id="' + esc(t.id) + '">' +
+      return '<div class="ct' + (t.id === st.sel ? " on" : "") + (t.unread ? " is-un" : "") + '" data-id="' + esc(t.id) + '">' +
+        '<button type="button" class="udot' + (t.unread ? " on" : "") + '" data-u="' + esc(t.id) + '" title="' + (t.unread ? "Отметить прочитанным" : "Отметить непрочитанным") + '" aria-label="Непрочитано"></button>' +
         '<div class="ava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
         '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + "</span></div>" +
         '<div class="r2"><span class="pv">' + esc(t.last_text) + "</span>" + assignPill(t) + (t.unread ? '<span class="un">' + t.unread + "</span>" : "") + "</div></div></div>";
     }).join("");
+    Array.prototype.forEach.call(el.threads.querySelectorAll(".udot"), function (b) {
+      b.onclick = function (e) { e.stopPropagation(); toggleUnread(b.getAttribute("data-u")); };
+    });
     Array.prototype.forEach.call(el.threads.querySelectorAll(".ct"), function (d) {
       d.onclick = function () { openThread(d.getAttribute("data-id")); };
     });
@@ -368,14 +372,12 @@
       '<div class="hmain"><b>' + esc(t.title || t.peer) + "</b><small>" + esc(t.peer) + "</small></div>" +
       '<span class="hacts">' + (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
         (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">" + IC.flip + "</button>" : "") +
-      '<button class="hbtn" id="chatUnread" title="Отметить непрочитанным">' + IC.unread + "</button>" +
       '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">' + IC.camera + "</button>" +
       (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") + "</span>" +
       '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Клиент, создание клиента и КП">Клиент · КП</button>' +
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>';
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
-    document.getElementById("chatUnread").onclick = function () { markUnread(t.id); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
     renderAssign();
@@ -616,6 +618,14 @@
       st.msgs = list;
       if (changed || !keepScroll) renderThread(keepScroll);
     }, function (e) { setErr(String(e)); });
+  }
+
+  function toggleUnread(id) {
+    var t = null; for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) t = st.threads[i];
+    if (!t) return;
+    if (!t.unread) { markUnread(id); return; }
+    t.unread = 0; st.unreadSum = null; renderThreads(); applyBadge();
+    api("/api/threads/" + encodeURIComponent(id) + "/read", { method: "POST" }).then(null, function (e) { setErr(String(e)); });
   }
 
   function markUnread(id) {
