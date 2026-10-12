@@ -82,7 +82,9 @@
     refresh: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>',
     camera: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
     flip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     sort: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
     unread: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M22 7l-10 7L2 7"/><circle cx="19" cy="5" r="3.2" fill="currentColor" stroke="none"/></svg>'
   };
   function chInfo(id) { return CH[id] || { label: id, color: "#888" }; }
@@ -184,7 +186,7 @@
       '<header class="top"><div class="brand"><div><h1>Общение с клиентами</h1><p>Почта, Telegram и Max — в одном окне, с привязкой к клиентам и задачам</p></div></div></header>' +
       '<div id="chatBanner"></div>' +
       '<div class="chat-wrap" id="chatWrap">' +
-        '<aside class="chat-list"><div class="chat-tools"><div class="chat-chips" id="chatChips"></div><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
+        '<aside class="chat-list"><div class="chat-tools"><button type="button" id="chatNew" class="chat-new">' + IC.plus + 'Новое сообщение</button><div class="chat-chips" id="chatChips"></div><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
         '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><span class="right">' +
         '<button type="button" id="chatSound" class="ibtn" title="Звук новых сообщений"></button>' +
         '<button type="button" id="chatPush" class="ibtn" title="Уведомления на этом устройстве">' + IC.bell + '</button>' +
@@ -236,6 +238,7 @@
       window.addEventListener(n, function (e) { if (inChat() && hasFiles(e) && !thr.contains(e.target)) e.preventDefault(); });
     });
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
+    document.getElementById("chatNew").onclick = newDialog;
     document.getElementById("chatPush").onclick = togglePush;
     var sndBtn = document.getElementById("chatSound");
     function paintSnd() { sndBtn.innerHTML = MPBSound.on() ? IC.vol : IC.mute; sndBtn.title = MPBSound.on() ? "Звук включён — нажмите, чтобы выключить" : "Звук выключен — нажмите, чтобы включить"; }
@@ -618,6 +621,56 @@
       st.msgs = list;
       if (changed || !keepScroll) renderThread(keepScroll);
     }, function (e) { setErr(String(e)); });
+  }
+
+  /* ---------- новое сообщение тому, кого ещё нет в переписке ---------- */
+  function newDialog() {
+    var U = window.MPBT && MPBT.util;
+    if (!U || !U.xmodal) { alert("Окно не загрузилось — обновите страницу"); return; }
+    var files = [];
+    U.xmodal('<h3>Новое сообщение</h3><p class="x-sub">Напишите человеку, которого ещё нет в списке диалогов</p>' +
+      '<div class="x-field"><label>Куда</label><select id="ndCh"><option value="mail">Почта (e-mail)</option><option value="tg">Telegram</option></select></div>' +
+      '<div class="x-field"><label id="ndToL">Адрес почты</label><input id="ndTo" type="text" placeholder="name@company.ru" autocomplete="off"></div>' +
+      '<div class="x-field"><label>Имя или компания <small>(необязательно)</small></label><input id="ndName" type="text" maxlength="120" placeholder="Например: ООО «Фирма»"></div>' +
+      '<div class="x-field" id="ndSubjW"><label>Тема письма</label><input id="ndSubj" type="text" maxlength="200" placeholder="Коммерческое предложение"></div>' +
+      '<div class="x-field"><label>Сообщение</label><textarea id="ndText" rows="5" placeholder="Текст сообщения"></textarea></div>' +
+      '<div class="x-field"><button type="button" class="x-btn ghost" id="ndAttach">' + IC.clip + 'Прикрепить файлы</button><input type="file" id="ndFile" multiple hidden><div id="ndFiles" class="nd-files"></div></div>' +
+      '<div class="x-err" id="ndErr"></div>' +
+      '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="ndGo">Отправить</button></div>');
+    var g = function (i) { return document.getElementById(i); };
+    function paint() {
+      g("ndFiles").innerHTML = files.map(function (f, i) { return '<span class="chat-fchip"><span class="fn">' + esc(f.name) + '</span> <small>' + Math.max(1, Math.round(f.size / 1024)) + ' КБ</small><button type="button" data-x="' + i + '">✕</button></span>'; }).join("");
+      Array.prototype.forEach.call(g("ndFiles").querySelectorAll("[data-x]"), function (b) { b.onclick = function () { files.splice(+b.getAttribute("data-x"), 1); paint(); }; });
+    }
+    g("ndCh").onchange = function () {
+      var mail = g("ndCh").value === "mail";
+      g("ndToL").textContent = mail ? "Адрес почты" : "Telegram: @username или номер +7…";
+      g("ndTo").placeholder = mail ? "name@company.ru" : "@username или +79991234567";
+      g("ndSubjW").style.display = mail ? "" : "none";
+    };
+    g("ndAttach").onclick = function () { g("ndFile").click(); };
+    g("ndFile").onchange = function () {
+      Array.prototype.forEach.call(this.files, function (f) {
+        if (!f.size || f.size > MAX_ONE) g("ndErr").textContent = "Файл «" + f.name + "» пустой или больше 10 МБ";
+        else if (files.length < MAX_FILES) files.push(f);
+      });
+      this.value = ""; paint();
+    };
+    g("ndGo").onclick = function () {
+      var to = g("ndTo").value.trim(), text = g("ndText").value.trim();
+      if (!to) { g("ndErr").textContent = "Укажите, кому писать"; return; }
+      if (!text && !files.length) { g("ndErr").textContent = "Напишите текст или приложите файл"; return; }
+      g("ndGo").disabled = true; g("ndGo").textContent = "Отправка…"; g("ndErr").textContent = "";
+      Promise.all(files.map(readB64)).then(function (d) {
+        return api("/api/threads/new", { method: "POST", body: {
+          channel: g("ndCh").value, to: to, name: g("ndName").value.trim(), subject: g("ndSubj").value.trim(), text: text,
+          files: files.map(function (f, i) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[i] }; }) } });
+      }).then(function (r) {
+        MPBT.closeModal();
+        return loadThreads().then(function () { if (r && r.id) openThread(r.id); });
+      }).then(null, function (e) { g("ndErr").textContent = String(e); g("ndGo").disabled = false; g("ndGo").textContent = "Отправить"; });
+    };
+    setTimeout(function () { g("ndTo").focus(); }, 50);
   }
 
   function toggleUnread(id) {

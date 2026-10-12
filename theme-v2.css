@@ -1081,3 +1081,10 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .x-thread{position:relative}
 .x-thread.drop::after,#tThread.drop::after{content:"Отпустите файлы, чтобы прикрепить";position:absolute;inset:8px;z-index:8;display:grid;place-items:center;border:2px dashed var(--blue);border-radius:16px;background:color-mix(in srgb,var(--card) 88%,var(--blue));color:var(--blue);font-weight:700;pointer-events:none}
 #tThread{position:relative}
+/* ===== кнопка и окно «Новое сообщение» ===== */
+#chat-app .chat-new{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:11px 14px;border:0;border-radius:13px;background:linear-gradient(135deg,var(--brand-2),var(--blue));color:#fff;font:inherit;font-weight:700;font-size:.92rem;cursor:pointer;box-shadow:0 6px 16px color-mix(in srgb,var(--blue) 28%,transparent)}
+#chat-app .chat-new:hover{filter:brightness(1.06)}
+.nd-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.nd-files .chat-fchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 10px;font-size:.84rem}
+.nd-files .chat-fchip button{border:0;background:none;color:var(--muted);cursor:pointer}
+.nd-files .fn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
