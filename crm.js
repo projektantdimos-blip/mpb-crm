@@ -98,6 +98,7 @@
     if (!C.loggedIn() || document.hidden) return Promise.resolve();
     return C.call("/sync").then(function (s) {
       var prev = C.sync; C.sync = s; paintBadges();
+      if (prev && window.MPBSound && ((s.notif_unread || 0) > (prev.notif_unread || 0) || (s.team_unread || 0) > (prev.team_unread || 0))) MPBSound.play();
       (s.urgent || []).slice(0, 3).forEach(function (m) { if (!shownUrgent[m.id]) { shownUrgent[m.id] = 1; if (prev || Date.now() / 1000 - m.ts < 86400) urgentBanner(m); } });   // после входа — свежие неподтверждённые срочные тоже всплывают
       emit("sync", s);
     }).catch(function () {});

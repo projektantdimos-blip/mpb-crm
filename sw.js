@@ -8,14 +8,21 @@ self.addEventListener('push', function (event) {
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
   var title = data.title || 'МПБ';
   var url = data.url || './index.html#/chat';
-  event.waitUntil(self.registration.showNotification(title, {
-    body: data.body || '',
-    icon: 'icon-512.png',
-    badge: 'icon-180.png',
-    tag: data.tag || 'mpb-chat',
-    renotify: true,
-    data: { url: url }
-  }));
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
+      list.forEach(function (c) { c.postMessage({ type: 'push', title: title }); });   // открытая вкладка сама проиграет сигнал
+      return self.registration.showNotification(title, {
+        body: data.body || '',
+        icon: 'icon-512.png',
+        badge: 'icon-180.png',
+        tag: data.tag || 'mpb-chat',
+        renotify: true,
+        silent: false,                  // звук — системный, как у обычных уведомлений телефона
+        vibrate: [200, 100, 200],
+        data: { url: url }
+      });
+    })
+  );
 });
 
 self.addEventListener('notificationclick', function (event) {

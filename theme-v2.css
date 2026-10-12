@@ -950,3 +950,51 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 #chat-app .chat-filebar{flex:1 1 100%;display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);border-radius:10px;padding:6px 10px}
 #chat-app .chat-filebar[hidden]{display:none}
 #chat-app .chat-filebar button{background:none;border:0;box-shadow:none;color:var(--muted);cursor:pointer;padding:0 4px;margin-left:auto}
+
+/* вложения: несколько файлов, перетаскивание */
+#chat-app .chat-filebar{flex-wrap:wrap;border-style:none;background:none;padding:0}
+#chat-app .chat-fchip{display:inline-flex;align-items:center;gap:6px;max-width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:5px 6px 5px 10px;font-size:.84rem;color:var(--ink)}
+#chat-app .chat-fchip .fn{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#chat-app .chat-fchip small{color:var(--muted)}
+#chat-app .chat-fchip button{margin:0;padding:2px 6px;border-radius:8px;background:none;color:var(--muted);box-shadow:none;height:auto}
+#chat-app .chat-thread{position:relative}
+#chat-app .chat-thread.drop::after{content:"Отпустите файлы, чтобы прикрепить";position:absolute;inset:8px;z-index:8;display:grid;place-items:center;border:2px dashed var(--blue);border-radius:16px;background:color-mix(in srgb,var(--card) 88%,var(--blue));color:var(--blue);font-weight:700;font-size:1.05rem;pointer-events:none}
+#chatSound{font-size:1rem}
+
+/* ===== телефон: «Переписка» как в мессенджере ===== */
+@media(max-width:760px){
+  #chat-app{padding:0!important}
+  #chat-app>header.top{padding:10px 12px 0;margin:0}
+  #chat-app>header.top .brand{display:none}
+  #chat-app .chat-chips{margin:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+  #chat-app .chat-chips button{flex:none;padding:7px 14px;font-size:.88rem;border-radius:18px}
+  #chat-app .chat-wrap{height:calc(100dvh - 190px)!important;min-height:420px;border-radius:0;border-left:0;border-right:0;box-shadow:none}
+  #chat-app .chat-tools{padding:10px 12px}
+  #chat-app .chat-tools input{font-size:16px;padding:11px 14px;border-radius:14px}
+  #chat-app .ct{padding:13px 14px;gap:12px}
+  #chat-app .ct .ava{width:46px;height:46px;font-size:1.1rem}
+  #chat-app .ct .nm{font-size:1rem}
+  #chat-app .ct .pv{font-size:.9rem}
+  /* открытый диалог — на весь экран поверх меню */
+  #chat-app .chat-wrap.has-sel{position:fixed!important;inset:0;z-index:60;height:100dvh!important;min-height:0;border:0;border-radius:0;background:var(--card)}
+  #chat-app .chat-wrap.has-sel .chat-thread{height:100%}
+  #chat-app #chatHead{padding:8px 10px;gap:8px;min-height:56px;padding-top:max(8px,env(safe-area-inset-top))}
+  #chat-app #chatHead .back{display:grid!important;place-items:center;width:38px;height:38px;font-size:1.5rem;padding:0}
+  #chat-app #chatHead .hava{width:38px;height:38px}
+  #chat-app #chatHead .hmain{flex:1;min-width:0}
+  #chat-app #chatHead .hmain b{display:block;font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #chat-app #chatHead .hmain small{display:block;font-size:.74rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #chat-app #chatHead .chat-pill,#chat-app #chatHead #chatAv,#chat-app #chatHead #chatAvDel,#chat-app #chatHead #chatFlip{display:none}
+  #chat-app #chatHead .chat-infobtn{height:38px;padding:0 12px!important;font-size:.82rem}
+  #chat-app #chatMsgs{padding:12px 10px;gap:10px}
+  #chat-app .cm{max-width:92%!important;font-size:1rem;line-height:1.45;padding:10px 13px}
+  #chat-app .cm .mt{font-size:.72rem}
+  #chat-app .cm .cf{padding:9px 12px;font-size:.92rem}
+  #chat-app .as-bar{padding:8px 10px;font-size:.85rem;flex-wrap:wrap}
+  #chat-app #chatComposer{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));gap:6px;align-items:flex-end}
+  #chat-app #chatComposer textarea{font-size:16px;height:46px;min-height:46px;max-height:130px;padding:11px 13px;flex:1 1 0;border-radius:20px}
+  #chat-app #chatComposer .chat-attach{width:44px;height:46px;border-radius:50%;flex:none}
+  #chat-app #chatComposer #chatSend{height:46px;min-width:46px;padding:0 14px;border-radius:23px;font-size:.88rem;flex:none}
+  #chat-app .chat-wrap.show-info .chat-info{padding:12px 14px;padding-top:max(12px,env(safe-area-inset-top))}
+  #chat-app .chat-wrap.show-info .chat-info .cp-close{padding:8px 0;font-size:1rem}
+}

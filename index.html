@@ -1510,19 +1510,76 @@ function fillDocumentXml(xml, model) {
   });
   return xml;
 }
+// Word собирается заново в том же виде, что PDF и экран (без старого шаблона № 211)
 async function buildDocx(state, JSZipLib, templateB64, outType) {
   const check = validate(state);
   if (!check.ok) throw new Error('Есть незаполненные или неверные поля: ' + check.errors.map(e => e.msg).join(' '));
   const model = buildModel(state, false);
-  const zip = await JSZipLib.loadAsync(templateB64, { base64: true });
-  const xml = await zip.file('word/document.xml').async('string');
-  zip.file('word/document.xml', fillDocumentXml(xml, model));
-  let core = await zip.file('docProps/core.xml').async('string');
-  const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
-  core = core.replace(/<dc:title>[^<]*<\/dc:title>/, '<dc:title>Предложение № ' + esc(model.num) + '</dc:title>')
-    .replace(/<cp:lastModifiedBy>[^<]*<\/cp:lastModifiedBy>/, '<cp:lastModifiedBy>Конструктор КП</cp:lastModifiedBy>')
-    .replace(/(<dcterms:modified[^>]*>)[^<]*(<\/dcterms:modified>)/, '$1' + now + '$2');
-  zip.file('docProps/core.xml', core);
+  const A = await kpAssets();
+  const toBytes = async cv => new Uint8Array(await (await new Promise(r => cv.toBlob(r, 'image/png'))).arrayBuffer());
+  const bannerBytes = Uint8Array.from(atob(KP_BANNER_B64), c => c.charCodeAt(0));
+  const X = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const run = (t, o = {}) => '<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>' + (o.b ? '<w:b/>' : '') + (o.i ? '<w:i/>' : '') +
+    (o.color ? '<w:color w:val="' + o.color + '"/>' : '') + '<w:sz w:val="' + (o.sz || 22) + '"/></w:rPr><w:t xml:space="preserve">' + X(t) + '</w:t></w:r>';
+  const par = (content, o = {}) => '<w:p><w:pPr>' + (o.keep ? '<w:keepNext/>' : '') + '<w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after == null ? 80 : o.after) + '"/>' +
+    (o.jc ? '<w:jc w:val="' + o.jc + '"/>' : '') + '</w:pPr>' + content + '</w:p>';
+  const img = (rid, id, cx, cy, name) => '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:docPr id="' + id + '" name="' + name + '"/>' +
+    '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+    '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="' + id + '" name="' + name + '"/><pic:cNvPicPr/></pic:nvPicPr>' +
+    '<pic:blipFill><a:blip r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+    '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>';
+  const bd = (c, edges) => '<w:tcBorders>' + ['top', 'left', 'bottom', 'right'].map(e => edges.indexOf(e) >= 0 ? '<w:' + e + ' w:val="single" w:sz="6" w:space="0" w:color="' + c + '"/>' : '<w:' + e + ' w:val="nil"/>').join('') + '</w:tcBorders>';
+  const tc = (w, content, o = {}) => '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>' + (o.borders || '') + (o.fill ? '<w:shd w:val="clear" w:color="auto" w:fill="' + o.fill + '"/>' : '') +
+    (o.valign ? '<w:vAlign w:val="' + o.valign + '"/>' : '') + '</w:tcPr>' + content + '</w:tc>';
+  const tbl = (widths, rows, o = {}) => '<w:tbl><w:tblPr><w:tblW w:w="' + widths.reduce((a, b) => a + b, 0) + '" w:type="dxa"/>' + (o.jc ? '<w:jc w:val="' + o.jc + '"/>' : '') +
+    '<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="' + (o.rowLines ? 'single' : 'nil') + '" w:sz="4" w:color="E6EBF1"/><w:right w:val="nil"/><w:insideH w:val="' + (o.rowLines ? 'single' : 'nil') + '" w:sz="4" w:color="E6EBF1"/><w:insideV w:val="nil"/></w:tblBorders>' +
+    '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr>' +
+    '<w:tblGrid>' + widths.map(w => '<w:gridCol w:w="' + w + '"/>').join('') + '</w:tblGrid>' + rows.map(r => '<w:tr><w:trPr><w:cantSplit/></w:trPr>' + r + '</w:tr>').join('') + '</w:tbl>';
+  const W = 10206, EMU = 635;
+  const body = [];
+  body.push(par(img('rIdBn', 1, W * EMU, Math.round(W * EMU * 320 / 1489), 'Шапка МПБ'), { after: 160 }));
+  body.push(par(run('Коммерческое предложение № ' + model.num, { b: 1, sz: 34 }), { jc: 'center', after: 20 }));
+  body.push(par(run('от ' + model.date, { color: '66717E', sz: 22 }), { jc: 'center', after: 200 }));
+  const meta = [['Объект', model.object]].concat(model.address ? [['Адрес', model.address]] : []);
+  body.push(tbl([2000, W - 2000], meta.map(m => tc(2000, par(run(m[0], { color: '66717E' }), { after: 0 })) + tc(W - 2000, par(run(m[1], { b: 1 }), { after: 0 })))));
+  body.push(par(run(model.intro, { color: '46515F', sz: 21 }), { before: 160, after: 200 }));
+  const wN = 560, wP = 2000, wT = W - wN - wP;
+  const head = tc(wN, par(run('№', { b: 1, color: 'FFFFFF', sz: 21 }), { jc: 'center', after: 0 }), { fill: 'EE9264' }) +
+    tc(wT, par(run('Наименование работ', { b: 1, color: 'FFFFFF', sz: 21 }), { after: 0 }), { fill: 'EE9264' }) +
+    tc(wP, par(run('Стоимость', { b: 1, color: 'FFFFFF', sz: 21 }), { jc: 'right', after: 0 }), { fill: 'EE9264' });
+  const rows = model.rows.map((r, i) => tc(wN, par(run(String(i + 1), { color: '66717E' }), { jc: 'center', after: 0 })) +
+    tc(wT, r.lines.map((l, k) => par(run(l, { b: k === 0 ? 1 : 0 }), { after: 20 })).join('')) +
+    tc(wP, (r.priceLines.length ? r.priceLines : ['']).map(l => par(run(l, { b: 1 }), { jc: 'right', after: 20 })).join('')));
+  body.push(tbl([wN, wT, wP], [head].concat(rows), { rowLines: true }));
+  body.push(par(run('Итого к оплате:  ' + (model.total || '—'), { b: 1, sz: 30, color: '1F5C99' }), { jc: 'right', before: 220, after: 40 }));
+  body.push(par(run(KP_TXT.nds, { sz: 18, color: '66717E' }), { jc: 'right', after: 200 }));
+  model.note.forEach(n => body.push(par(run(n, { sz: 20, color: '46515F' }), { after: 40 })));
+  body.push(par('', { after: 160 }));
+  const qw = 1500, tw1 = 3500, gap = 250, tw2 = W - qw - tw1 - gap - qw, qimg = 900000;
+  const cardCell = (rid, id, c, wq, wt, left) => {
+    const b1 = bd('DFE6EF', left ? ['top', 'left', 'bottom'] : ['top', 'bottom']), b2 = bd('DFE6EF', left ? ['top', 'bottom', 'right'] : ['top', 'bottom', 'right']);
+    let t = par(run(c.title, { b: 1, color: 'C0392B', sz: 21 }), { after: 40 }) + par(run(c.text, { sz: 18, color: '46515F' }), { after: 40 });
+    if (c.num) t += par(run(c.num, { b: 1, sz: 19 }), { after: 0 });
+    return tc(wq, par(img(rid, id, qimg, Math.round(qimg * 236 / 240), 'QR'), { after: 0 }), { borders: b1, fill: 'F8FAFD', valign: 'center' }) + tc(wt, t, { borders: b2, fill: 'F8FAFD', valign: 'center' });
+  };
+  body.push(tbl([qw, tw1, gap, qw, tw2], [cardCell('rIdQ1', 2, KP_TXT.cards[0], qw, tw1, true) + tc(gap, par('', { after: 0 })) + cardCell('rIdQ2', 3, KP_TXT.cards[1], qw, tw2, false)]));
+  body.push(par('', { after: 160 }));
+  const sgW = 3000000;
+  body.push(tbl([4300, W - 4300], [tc(4300, KP_TXT.sign.map((l, i) => par(run(l, { b: i === 1 ? 1 : 0, sz: 24 }), { after: 100 })).join(''), { valign: 'center' }) +
+    tc(W - 4300, par(img('rIdSg', 4, sgW, Math.round(sgW * 316 / 871), 'Подпись и печать'), { jc: 'right', after: 0 }), { valign: 'center' })]));
+  const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
+  const docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ' + NS + '><w:body>' + body.join('') +
+    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="600" w:right="850" w:bottom="700" w:left="850" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  const zip = new JSZipLib();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdSt" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdBn" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/banner.jpg"/><Relationship Id="rIdQ1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/qr1.png"/><Relationship Id="rIdQ2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/qr2.png"/><Relationship Id="rIdSg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/sign.png"/></Relationships>');
+  zip.file('word/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri" w:eastAsia="Calibri"/><w:sz w:val="22"/><w:lang w:val="ru-RU"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="259" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>');
+  zip.file('word/document.xml', docXml);
+  zip.file('word/media/banner.jpg', bannerBytes);
+  zip.file('word/media/qr1.png', await toBytes(A.qr1));
+  zip.file('word/media/qr2.png', await toBytes(A.qr2));
+  zip.file('word/media/sign.png', await toBytes(A.sign));
   return zip.generateAsync({ type: outType || 'blob', compression: 'DEFLATE',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
@@ -1561,100 +1618,126 @@ function pdfWrap(ctx, text, maxW) {
   });
   return out;
 }
+// ---- Единый вид КП (экран, PDF, Word): шапка МПБ, таблица услуг, итог, «НДС не облагается», QR-карточки, подпись и печать ----
+const KP_TXT = {
+  nds: 'НДС не облагается в связи с применением АУСН (п. 6 ст. 2 Федерального закона от 25.02.2022 № 17-ФЗ)',
+  cards: [
+    { title: 'Лицензия МЧС', text: 'подтверждающая право на работы в области пожарной безопасности', num: 'Л014-00101-78/03255690' },
+    { title: 'Аттестованные специалисты', text: 'Только аттестованные специалисты выполняют работы по проектированию.', num: '' }
+  ],
+  sign: ['С уважением,', 'Генеральный директор', 'Хомяков Алексей Геннадьевич', 'г. Санкт-Петербург']
+};
+let kpAssetsP = null;
+function kpAssets() {                                    // QR, подпись и печать вырезаются из нижнего блока утверждённого образца
+  if (kpAssetsP) return kpAssetsP;
+  kpAssetsP = Promise.all([pdfLoadImage(KP_BANNER_B64), pdfLoadImage(KP_FOOTER_B64)]).then(([banner, footer]) => {
+    const crop = (sx, sy, sw, sh, mask) => {
+      const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, sw, sh);
+      g.drawImage(footer, sx, sy, sw, sh, 0, 0, sw, sh);
+      if (mask) { g.fillStyle = '#fff'; g.fillRect(mask[0], mask[1], mask[2], mask[3]); }
+      return c;
+    };
+    return { banner, qr1: crop(308, 22, 240, 236), qr2: crop(966, 22, 240, 236), sign: crop(618, 395, 871, 316, [0, 140, 10, 45]) };
+  });
+  return kpAssetsP;
+}
+function pdfRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
 // Рисует страницы КП; возвращает массив canvas.
 async function renderKpPages(model) {
-  const banner = await pdfLoadImage(KP_BANNER_B64), footer = await pdfLoadImage(KP_FOOTER_B64);
+  const A = await kpAssets();
   const F = (size, style) => (style ? style + ' ' : '') + size + 'px ' + PDF.FONT;
+  const MX = 36, CW = PDF.W - 2 * MX, BLUE = '#1F5C99', GREY = '#66717E', DARK = '#46515F';
   const pages = [];
   let cv, ctx, y;
   const newPage = () => {
     cv = document.createElement('canvas');
     cv.width = Math.round(PDF.W * PDF.S); cv.height = Math.round(PDF.H * PDF.S);
-    ctx = cv.getContext('2d');
-    ctx.scale(PDF.S, PDF.S);
+    ctx = cv.getContext('2d'); ctx.scale(PDF.S, PDF.S);
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PDF.W + 1, PDF.H + 1);
-    ctx.drawImage(banner, 0, 0, PDF.W, PDF.BANNER_H);
-    ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 0.5; ctx.textBaseline = 'alphabetic';
-    pages.push(cv); y = PDF.TOP;
+    ctx.drawImage(A.banner, 0, 0, PDF.W, PDF.BANNER_H);
+    ctx.textBaseline = 'alphabetic';
+    pages.push(cv); y = PDF.BANNER_H + 24;
   };
-  const line = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
-  const base = (top, pitch) => top + pitch * 0.78;
+  const txt = (s, x, by, font, color, align) => { ctx.font = font; ctx.fillStyle = color || '#000'; ctx.textAlign = align || 'left'; ctx.fillText(s, x, by); };
+  const hline = (x1, x2, ly, color, w) => { ctx.strokeStyle = color; ctx.lineWidth = w || 0.6; ctx.beginPath(); ctx.moveTo(x1, ly); ctx.lineTo(x2, ly); ctx.stroke(); };
 
   newPage();
-  // шапка: № / дата / объект
-  const MX0 = 28.85, MX1 = 568.4, MDIV = 298.6, MPAD = 5.65, MP = 17.1;
-  ctx.font = F(14);
-  const objLines = pdfWrap(ctx, model.object, MX1 - MDIV - 2 * MPAD);
-  const row2H = Math.max(MP, objLines.length * MP) + 0.5;
-  ctx.font = F(14, 'bold'); ctx.textAlign = 'left';
-  ctx.fillText('Предложение № ' + model.num, 34.3, base(y, MP));
-  ctx.fillText('Наименование объекта:', 34.3, base(y + MP + 0.5, MP));
-  ctx.font = F(14); ctx.textAlign = 'right';
-  ctx.fillText('От ' + model.date, 563, base(y, MP));
-  objLines.forEach((t, i) => ctx.fillText(t, 563, base(y + MP + 0.5 + i * MP, MP)));
-  line(MX0, y + MP + 0.25, MX1, y + MP + 0.25);
-  line(MDIV, y, MDIV, y + MP + row2H);
-  y += MP + row2H;
-  y += 52.9; // две пустые строки шаблона
+  txt('Коммерческое предложение № ' + model.num, PDF.W / 2, y + 16, F(19, 'bold'), '#1d2733', 'center'); y += 28;
+  txt('от ' + model.date, PDF.W / 2, y + 10, F(12), GREY, 'center'); y += 28;
 
-  // вводная фраза и адрес
-  ctx.textAlign = 'center'; ctx.font = F(14);
-  const IW = 539.4, ICX = 298.6, IP = 18.43;
-  [model.intro, model.address].filter(Boolean).forEach(t => {
-    pdfWrap(ctx, t, IW).forEach(l => { ctx.fillText(l, ICX, base(y, IP)); y += IP; });
+  // реквизиты
+  const LX = MX + 118;
+  ctx.font = F(12.5, 'bold');
+  [['Объект', model.object]].concat(model.address ? [['Адрес', model.address]] : []).forEach(([k, v]) => {
+    const ls = pdfWrap(ctx, v, CW - 118);
+    txt(k, MX, y + 12, F(12), GREY);
+    ls.forEach((l, i) => txt(l, LX, y + 12 + i * 17, F(12.5, 'bold'), '#1d2733'));
+    y += Math.max(1, ls.length) * 17 + 4;
   });
-  y += 11;
+  y += 6;
+  ctx.font = F(12);
+  pdfWrap(ctx, model.intro, CW).forEach(l => { txt(l, MX, y + 12, F(12), DARK); y += 17; });
+  y += 12;
 
-  // таблица услуг
-  const TX0 = 36.45, TX1 = 440.7, TX2 = 568.1, CP = 5.65, HH = 28.35, LP = 14.65, PP = 16.85;
+  // таблица услуг: № · наименование · стоимость
+  const X0 = MX, XN = MX + 30, X2 = PDF.W - MX - 120, X3 = PDF.W - MX, HH = 26;
   const header = () => {
-    ctx.fillStyle = '#EE9264'; ctx.fillRect(TX0, y, TX2 - TX0, HH);
-    ctx.fillStyle = '#fff'; ctx.font = F(12); ctx.textAlign = 'center';
-    ctx.fillText('Наименование', (TX0 + TX1) / 2, base(y + (HH - LP) / 2, LP));
-    ctx.fillText('Стоимость', (TX1 + TX2) / 2, base(y + (HH - LP) / 2, LP));
-    ctx.fillStyle = '#000';
-    ctx.strokeRect(TX0, y, TX1 - TX0, HH); ctx.strokeRect(TX1, y, TX2 - TX1, HH);
+    ctx.fillStyle = '#EE9264'; ctx.fillRect(X0, y, X3 - X0, HH);
+    txt('№', X0 + 15, y + 17, F(11.5, 'bold'), '#fff', 'center');
+    txt('Наименование работ', XN + 6, y + 17, F(11.5, 'bold'), '#fff');
+    txt('Стоимость', X3 - 8, y + 17, F(11.5, 'bold'), '#fff', 'right');
     y += HH;
   };
   header();
-  const rows = model.rows.map(r => ({ left: r.lines, right: r.priceLines, grey: false, bold: false }));
-  rows.push({ left: [model.totalLabel], right: model.total ? [model.total] : [], grey: true, bold: true });
-  rows.forEach(r => {
+  model.rows.forEach((r, i) => {
     ctx.font = F(12);
-    const left = [];
-    r.left.forEach(t => pdfWrap(ctx, t, TX1 - TX0 - 2 * CP - 2).forEach(l => left.push(l)));
-    const right = r.right.length ? r.right : [''];
-    const lh = left.length * LP, rh = right.length * PP;
-    const h = Math.max(HH, lh, rh);
-    if (y + h > PDF.BOTTOM) { newPage(); header(); }
-    ctx.strokeRect(TX0, y, TX1 - TX0, h); ctx.strokeRect(TX1, y, TX2 - TX1, h);
-    ctx.textAlign = 'left'; ctx.fillStyle = r.grey ? '#808080' : '#000'; ctx.font = F(12);
-    left.forEach((t, i) => ctx.fillText(t, TX0 + CP, base(y + (h - lh) / 2 + i * LP, LP)));
-    ctx.fillStyle = '#000'; ctx.textAlign = 'center'; ctx.font = F(12, r.bold ? 'bold' : '');
-    right.forEach((t, i) => ctx.fillText(t, (TX1 + TX2) / 2, base(y + (h - rh) / 2 + i * PP, PP)));
-    y += h;
+    const ls = []; r.lines.forEach(t => pdfWrap(ctx, t, X2 - XN - 18).forEach(l => ls.push(l)));
+    const pr = r.priceLines.length ? r.priceLines : [''];
+    const h = Math.max(ls.length * 16, pr.length * 16) + 18;
+    if (y + h > PDF.BOTTOM - 40) { newPage(); header(); }
+    txt(String(i + 1), X0 + 15, y + 9 + 12, F(12), GREY, 'center');
+    ls.forEach((l, k) => txt(l, XN + 6, y + 9 + 12 + k * 16, F(12, k === 0 ? 'bold' : ''), '#1d2733'));
+    pr.forEach((l, k) => txt(l, X3 - 8, y + 9 + 12 + k * 16, F(12, 'bold'), '#1d2733', 'right'));
+    y += h; hline(X0, X3, y, '#E6EBF1', 0.8);
   });
 
-  // примечание: курсив, по ширине
-  ctx.font = F(12, 'italic'); ctx.fillStyle = '#000'; ctx.textAlign = 'left';
-  const NX = 35.45, NW = 568.3 - 35.45, NP = 15.8;
-  const nl = pdfWrap(ctx, model.note.join(' '), NW);
-  if (y + nl.length * NP > PDF.BOTTOM) { newPage(); ctx.font = F(12, 'italic'); }
-  nl.forEach((l, i) => {
-    const words = l.split(' ');
-    const by = base(y, NP);
-    if (i === nl.length - 1 || words.length < 2) { ctx.fillText(l, NX, by); }
-    else {
-      const gap = (NW - words.reduce((s, w) => s + ctx.measureText(w).width, 0)) / (words.length - 1);
-      let x = NX;
-      words.forEach(w => { ctx.fillText(w, x, by); x += ctx.measureText(w).width + gap; });
-    }
-    y += NP;
-  });
+  // итог и НДС
+  if (y + 120 > PDF.BOTTOM) newPage();
+  y += 14;
+  const TX = X3 - 270;
+  hline(TX, X3, y, BLUE, 1.6); y += 26;
+  txt('Итого к оплате', TX, y, F(14, 'bold'), BLUE);
+  txt(model.total || '—', X3 - 8, y, F(15, 'bold'), BLUE, 'right'); y += 14;
+  ctx.font = F(10); pdfWrap(ctx, KP_TXT.nds, 330).forEach(l => { y += 13; txt(l, X3 - 8, y, F(10), GREY, 'right'); }); y += 16;
 
-  // нижний блок: лицензия, QR, подпись и печать
-  if (y + PDF.FOOTER_H > PDF.H - 6.8) newPage();
-  ctx.drawImage(footer, 0, y - 0.4, PDF.W, PDF.FOOTER_H);
+  // условия
+  ctx.font = F(11);
+  const nl = pdfWrap(ctx, model.note.join('\n'), CW);
+  if (y + nl.length * 16 > PDF.BOTTOM) newPage();
+  nl.forEach(l => { txt(l, MX, y + 11, F(11), DARK); y += 16; });
+  y += 14;
+
+  // QR-карточки, подпись и печать
+  const CARD_H = 98, SIGN_H = 120;
+  if (y + CARD_H + 14 + SIGN_H > PDF.H - 22) newPage();
+  const cw = (CW - 14) / 2, imgs = [A.qr1, A.qr2];
+  KP_TXT.cards.forEach((c, i) => {
+    const bx = MX + i * (cw + 14);
+    pdfRoundRect(ctx, bx, y, cw, CARD_H, 9); ctx.fillStyle = '#F8FAFD'; ctx.fill(); ctx.strokeStyle = '#DFE6EF'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.drawImage(imgs[i], bx + 10, y + 11, 76, 76);
+    txt(c.title, bx + 98, y + 24, F(11.5, 'bold'), '#C0392B');
+    ctx.font = F(10); let ty = y + 40;
+    pdfWrap(ctx, c.text, cw - 110).forEach(l => { txt(l, bx + 98, ty, F(10), DARK); ty += 13; });
+    if (c.num) txt(c.num, bx + 98, ty + 3, F(10.5, 'bold'), '#1d2733');
+  });
+  y += CARD_H + 22;
+  KP_TXT.sign.forEach((l, i) => txt(l, MX, y + 18 + i * 21, F(12.5, i === 1 ? 'bold' : ''), '#1d2733'));
+  const sw = 240, sh = sw * 316 / 871;
+  ctx.drawImage(A.sign, PDF.W - MX - sw, y - 4, sw, sh);
   return pages;
 }
 function pdfFromJpegs(pages) {

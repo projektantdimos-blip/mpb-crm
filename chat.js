@@ -2,6 +2,47 @@
    Подключается в index.html после основного скрипта. Адрес и ключ моста — в ⚙ (localStorage: mpb_bridge). */
 (function () {
   "use strict";
+
+  /* ---------- звук уведомлений (Web Audio; работает, пока приложение открыто) ---------- */
+  var MPBSound = window.MPBSound = (function () {
+    var ctx = null, last = 0;
+    function on() { try { return localStorage.getItem("mpb_sound") !== "0"; } catch (e) { return true; } }
+    function ac() {
+      if (!ctx) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { ctx = new C(); } catch (e) { return null; } }
+      return ctx;
+    }
+    function unlock() {                     // браузер разрешает звук только после первого касания страницы
+      var c = ac(); if (c && c.state === "suspended") c.resume().then(null, function () {});
+    }
+    ["pointerdown", "keydown", "touchstart"].forEach(function (n) { document.addEventListener(n, unlock, { passive: true }); });
+    function tone(c, f, t0, dur, vol) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+    }
+    function play(force) {
+      if (!force && !on()) return;
+      var now = Date.now();
+      if (!force && now - last < 2000) return;       // push и опрос могут сработать одновременно — один сигнал
+      last = now;
+      var c = ac(); if (!c) return;
+      try {
+        if (c.state === "suspended") c.resume();
+        var t = c.currentTime + 0.01;
+        tone(c, 880, t, 0.22, 0.35); tone(c, 1318, t + 0.16, 0.34, 0.35);
+      } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
+    }
+    return { play: play, on: on, set: function (v) { try { localStorage.setItem("mpb_sound", v ? "1" : "0"); } catch (e) {} } };
+  })();
+  // service worker сообщает, что пришёл push, а вкладка открыта: сам он звук воспроизвести не может
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", function (e) { if (e.data && e.data.type === "push") MPBSound.play(); });
+  }
+
   var root = document.getElementById("chat-app");
   if (!root) return;
 
@@ -134,6 +175,7 @@
       '<div class="chat-wrap" id="chatWrap">' +
         '<aside class="chat-list"><div class="chat-tools"><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
         '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><span class="right">' +
+        '<button type="button" id="chatSound" title="Звук новых сообщений">🔊</button>' +
         '<button type="button" id="chatPush" title="Уведомления на этом устройстве">🔔</button>' +
         '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
@@ -157,15 +199,37 @@
     el.fileBar = document.getElementById("chatFileBar");
     var fileIn = document.getElementById("chatFile");
     document.getElementById("chatAttach").onclick = function () { fileIn.click(); };
-    fileIn.onchange = function () {
-      var f = fileIn.files && fileIn.files[0]; fileIn.value = "";
-      if (!f) return;
-      if (f.size > 10 * 1024 * 1024) { setErr("Файл больше 10 МБ"); return; }
-      st.file = f; showFileBar(); setErr("");
+    fileIn.multiple = true;
+    fileIn.onchange = function () { addFiles(fileIn.files); fileIn.value = ""; };
+    el.fileBar.onclick = function (e) {
+      var x = e.target.getAttribute && e.target.getAttribute("data-x");
+      if (x !== null && x !== undefined) { st.files.splice(+x, 1); showFileBar(); }
     };
-    el.fileBar.onclick = function (e) { if (e.target.getAttribute && e.target.getAttribute("data-x")) { st.file = null; showFileBar(); } };
+    // перетаскивание файлов в диалог и вставка из буфера
+    var thr = document.querySelector(".chat-thread"), depth = 0;
+    function hasFiles(e) { var t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, "Files") >= 0; }
+    thr.addEventListener("dragenter", function (e) { if (!hasFiles(e)) return; e.preventDefault(); depth++; thr.classList.add("drop"); });
+    thr.addEventListener("dragover", function (e) { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+    thr.addEventListener("dragleave", function (e) { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) thr.classList.remove("drop"); });
+    thr.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); depth = 0; thr.classList.remove("drop");
+      addFiles(e.dataTransfer.files);
+    });
+    el.text.addEventListener("paste", function (e) {
+      var fl = e.clipboardData && e.clipboardData.files;
+      if (fl && fl.length) { e.preventDefault(); addFiles(fl); }
+    });
+    // браузер по умолчанию открывает бросок мимо поля как файл — гасим это на странице чата
+    ["dragover", "drop"].forEach(function (n) {
+      window.addEventListener(n, function (e) { if (inChat() && hasFiles(e) && !thr.contains(e.target)) e.preventDefault(); });
+    });
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
     document.getElementById("chatPush").onclick = togglePush;
+    var sndBtn = document.getElementById("chatSound");
+    function paintSnd() { sndBtn.textContent = MPBSound.on() ? "🔊" : "🔇"; sndBtn.title = MPBSound.on() ? "Звук включён — нажмите, чтобы выключить" : "Звук выключен — нажмите, чтобы включить"; }
+    sndBtn.onclick = function () { MPBSound.set(!MPBSound.on()); paintSnd(); if (MPBSound.on()) MPBSound.play(true); };
+    paintSnd();
     showSync();
     refreshPushBtn();
     el.msgs.onclick = function (e) {
@@ -516,6 +580,9 @@
 
   function loadThreads() {
     return api("/api/threads").then(function (list) {
+      var uq = 0; list.forEach(function (x) { uq += x.unread || 0; });
+      if (st.unreadSum != null && uq > st.unreadSum) MPBSound.play();      // появились новые входящие
+      st.unreadSum = uq;
       st.threads = list; setErr("");
       st.synced = new Date(); showSync();
       if (st.built) renderThreads();
@@ -537,6 +604,7 @@
 
   function openThread(id) {
     st.sel = id; st.msgs = [];
+    if (st.files && st.files.length) { st.files = []; showFileBar(); }     // вложения не должны уйти другому клиенту
     renderThreads(); renderThread();
     loadMessages(false).then(function () { el.text.focus(); });
     var t = curThread();
@@ -546,12 +614,29 @@
     }
   }
 
+  st.files = [];
+  var MAX_FILES = 10, MAX_ONE = 10 * 1024 * 1024, MAX_ALL = 25 * 1024 * 1024;
+  function addFiles(list) {
+    if (!curThread()) { setErr("Сначала выберите переписку"); return; }
+    var msg = "";
+    Array.prototype.forEach.call(list || [], function (f) {
+      var sum = st.files.reduce(function (a, x) { return a + x.size; }, 0);
+      if (!f.size) msg = "Файл «" + f.name + "» пустой";
+      else if (f.size > MAX_ONE) msg = "Файл «" + f.name + "» больше 10 МБ";
+      else if (st.files.length >= MAX_FILES) msg = "Не больше 10 файлов за раз";
+      else if (sum + f.size > MAX_ALL) msg = "Файлы вместе больше 25 МБ";
+      else st.files.push(f);
+    });
+    setErr(msg); showFileBar();
+  }
   function showFileBar() {
     if (!el.fileBar) return;
-    var f = st.file;
-    el.fileBar.hidden = !f;
-    el.fileBar.innerHTML = f ? '📄 ' + esc(f.name) + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ <button type="button" data-x="1" title="Убрать">✕</button>' : "";
+    el.fileBar.hidden = !st.files.length;
+    el.fileBar.innerHTML = st.files.map(function (f, i) {
+      return '<span class="chat-fchip">📄 <span class="fn">' + esc(f.name) + "</span> <small>" + (f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + " МБ" : Math.max(1, Math.round(f.size / 1024)) + " КБ") + '</small><button type="button" data-x="' + i + '" title="Убрать">✕</button></span>';
+    }).join("");
   }
+  function sendBtnLabel() { return st.files.length ? "Отправить (" + st.files.length + ")" : "Отправить"; }
   function readB64(f) {
     return new Promise(function (ok, bad) {
       var r = new FileReader();
@@ -562,16 +647,18 @@
   }
 
   function sendMsg() {
-    var t = curThread(), text = el.text.value.trim(), f = st.file;
-    if (!t || (!text && !f) || st.sending) return;
+    var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
+    if (!t || (!text && !fs.length) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
-    var job = f
-      ? readB64(f).then(function (data) {
-          return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: { text: text, filename: f.name, mime: f.type || "application/octet-stream", data: data } });
+    var job = fs.length
+      ? Promise.all(fs.map(readB64)).then(function (d) {
+          var body = { text: text, filename: fs[0].name, mime: fs[0].type || "application/octet-stream", data: d[0], more: [] };
+          for (var i = 1; i < fs.length; i++) body.more.push({ filename: fs[i].name, mime: fs[i].type || "application/octet-stream", data: d[i] });
+          return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: body });
         })
       : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
     job.then(function (r) {
-      el.text.value = ""; setErr(""); st.file = null; showFileBar();
+      el.text.value = ""; setErr(""); st.files = []; showFileBar();
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
       return Promise.all([loadMessages(false), loadThreads()]);
     }).then(null, function (e) { setErr(String(e)); }).then(function () {
