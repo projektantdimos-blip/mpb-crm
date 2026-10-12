@@ -74,6 +74,16 @@
     var d = new Date(ts * 1000);
     return pad(d.getDate()) + "." + pad(d.getMonth() + 1) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
+  var IC = {
+    clip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
+    vol: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+    mute: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    flip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
+    unread: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M22 7l-10 7L2 7"/><circle cx="19" cy="5" r="3.2" fill="currentColor" stroke="none"/></svg>'
+  };
   function chInfo(id) { return CH[id] || { label: id, color: "#888" }; }
 
   /* push-уведомления на это устройство: регистрация service worker при загрузке страницы */
@@ -170,17 +180,17 @@
 
   function build() {
     root.innerHTML =
-      '<header class="top"><div class="brand"><div><h1>Общение с клиентами</h1><p>Почта, Telegram и Max — в одном окне, с привязкой к клиентам и задачам</p></div></div><div class="chat-chips" id="chatChips"></div></header>' +
+      '<header class="top"><div class="brand"><div><h1>Общение с клиентами</h1><p>Почта, Telegram и Max — в одном окне, с привязкой к клиентам и задачам</p></div></div></header>' +
       '<div id="chatBanner"></div>' +
       '<div class="chat-wrap" id="chatWrap">' +
-        '<aside class="chat-list"><div class="chat-tools"><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
+        '<aside class="chat-list"><div class="chat-tools"><div class="chat-chips" id="chatChips"></div><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
         '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><span class="right">' +
-        '<button type="button" id="chatSound" title="Звук новых сообщений">🔊</button>' +
-        '<button type="button" id="chatPush" title="Уведомления на этом устройстве">🔔</button>' +
-        '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳ Обновить</button></span></div></div>' +
+        '<button type="button" id="chatSound" class="ibtn" title="Звук новых сообщений"></button>' +
+        '<button type="button" id="chatPush" class="ibtn" title="Уведомления на этом устройстве">' + IC.bell + '</button>' +
+        '<button type="button" id="chatRefresh" class="ibtn" title="Обновить сейчас">' + IC.refresh + '</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
-        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">📎</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
+        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">' + IC.clip + '</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
         '<aside class="chat-info" id="chatInfoPane"></aside>' +
       '</div>';
     el.banner = document.getElementById("chatBanner");
@@ -227,7 +237,7 @@
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
     document.getElementById("chatPush").onclick = togglePush;
     var sndBtn = document.getElementById("chatSound");
-    function paintSnd() { sndBtn.textContent = MPBSound.on() ? "🔊" : "🔇"; sndBtn.title = MPBSound.on() ? "Звук включён — нажмите, чтобы выключить" : "Звук выключен — нажмите, чтобы включить"; }
+    function paintSnd() { sndBtn.innerHTML = MPBSound.on() ? IC.vol : IC.mute; sndBtn.title = MPBSound.on() ? "Звук включён — нажмите, чтобы выключить" : "Звук выключен — нажмите, чтобы включить"; }
     sndBtn.onclick = function () { MPBSound.set(!MPBSound.on()); paintSnd(); if (MPBSound.on()) MPBSound.play(true); };
     paintSnd();
     showSync();
@@ -355,11 +365,13 @@
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
       '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Клиент, создание клиента и КП">Клиент · КП</button>' +
       (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
-        (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">⇅</button>" : "") +
-      '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">📷</button>' +
+        (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">" + IC.flip + "</button>" : "") +
+      '<button class="hbtn" id="chatUnread" title="Отметить непрочитанным">' + IC.unread + "</button>" +
+      '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">' + IC.camera + "</button>" +
       (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>';
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
+    document.getElementById("chatUnread").onclick = function () { markUnread(t.id); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
     renderAssign();
@@ -599,6 +611,14 @@
       var changed = list.length !== st.msgs.length || (list.length && list[list.length - 1].id !== st.msgs[st.msgs.length - 1].id);
       st.msgs = list;
       if (changed || !keepScroll) renderThread(keepScroll);
+    }, function (e) { setErr(String(e)); });
+  }
+
+  function markUnread(id) {
+    api("/api/threads/" + encodeURIComponent(id) + "/unread", { method: "POST" }).then(function () {
+      for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) st.threads[i].unread = Math.max(1, st.threads[i].unread || 0);
+      st.unreadSum = null;                                  // свой же счётчик не должен «пикать»
+      st.sel = null; renderThreads(); renderThread(); applyBadge();
     }, function (e) { setErr(String(e)); });
   }
 

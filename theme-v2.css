@@ -998,3 +998,34 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   #chat-app .chat-wrap.show-info .chat-info{padding:12px 14px;padding-top:max(12px,env(safe-area-inset-top))}
   #chat-app .chat-wrap.show-info .chat-info .cp-close{padding:8px 0;font-size:1rem}
 }
+/* ===== «Переписка»: порядок и вид панели ===== */
+#chat-app #chatHead .chat-infobtn{display:none}
+@media(max-width:1100px){#chat-app #chatHead .chat-infobtn{display:inline-flex}}
+#chat-app .chat-tools{display:flex;flex-direction:column;gap:10px;padding:14px 14px 10px}
+#chat-app .chat-tools .chat-chips{margin:0;display:flex;flex-wrap:wrap;gap:6px}
+#chat-app .chat-chips button{padding:6px 12px;border-radius:999px;font-size:.82rem;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);cursor:pointer;transition:.15s}
+#chat-app .chat-chips button:hover{border-color:var(--brand-2);color:var(--blue)}
+#chat-app .chat-chips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+#chat-app .chat-chips button[data-f="mine"]{flex:1 1 100%;order:-1;padding:9px 14px;border-radius:12px;font-size:.88rem;text-align:left;background:color-mix(in srgb,var(--orange) 14%,var(--card));border-color:color-mix(in srgb,var(--orange) 45%,var(--line));color:var(--ink)}
+#chat-app .chat-chips button[data-f="mine"].on{background:linear-gradient(135deg,var(--orange),#e8774a);border-color:transparent;color:#fff}
+#chat-app .chat-sync{margin:0}
+#chat-app .chat-sync .right{gap:2px}
+#chat-app .chat-sync .ibtn{display:grid;place-items:center;width:32px;height:32px;padding:0;border-radius:10px;color:var(--muted);opacity:1;cursor:pointer}
+#chat-app .chat-sync .ibtn:hover{background:var(--surface-2);color:var(--blue)}
+#chat-app .chat-sync #chatPush:not(.on){opacity:.5}
+#chat-app .chat-sync #chatPush.on{color:var(--blue)}
+#chat-app #chatHead .hbtn{width:36px;height:36px;border-radius:11px;color:var(--muted);background:var(--card);flex:none}
+#chat-app #chatHead .hbtn svg{width:18px;height:18px}
+#chat-app #chatHead .chat-pill{margin-left:auto}
+#chat-app #chatComposer .chat-attach{display:grid;place-items:center;width:46px;height:46px;padding:0;border-radius:14px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);box-shadow:none;flex:none;transition:.15s}
+#chat-app #chatComposer .chat-attach:hover{color:var(--blue);border-color:var(--brand-2);background:color-mix(in srgb,var(--blue) 8%,var(--card))}
+#chat-app #chatComposer{align-items:flex-end}
+#chat-app #chatComposer textarea{height:46px;min-height:46px}
+#chat-app #chatComposer #chatSend{height:46px;padding:0 22px;border-radius:14px}
+#chat-app #chatMsgs{padding:22px 26px}
+#chat-app .cm .mt{opacity:.7}
+@media(max-width:760px){
+  #chat-app .chat-tools .chat-chips{flex-wrap:nowrap;overflow-x:auto}
+  #chat-app .chat-chips button[data-f="mine"]{flex:none;order:0}
+  #chat-app #chatMsgs{padding:12px 10px}
+}
