@@ -11,6 +11,38 @@
   function E(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function ic(n) { return window.icon ? window.icon(n) : ""; }
 
+  /* ---------- запрет автозаполнения полей браузером и менеджерами паролей ---------- */
+  function noAutofill(root) {
+    if (!root || !root.querySelectorAll) return;
+    var list = root.matches && root.matches("input,textarea,form") ? [root] : [];
+    list = list.concat([].slice.call(root.querySelectorAll("input,textarea,form")));
+    list.forEach(function (el) {
+      if (el.getAttribute("data-noaf")) return;
+      el.setAttribute("data-noaf", "1");
+      var tag = el.tagName, type = (el.type || "").toLowerCase();
+      if (tag === "FORM") { el.setAttribute("autocomplete", "off"); return; }
+      if (type === "file" || type === "checkbox" || type === "radio" || type === "button" || type === "hidden" || type === "range") return;
+      el.setAttribute("autocomplete", type === "password" ? "new-password" : "off");
+      el.setAttribute("data-lpignore", "true");      // LastPass
+      el.setAttribute("data-1p-ignore", "true");     // 1Password
+      el.setAttribute("data-bwignore", "true");      // Bitwarden
+      el.setAttribute("data-form-type", "other");    // Dashlane
+      if (tag === "INPUT" && (type === "password" || (type === "text" && el.closest && el.parentNode && el.closest("div,form") && el.closest("div,form").parentNode.querySelector('input[type="password"]')))) {
+        // «только чтение» до первого касания: так браузер не подставляет сохранённые логин и пароль
+        if (!el.readOnly) {
+          el.readOnly = true;
+          var unlock = function () { el.readOnly = false; el.removeEventListener("focus", unlock); el.removeEventListener("pointerdown", unlock); };
+          el.addEventListener("focus", unlock); el.addEventListener("pointerdown", unlock);
+        }
+      }
+    });
+  }
+  function startGuard() {
+    noAutofill(document.body);
+    try { new MutationObserver(function (ms) { ms.forEach(function (m) { [].forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) noAutofill(n); }); }); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+  }
+  if (document.body) startGuard(); else document.addEventListener("DOMContentLoaded", startGuard);
+
   /* ---------- настройки и запросы ---------- */
   function cfg() {
     try { var c = JSON.parse(localStorage.getItem("mpb_bridge") || "{}"); return { url: String(c.url || "").replace(/\/+$/, ""), key: c.key || "" }; }
