@@ -1088,3 +1088,103 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .nd-files .chat-fchip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 10px;font-size:.84rem}
 .nd-files .chat-fchip button{border:0;background:none;color:var(--muted);cursor:pointer}
 .nd-files .fn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ===== чаты: удаление сообщения, многострочный ввод, рост окна ввода ===== */
+#chat-app #chatComposer textarea{overflow-y:auto;line-height:1.4;resize:none;max-height:40vh}
+.x-comp textarea#tIn{flex:1;min-width:140px;border:1px solid var(--line);background:var(--surface-2);border-radius:14px;padding:12px 16px;font:inherit;color:var(--ink);resize:none;line-height:1.4;max-height:40vh;overflow-y:auto;min-height:46px}
+.x-comp{align-items:flex-end}
+#chat-app .cm .mdel,.x-del{border:0;background:none;color:inherit;opacity:0;cursor:pointer;padding:2px 4px;margin-left:6px;border-radius:6px;line-height:1;vertical-align:middle;transition:.12s}
+#chat-app .cm:hover .mdel,.x-msg:hover .x-del{opacity:.55}
+#chat-app .cm .mdel:hover,.x-del:hover{opacity:1;color:var(--bad,#c0392b)}
+.x-del svg{width:14px;height:14px}
+@media(hover:none){#chat-app .cm .mdel,.x-del{opacity:.5}}
+.x-msg .tx{white-space:pre-wrap;overflow-wrap:anywhere}
+/* ===== предпросмотр КП в конструкторе: как PDF ===== */
+.kpc-scope .paper{padding:0 0 22px;overflow:hidden}
+.kp2-bn{display:block;width:100%;height:auto}
+.kp2-ttl{margin:20px 28px 0;text-align:center;font-size:1.25em;font-weight:800;color:#1d2733}
+.kp2-dt{text-align:center;color:#66717E;font-size:.82em;margin-top:2px}
+.kp2-obj{margin:20px 28px 0;text-align:right;font-weight:800;color:#1d2733;font-size:1.02em;overflow-wrap:anywhere}
+.kp2-adr{margin:2px 28px 0;text-align:right;color:#46515F;overflow-wrap:anywhere}
+.kp2-intro{margin:16px 36px 14px;text-align:center;color:#46515F;line-height:1.45}
+.kpc-scope .paper table.srv{width:calc(100% - 56px);margin:0 28px;border-collapse:collapse}
+.kpc-scope .paper table.srv th{background:#EE9264;color:#fff;text-align:left;font-size:.82em;padding:7px 8px}
+.kpc-scope .paper table.srv th.r,.kpc-scope .paper table.srv td.r{text-align:right;white-space:nowrap}
+.kpc-scope .paper table.srv td{padding:9px 8px;border-bottom:1px solid #E6EBF1;vertical-align:top}
+.kpc-scope .paper table.srv td.n{color:#66717E;width:30px}
+.kpc-scope .paper table.srv td .b,.kpc-scope .paper table.srv td.r{font-weight:700}
+.kp2-tot{margin:16px 28px 0;text-align:right;font-weight:800;font-size:1.25em;color:#1F5C99}
+.kp2-nds{margin:10px 28px 0;padding-top:5px;border-top:1px solid #6B7580;text-align:right;font-size:.7em;color:#66717E}
+.kp2-note{margin:16px 28px 0;color:#46515F;line-height:1.55;font-size:.88em}
+.kp2-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 28px 0}
+.kp2-card{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid #DFE6EF;border-radius:9px;background:#F8FAFD}
+.kp2-card img,.kp2-card i{width:62px;height:62px;flex:none;display:block;background:#fff}
+.kp2-card b{display:block;color:#C0392B;font-size:.82em}
+.kp2-card span{display:block;color:#46515F;font-size:.74em;line-height:1.3;margin-top:2px}
+.kp2-card em{display:block;font-style:normal;font-weight:700;font-size:.76em;margin-top:3px;color:#1d2733}
+.kp2-sign{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:18px 28px 0}
+.kp2-sign>div span,.kp2-sign>div b{display:block;line-height:1.7;color:#1d2733}
+.kp2-sign img{width:min(52%,300px);height:auto;flex:none}
+@media(max-width:760px){.kp2-cards{grid-template-columns:1fr}.kp2-sign{flex-direction:column;align-items:flex-start}.kp2-sign img{width:100%}}
+/* ===== телефон: Команда — список чатов, чат открывается на весь экран ===== */
+.x-back{display:none}
+@media(max-width:760px){
+  .x-back{display:grid;place-items:center;width:38px;height:38px;flex:none;border:0;background:none;color:var(--blue);font-size:1.5rem;padding:0;cursor:pointer;margin-left:-8px}
+  #team-app .x-chat{display:block!important;height:auto!important;min-height:0!important;border-radius:16px}
+  #team-app .x-chat>.x-info{display:none!important}
+  #team-app .x-chat>.x-dlgs{display:flex!important;border-right:0;max-height:none}
+  #team-app .x-chat>.x-thread{display:none!important}
+  #team-app .x-chat .x-dlgs .sc{max-height:none;overflow:visible}
+  #team-app .x-chat.room-open{position:fixed;inset:0;z-index:60;border-radius:0;border:0;display:block!important}
+  #team-app .x-chat.room-open>.x-dlgs{display:none!important}
+  #team-app .x-chat.room-open>.x-thread{display:flex!important;height:100dvh}
+  #team-app .x-th-h{padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));gap:10px}
+  #team-app .x-th-h small{display:none}
+  #team-app .x-msgs{padding:12px 10px;gap:10px}
+  #team-app .x-msg .bd{max-width:100%}
+  #team-app .x-comp{padding:8px 10px;padding-bottom:max(8px,env(safe-area-inset-bottom));gap:6px}
+  #team-app .x-comp textarea#tIn{font-size:16px;min-width:0;border-radius:20px;padding:11px 14px}
+  #team-app .x-comp .x-urgbtn{padding:0 11px;height:44px}
+  #team-app .x-comp .x-urgbtn{font-size:0}
+  #team-app .x-comp .x-urgbtn svg{width:18px;height:18px}
+  #team-app .x-dlg{padding:14px 16px}
+}
+
+/* ===== телефон: общие экраны (Задачи, Коммерция) ===== */
+@media(max-width:760px){
+  #apiGear{position:absolute!important;top:12px;right:12px}
+  .top{padding:16px 56px 6px 16px!important}
+  .top h1{font-size:1.35rem!important}
+  .top p{display:none}
+  .top .refresh{padding:8px 12px;font-size:.82rem}
+  .wrap{padding-left:12px!important;padding-right:12px!important}
+  .kpis{display:flex!important;overflow-x:auto;gap:8px!important;margin:0 -12px 14px!important;padding:2px 12px 6px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .kpis::-webkit-scrollbar{display:none}
+  .kpi{flex:0 0 138px;scroll-snap-align:start;padding:12px 14px!important;border-radius:14px!important}
+  .kpi .ic{width:30px;height:30px;margin-bottom:8px;border-radius:9px}
+  .kpi .v{font-size:1.45rem!important}
+  .kpi .l{font-size:.76rem!important}
+  .summary-row{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;gap:8px;margin:0 -12px 12px!important;padding:0 12px 4px}
+  .summary-row>*{flex:none}
+  .toolbar{flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
+  .toolbar .tabs{display:flex;overflow-x:auto;flex-wrap:nowrap;max-width:100%;gap:6px;padding-bottom:2px}
+  .toolbar .tabs .tab{flex:none}
+  .toolbar input[type=search],.toolbar input[type=text]{width:100%;font-size:16px}
+  .list{padding-bottom:96px}
+}
+#team-app .wrap{padding-bottom:0}
+@media(max-width:760px){#team-app .x-chat:not(.room-open){margin-bottom:96px}}
+
+@media(max-width:760px){
+  #chat-app{padding-top:54px!important}
+  #chat-app .chat-wrap{grid-template-columns:minmax(0,1fr)!important;height:calc(100dvh - 150px)!important}
+  #chat-app .chat-wrap.has-sel{height:100dvh!important}
+  #chat-app .chat-info{display:none!important}
+  #chat-app .chat-wrap.show-info .chat-info{display:flex!important}
+  #chat-app>header.top{display:none}
+}
+@media(max-width:760px){
+  #chat-app #chatComposer #chatSend{font-size:0!important;width:46px;min-width:46px;padding:0!important;border-radius:50%!important;position:relative}
+  #chat-app #chatComposer #chatSend::before{content:"";position:absolute;inset:0;margin:auto;width:20px;height:20px;background:currentColor;-webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 2L11 13M22 2l-7 20-4-9-9-4z'/></svg>") center/contain no-repeat;mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M22 2L11 13M22 2l-7 20-4-9-9-4z'/></svg>") center/contain no-repeat}
+  #chat-app #chatHead .chat-infobtn{white-space:nowrap}
+}
+@media(max-width:760px){.kpis,.summary-row{margin-left:0!important;margin-right:0!important;padding-left:0!important;padding-right:0!important}}
