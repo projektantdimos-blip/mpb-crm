@@ -68,7 +68,7 @@
   function renderTeam() {
     var el = $("team-app"), sub = "Внутренние чаты МПБ: общие вопросы, закупки, расчёты, КП, бухгалтерия и отдельный диалог по каждой задаче";
     if (!gate(el, "Команда", sub, renderTeam)) { stopTimer(); return; }
-    var q = /[?&]room=([^&]+)/.exec(location.hash); if (q) S.cur = decodeURIComponent(q[1]);
+    var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
     el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
       + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="hd"><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("plus") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
     $("tNew").onclick = newTaskRoom;
@@ -109,6 +109,8 @@
   }
   function openRoom(id, first) {
     S.cur = id; S.msgs = []; S.lastId = 0; S.urg = false;
+    var chatBox = document.querySelector(".x-chat");
+    if (chatBox) { if (first && !S.deep) chatBox.classList.remove("room-open"); else chatBox.classList.add("room-open"); }
     if (!first) { try { history.replaceState(null, "", "#/team?room=" + encodeURIComponent(id)); } catch (e) {} }
     paintRooms();
     $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">Загрузка…</div>';
@@ -160,13 +162,14 @@
     var prevDay = "", body = S.msgs.map(function (m) { var d = dayLabel(m.ts), h = (d !== prevDay ? '<span class="x-day">' + d + "</span>" : "") + msgHtml(m); prevDay = d; return h; }).join("");
     var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
     if (old && keep) wasBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 80;
-    el.innerHTML = '<div class="x-th-h"><span class="x-rm ' + (room.kind === "task" ? "task" : "") + '">' + ic(room.kind === "task" ? "tasks" : (ROOM_IC[room.id] || "hash")) + "</span><div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div></div>"
+    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button><span class="x-rm ' + (room.kind === "task" ? "task" : "") + '">' + ic(room.kind === "task" ? "tasks" : (ROOM_IC[room.id] || "hash")) + "</span><div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div></div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="Написать в «' + E(room.name) + '»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+      + '<div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (window.innerWidth <= 760 ? "Сообщение…" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
+    $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
     $("tAttach").onclick = function () { $("tFile").click(); };
     $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
     paintFiles();

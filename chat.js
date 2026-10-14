@@ -83,6 +83,7 @@
     camera: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
     flip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
     plus: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>',
     sort: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>',
     clip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
     unread: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M22 7l-10 7L2 7"/><circle cx="19" cy="5" r="3.2" fill="currentColor" stroke="none"/></svg>'
@@ -204,6 +205,7 @@
     el.info = document.getElementById("chatInfoPane");
     el.msgs = document.getElementById("chatMsgs");
     el.text = document.getElementById("chatText");
+    if (window.innerWidth <= 760) el.text.placeholder = "Сообщение…";
     el.send = document.getElementById("chatSend");
     el.q = document.getElementById("chatQ");
     el.chips = document.getElementById("chatChips");
@@ -247,9 +249,18 @@
     showSync();
     refreshPushBtn();
     el.msgs.onclick = function (e) {
+      var d = e.target.closest ? e.target.closest(".mdel") : null;
+      if (d) {
+        if (!confirm("Убрать это сообщение из CRM?\n\nУ получателя (в почте или Telegram) оно останется.")) return;
+        api("/api/messages/" + d.getAttribute("data-mid") + "/delete", { method: "POST" }).then(function () {
+          return Promise.all([loadMessages(true), loadThreads()]);
+        }).then(null, function (er) { setErr(String(er)); });
+        return;
+      }
       var b = e.target.closest ? e.target.closest(".cf") : null;
       if (b) openFile(b.getAttribute("data-fid"), b.getAttribute("data-name"), b.getAttribute("data-mime"));
     };
+    el.text.addEventListener("input", growText);
     el.text.onkeydown = function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMsg(); } };
     st.built = true;
     renderChips(); renderThreads(); renderThread();
@@ -397,11 +408,11 @@
       if (flip && m.direction === "in") {
         // «перевёрнутое» письмо: подпись/ссылки сверху, затем текст, тема внизу
         return '<div class="cm in">' + esc(flipBlocks(m.text)) + filesHtml(m.files) + subj +
-          '<div class="mt">' + fmtFull(m.ts) + "</div></div>";
+          '<div class="mt">' + fmtFull(m.ts) + delBtn(m) + "</div></div>";
       }
       return '<div class="cm ' + (m.direction === "out" ? "out" : "in") + '">' +
         subj + esc(m.text) + filesHtml(m.files) +
-        '<div class="mt">' + fmtFull(m.ts) + "</div></div>";
+        '<div class="mt">' + fmtFull(m.ts) + delBtn(m) + "</div></div>";
     }).join("");
     if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
   }
@@ -716,6 +727,14 @@
     });
     setErr(msg); showFileBar();
   }
+  function delBtn(m) {
+    return m.id ? ' <button type="button" class="mdel" data-mid="' + m.id + '" title="Убрать сообщение из CRM" aria-label="Удалить">' + IC.trash + "</button>" : "";
+  }
+  function growText() {
+    if (!el.text) return;
+    el.text.style.height = "auto";
+    el.text.style.height = Math.min(el.text.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px";
+  }
   function showFileBar() {
     if (!el.fileBar) return;
     el.fileBar.hidden = !st.files.length;
@@ -745,7 +764,7 @@
         })
       : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
     job.then(function (r) {
-      el.text.value = ""; setErr(""); st.files = []; showFileBar();
+      el.text.value = ""; growText(); setErr(""); st.files = []; showFileBar();
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
       return Promise.all([loadMessages(false), loadThreads()]);
     }).then(null, function (e) { setErr(String(e)); }).then(function () {
