@@ -444,11 +444,19 @@ function callServer(fn){
   }
   var cfg = apiCfg();
   if (!cfg.key) { setTimeout(function(){ if (window.openApiSettings) openApiSettings(); }, 0); return Promise.reject("Не задан ключ доступа — откройте ⚙ Настройки"); }
-  return fetch(cfg.url, {
-    method: "POST", redirect: "follow",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },   // без preflight
-    body: JSON.stringify({ key: cfg.key, fn: fn, args: args })
-  }).then(function(r){ return r.json(); }, function(){ throw "Нет связи с таблицей. Проверьте интернет и адрес в ⚙"; })
+  var readOnly = !/(Save|Create|Delete|Merge|Add|Remove|Update)/.test(fn);   // чтение можно безопасно повторить при сбое сети
+  var body = JSON.stringify({ key: cfg.key, fn: fn, args: args });
+  function attempt(n) {
+    return fetch(cfg.url, {
+      method: "POST", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },   // без preflight
+      body: body
+    }).then(function(r){ return r.json(); }, function(){
+      if (readOnly && n < 2) return new Promise(function(res){ setTimeout(res, 1200 * (n + 1)); }).then(function(){ return attempt(n + 1); });
+      throw "Нет связи с таблицей Google. Проверьте интернет и VPN (нужен доступ к script.google.com), затем обновите страницу. Адрес таблицы — в ⚙";
+    });
+  }
+  return attempt(0)
     .then(function(j){ if (!j || !j.ok) throw (j && j.error) || "Ошибка сервера"; return j.data; });
 }
 
