@@ -1198,3 +1198,24 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   .task-card .cust,#kpreg-app .lead-card .cust{flex-basis:100%}
   .task-card .badges{flex-wrap:wrap}
 }
+/* ===== «Отработано» и статус отправки ===== */
+#chat-app .ct .dchk{flex:none;display:grid;place-items:center;width:26px;height:26px;margin-left:6px;padding:0;border:0;background:none;color:var(--border-strong);border-radius:50%;cursor:pointer;opacity:.55;transition:.15s}
+#chat-app .ct:hover .dchk{opacity:1}
+#chat-app .ct .dchk:hover{color:#2e9d57;background:color-mix(in srgb,#2e9d57 14%,transparent)}
+#chat-app .ct .dchk.on{opacity:1;color:#fff;background:#2e9d57}
+#chat-app .ct .dchk svg{width:17px;height:17px}
+#chat-app .ct.is-done .nm,#chat-app .ct.is-done .pv{opacity:.6}
+#chat-app .ct.is-done .ava{box-shadow:0 0 0 2px #2e9d57}
+#chat-app #chatHead .hdone{color:#2e9d57;border-color:color-mix(in srgb,#2e9d57 45%,var(--line))}
+#chat-app #chatHead .hdone.on{background:#2e9d57;color:#fff;border-color:#2e9d57}
+#chat-app .chat-chips button[data-f="done"]{border-color:color-mix(in srgb,#2e9d57 40%,var(--line))}
+#chat-app .chat-chips button[data-f="done"].on{background:#2e9d57;border-color:#2e9d57;color:#fff}
+#chat-app .cm .sent{display:inline-flex;vertical-align:-3px;margin-left:2px;color:#7fe3a0}
+#chat-app .cm.out .sent svg{width:15px;height:15px}
+#chat-app .cm.pend{opacity:.85}
+#chat-app .cm.pend .wait{display:inline-flex;gap:4px;align-items:center}
+#chat-app .cm.pend.failed{background:color-mix(in srgb,#d64545 16%,var(--card));border:1px solid #d64545;color:var(--ink)}
+#chat-app .cm.pend.failed .mt{color:#b3261e}
+#chat-app .cm.pend .fail{display:inline-flex;gap:4px;align-items:center;font-weight:700}
+#chat-app .cm.pend .pf{font-size:.82rem;opacity:.8;margin-top:4px}
+#chat-app .cm.pend .pdel{border:0;background:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;font-size:.78rem;margin-left:8px}

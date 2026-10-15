@@ -84,6 +84,10 @@
     flip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
     plus: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
     trash: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>',
+    done: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>',
+    sent: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
     sort: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>',
     clip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
     unread: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M22 7l-10 7L2 7"/><circle cx="19" cy="5" r="3.2" fill="currentColor" stroke="none"/></svg>'
@@ -308,7 +312,7 @@
   }
 
   function renderChips() {
-    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"]], n = myOpen().length, mine = st.filter === "mine";
+    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
     var seg = crmOn()
       ? '<div class="seg"><button data-f="all" class="' + (mine ? "" : "on") + '">Все диалоги</button>' +
         '<button data-f="mine" class="' + (mine ? "on" : "") + '">' + IC.sort + 'Мне передали' + (n ? '<b class="cnt">' + n + "</b>" : "") + "</button></div>"
@@ -324,6 +328,7 @@
   function visibleThreads() {
     return st.threads.filter(function (t) {
       if (st.filter === "mine") { if (!myOpen().some(function (a) { return a.thread_id === t.id; })) return false; }
+      else if (st.filter === "done") { if (!t.done) return false; }
       else if (st.filter !== "all" && t.channel !== st.filter) return false;
       if (st.q && (t.title + " " + t.last_text + " " + t.peer).toLowerCase().indexOf(st.q) < 0) return false;
       return true;
@@ -338,12 +343,15 @@
     }
     el.threads.innerHTML = list.map(function (t) {
       var ci = chInfo(t.channel), ini = (t.title || "?").trim().charAt(0).toUpperCase(), av = avUrl(t);
-      return '<div class="ct' + (t.id === st.sel ? " on" : "") + (t.unread ? " is-un" : "") + '" data-id="' + esc(t.id) + '">' +
+      return '<div class="ct' + (t.id === st.sel ? " on" : "") + (t.unread ? " is-un" : "") + (t.done ? " is-done" : "") + '" data-id="' + esc(t.id) + '">' +
         '<button type="button" class="udot' + (t.unread ? " on" : "") + '" data-u="' + esc(t.id) + '" title="' + (t.unread ? "Отметить прочитанным" : "Отметить непрочитанным") + '" aria-label="Непрочитано"></button>' +
         '<div class="ava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
-        '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + "</span></div>" +
+        '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + '</span><button type="button" class="dchk' + (t.done ? " on" : "") + '" data-dn="' + esc(t.id) + '" title="' + (t.done ? "Отработано — нажмите, чтобы снять отметку" : "Отметить отработанным") + '" aria-label="Отработано">' + IC.done + "</button></div>" +
         '<div class="r2"><span class="pv">' + esc(t.last_text) + "</span>" + assignPill(t) + (t.unread ? '<span class="un">' + t.unread + "</span>" : "") + "</div></div></div>";
     }).join("");
+    Array.prototype.forEach.call(el.threads.querySelectorAll(".dchk"), function (b) {
+      b.onclick = function (e) { e.stopPropagation(); toggleDone(b.getAttribute("data-dn")); };
+    });
     Array.prototype.forEach.call(el.threads.querySelectorAll(".udot"), function (b) {
       b.onclick = function (e) { e.stopPropagation(); toggleUnread(b.getAttribute("data-u")); };
     });
@@ -384,7 +392,7 @@
     el.head.innerHTML = '<button class="back" id="chatBack" title="К списку">←</button>' +
       '<div class="hava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
       '<div class="hmain"><b>' + esc(t.title || t.peer) + "</b><small>" + esc(t.peer) + "</small></div>" +
-      '<span class="hacts">' + (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
+      '<span class="hacts"><button class="hbtn hdone' + (t.done ? " on" : "") + '" id="chatDone" title="' + (t.done ? "Отработано — снять отметку" : "Отметить отработанным") + '">' + IC.done + "</button>" + (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
         (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">" + IC.flip + "</button>" : "") +
       '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">' + IC.camera + "</button>" +
       (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") + "</span>" +
@@ -392,6 +400,7 @@
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>';
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
+    document.getElementById("chatDone").onclick = function () { toggleDone(t.id); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
     renderAssign();
@@ -412,8 +421,16 @@
       }
       return '<div class="cm ' + (m.direction === "out" ? "out" : "in") + '">' +
         subj + esc(m.text) + filesHtml(m.files) +
-        '<div class="mt">' + fmtFull(m.ts) + delBtn(m) + "</div></div>";
+        '<div class="mt">' + fmtFull(m.ts) + (m.direction === "out" ? ' <span class="sent" title="Отправлено">' + IC.sent + "</span>" : "") + delBtn(m) + "</div></div>";
+    }).join("") + (st.pending[t.id] || []).map(function (p, i) {
+      return '<div class="cm out pend ' + p.state + '">' + esc(p.text) + (p.files ? '<div class="pf">' + esc(p.files) + "</div>" : "") +
+        '<div class="mt">' + (p.state === "failed"
+          ? '<span class="fail">' + IC.warn + " Не отправлено" + (p.err ? ": " + esc(p.err) : "") + '</span> <button type="button" class="pdel" data-pi="' + i + '">Убрать</button>'
+          : '<span class="wait">' + IC.clock + " Отправляется…</span>") + "</div></div>";
     }).join("");
+    Array.prototype.forEach.call(el.msgs.querySelectorAll(".pdel"), function (b) {
+      b.onclick = function () { (st.pending[t.id] || []).splice(+b.getAttribute("data-pi"), 1); renderThread(true); };
+    });
     if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
   }
 
@@ -684,6 +701,17 @@
     setTimeout(function () { g("ndTo").focus(); }, 50);
   }
 
+  function toggleDone(id) {
+    var t = null; for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) t = st.threads[i];
+    if (!t) return;
+    var want = !t.done;
+    t.done = want ? 1 : 0; if (want) t.unread = 0;
+    st.unreadSum = null; renderThreads(); if (st.sel === id) renderThread(true); applyBadge();
+    api("/api/threads/" + encodeURIComponent(id) + "/done", { method: "POST", body: { done: want } }).then(null, function (e) {
+      t.done = want ? 0 : 1; renderThreads(); if (st.sel === id) renderThread(true); setErr(String(e));
+    });
+  }
+
   function toggleUnread(id) {
     var t = null; for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) t = st.threads[i];
     if (!t) return;
@@ -713,6 +741,7 @@
   }
 
   st.files = [];
+  st.pending = {};
   var MAX_FILES = 10, MAX_ONE = 10 * 1024 * 1024, MAX_ALL = 25 * 1024 * 1024;
   function addFiles(list) {
     if (!curThread()) { setErr("Сначала выберите переписку"); return; }
@@ -756,6 +785,9 @@
     var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
     if (!t || (!text && !fs.length) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
+    var pend = { text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" };
+    (st.pending[t.id] = st.pending[t.id] || []).push(pend);
+    renderThread(false);
     var job = fs.length
       ? Promise.all(fs.map(readB64)).then(function (d) {
           var body = { text: text, filename: fs[0].name, mime: fs[0].type || "application/octet-stream", data: d[0], more: [] };
@@ -766,8 +798,12 @@
     job.then(function (r) {
       el.text.value = ""; growText(); setErr(""); st.files = []; showFileBar();
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
+      var arr = st.pending[t.id] || []; arr.splice(arr.indexOf(pend), 1);
       return Promise.all([loadMessages(false), loadThreads()]);
-    }).then(null, function (e) { setErr(String(e)); }).then(function () {
+    }).then(null, function (e) {
+      pend.state = "failed"; pend.err = String(e); setErr(String(e));
+      if (st.sel === t.id) renderThread(true);
+    }).then(function () {
       st.sending = false; el.send.textContent = "Отправить"; el.send.disabled = !curThread();
     });
   }
