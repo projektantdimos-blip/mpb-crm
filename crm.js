@@ -1,5 +1,5 @@
 /* МПБ CRM v2 — этап 2б: связь с мостом (/api/crm), вход по PIN, уведомления, журнал изменений.
-   Адрес и ключ моста — те же, что у «Общения» (⚙, localStorage: mpb_bridge). Личная сессия — localStorage: mpb_session.
+   Адрес и ключ моста — те же, что у «Общения» (⚙, localStorage: ds_bridge). Личная сессия — localStorage: ds_session.
    Если мост не подключён или вход не выполнен, остальное приложение работает как раньше. */
 (function () {
   "use strict";
@@ -11,57 +11,16 @@
   function E(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function ic(n) { return window.icon ? window.icon(n) : ""; }
 
-  /* ---------- запрет автозаполнения полей браузером и менеджерами паролей ---------- */
-  function noAutofill(root) {
-    if (!root || !root.querySelectorAll) return;
-    var list = root.matches && root.matches("input,textarea,form") ? [root] : [];
-    list = list.concat([].slice.call(root.querySelectorAll("input,textarea,form")));
-    list.forEach(function (el) {
-      if (el.getAttribute("data-noaf")) return;
-      el.setAttribute("data-noaf", "1");
-      var tag = el.tagName, type = (el.type || "").toLowerCase();
-      if (tag === "FORM") { el.setAttribute("autocomplete", "off"); return; }
-      if (type === "file" || type === "checkbox" || type === "radio" || type === "button" || type === "hidden" || type === "range") return;
-      el.setAttribute("autocomplete", type === "password" ? "new-password" : "off");
-      el.setAttribute("data-lpignore", "true");      // LastPass
-      el.setAttribute("data-1p-ignore", "true");     // 1Password
-      el.setAttribute("data-bwignore", "true");      // Bitwarden
-      el.setAttribute("data-form-type", "other");    // Dashlane
-      if (tag === "INPUT" && (type === "password" || (type === "text" && el.closest && el.parentNode && el.closest("div,form") && el.closest("div,form").parentNode.querySelector('input[type="password"]')))) {
-        // «только чтение» до первого касания: так браузер не подставляет сохранённые логин и пароль
-        if (!el.readOnly) {
-          el.readOnly = true;
-          var unlock = function () { el.readOnly = false; el.removeEventListener("focus", unlock); el.removeEventListener("pointerdown", unlock); };
-          el.addEventListener("focus", unlock); el.addEventListener("pointerdown", unlock);
-        }
-      }
-    });
-  }
-  function startGuard() {
-    noAutofill(document.body);
-    try { new MutationObserver(function (ms) { ms.forEach(function (m) { [].forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) noAutofill(n); }); }); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
-  }
-  if (document.body) startGuard(); else document.addEventListener("DOMContentLoaded", startGuard);
-
   /* ---------- настройки и запросы ---------- */
   function cfg() {
-    try { var c = JSON.parse(localStorage.getItem("mpb_bridge") || "{}"); return { url: String(c.url || "").replace(/\/+$/, ""), key: c.key || "" }; }
+    try { var c = JSON.parse(localStorage.getItem("ds_bridge") || "{}"), d = window.DS_CONFIG || {}; return { url: String(c.url || d.url || "").replace(/\/+$/, ""), key: c.key || d.key || "" }; }
     catch (e) { return { url: "", key: "" }; }
   }
-  function tok() { try { return localStorage.getItem("mpb_session") || ""; } catch (e) { return ""; } }
-  function setSession(t) { try { if (t) localStorage.setItem("mpb_session", t); else localStorage.removeItem("mpb_session"); } catch (e) {} }
+  function tok() { try { return localStorage.getItem("ds_session") || ""; } catch (e) { return ""; } }
+  function setSession(t) { try { if (t) localStorage.setItem("ds_session", t); else localStorage.removeItem("ds_session"); } catch (e) {} }
   C.configured = function () { var c = cfg(); return !!(c.url && c.key); };
   C.loggedIn = function () { return !!(C.me && tok()); };
 
-  C.blob = function (path) {                       // скачать файл (вложение внутреннего чата)
-    var c = cfg();
-    if (!c.url || !c.key) return Promise.reject("Мост не подключён");
-    var h = { "X-Api-Key": c.key }; if (tok()) h["X-Session"] = tok();
-    return fetch(c.url + "/api/crm" + path, { headers: h, cache: "no-store" }).then(function (r) {
-      if (!r.ok) throw "Не удалось скачать файл (" + r.status + ")";
-      return r.blob();
-    });
-  };
   C.call = function (path, opts) {
     opts = opts || {};
     var c = cfg();
@@ -80,6 +39,19 @@
         });
       }
       return r.json();
+    }, function () { throw "Сервер недоступен. Проверьте адрес моста в ⚙ и интернет"; });
+  };
+
+  /* файл с моста (PDF/Word и т.п.): { blob, name } */
+  C.blob = function (path) {
+    var c = cfg();
+    if (!c.url || !c.key) return Promise.reject("Мост не подключён: адрес и ключ — в ⚙");
+    var h = { "X-Api-Key": c.key };
+    if (tok()) h["X-Session"] = tok();
+    return fetch(c.url + "/api" + path, { cache: "no-store", headers: h }).then(function (r) {
+      if (!r.ok) return r.json().then(function (j) { return j; }, function () { return {}; }).then(function (j) { throw (j && typeof j.detail === "string") ? j.detail : ("Ошибка сервера " + r.status); });
+      var cd = r.headers.get("Content-Disposition") || "", m = /filename\*=UTF-8''([^;]+)/i.exec(cd), name = m ? decodeURIComponent(m[1]) : "документ";
+      return r.blob().then(function (b) { return { blob: b, name: name }; });
     }, function () { throw "Сервер недоступен. Проверьте адрес моста в ⚙ и интернет"; });
   };
 
@@ -116,7 +88,7 @@
       C.call("/auth/users", { auth: false }).then(function (names) {
         C.users = names;
         $("xLName").innerHTML = names.length ? names.map(function (n) { return "<option>" + E(n) + "</option>"; }).join("") : "<option value=''>Нет сотрудников</option>";
-        var last = ""; try { last = localStorage.getItem("mpb_last_user") || ""; } catch (e) {}
+        var last = ""; try { last = localStorage.getItem("ds_last_user") || ""; } catch (e) {}
         if (last && names.indexOf(last) >= 0) $("xLName").value = last;
         $("xLPin").focus();
       }).catch(function (e) { $("xLErr").textContent = String(e); });
@@ -124,7 +96,7 @@
         var n = $("xLName").value, p = $("xLPin").value;
         if (!n || !p) { $("xLErr").textContent = "Выберите сотрудника и введите PIN"; return; }
         $("xLGo").disabled = true;
-        C.login(n, p).then(function (u) { try { localStorage.setItem("mpb_last_user", u.name); } catch (e) {} close(); resolve(u); })
+        C.login(n, p).then(function (u) { try { localStorage.setItem("ds_last_user", u.name); } catch (e) {} close(); resolve(u); })
           .catch(function (e) { $("xLGo").disabled = false; $("xLErr").textContent = String(e); $("xLPin").value = ""; $("xLPin").focus(); });
       }
       $("xLGo").onclick = go; $("xLPin").onkeydown = function (e) { if (e.key === "Enter") go(); };
@@ -139,7 +111,7 @@
     if (!C.loggedIn() || document.hidden) return Promise.resolve();
     return C.call("/sync").then(function (s) {
       var prev = C.sync; C.sync = s; paintBadges();
-      if (prev && window.MPBSound && ((s.notif_unread || 0) > (prev.notif_unread || 0) || (s.team_unread || 0) > (prev.team_unread || 0))) MPBSound.play();
+      if (prev && window.DSSound && ((s.notif_unread || 0) > (prev.notif_unread || 0) || (s.team_unread || 0) > (prev.team_unread || 0))) DSSound.play();
       (s.urgent || []).slice(0, 3).forEach(function (m) { if (!shownUrgent[m.id]) { shownUrgent[m.id] = 1; if (prev || Date.now() / 1000 - m.ts < 86400) urgentBanner(m); } });   // после входа — свежие неподтверждённые срочные тоже всплывают
       emit("sync", s);
     }).catch(function () {});
@@ -198,23 +170,37 @@
 
   /* ---------- push на это устройство ---------- */
   function b64ToU8(s) { var p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
-  C.pushSupported = function () { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; };
-  C.pushOn = function () { try { return C.pushSupported() && Notification.permission === "granted" && localStorage.getItem("mpb_push_user") === (C.me ? String(C.me.id) : "x"); } catch (e) { return false; } };
+  C.pushSupported = function () { return !!window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; };
+  /* почему push недоступен на этом устройстве — человеческим языком */
+  C.pushWhy = function () {
+    var ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (!window.isSecureContext) return "Сайт открыт без шифрования (http://). Push работает только по https: откройте https://" + location.host + location.pathname + (location.hostname.indexOf("github.io") < 0 ? " или https://projektantdimos-blip.github.io/PROJECT/" : "") + ".";
+    if (ios && !(window.navigator.standalone || (window.matchMedia && matchMedia("(display-mode: standalone)").matches))) return "На iPhone/iPad: в Safari нажмите «Поделиться» → «На экран «Домой»», откройте CRM с новой иконки и включите уведомления там.";
+    if (!("serviceWorker" in navigator)) return "Этот браузер не умеет фоновые уведомления (приватное окно или встроенный браузер мессенджера). Откройте CRM в Chrome, Edge, Firefox или Safari.";
+    if (!("PushManager" in window) || !("Notification" in window)) return "Этот браузер не поддерживает push. Откройте CRM в актуальном Chrome, Edge, Firefox или Safari (iOS 16.4+, через «На экран «Домой»»).";
+    return "";
+  };
+  C.pushOn = function () { try { return C.pushSupported() && Notification.permission === "granted" && localStorage.getItem("ds_push_user") === (C.me ? String(C.me.id) : "x"); } catch (e) { return false; } };
   C.enablePush = function () {
-    if (!C.pushSupported()) return Promise.reject("Этот браузер не поддерживает push. На iPhone приложение нужно сначала добавить на экран «Домой».");
+    if (!C.pushSupported()) return Promise.reject(C.pushWhy() || "Push недоступен на этом устройстве.");
     return Notification.requestPermission().then(function (perm) {
       if (perm !== "granted") throw "Уведомления не разрешены в браузере";
       return navigator.serviceWorker.register("sw.js").then(function () { return navigator.serviceWorker.ready; });
     }).then(function (reg) {
-      return C.call("/push/key").then(function (k) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(k.key) }); });
+      return C.call("/push/key").then(function (k) {
+        // старая подписка с другим ключом (от прежнего адреса/сервера) мешает новой — снимаем её и подписываемся заново
+        return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; }).then(function () {
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(k.key) });
+        });
+      });
     }).then(function (sub) { return C.call("/me/push/subscribe", { body: sub.toJSON() }); })
-      .then(function () { try { localStorage.setItem("mpb_push_user", String(C.me.id)); } catch (e) {} emit("push"); });
+      .then(function () { try { localStorage.setItem("ds_push_user", String(C.me.id)); } catch (e) {} emit("push"); });
   };
   C.disablePush = function () {
     return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
       var p = sub ? C.call("/me/push/unsubscribe", { body: { endpoint: sub.endpoint } }).catch(function () {}).then(function () { return sub.unsubscribe(); }) : Promise.resolve();
       return p;
-    }).then(function () { try { localStorage.removeItem("mpb_push_user"); } catch (e) {} emit("push"); });
+    }).then(function () { try { localStorage.removeItem("ds_push_user"); } catch (e) {} emit("push"); });
   };
 
   /* ---------- журнал изменений: перехват сохранений задач и заявок ---------- */

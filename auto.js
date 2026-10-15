@@ -32,10 +32,11 @@
   function agoText(ts) { if (!ts) return "ещё не срабатывало"; var m = Math.round((Date.now() / 1000 - ts) / 60); return m < 1 ? "только что" : m < 60 ? m + " мин назад" : m < 1440 ? Math.round(m / 60) + " ч назад" : Math.round(m / 1440) + " дн. назад"; }
 
   function render() {
+    if (window.DS) return;      /* «Автоматизация» проектной CRM рисует ds.js */
     var el = $("auto-app"), sub = "Система сама напоминает, переносит этапы и сообщает о просрочках — вам не нужно держать это в голове";
     if (!U.gate(el, "Автоматизация", sub, render)) return;
     el.innerHTML = U.head("Автоматизация", sub, isAdmin() ? '<button class="x-btn accent" id="auNew">' + ic("plus") + "Новая автоматизация</button>" : "")
-      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="mail" class="' + (S.tab === "mail" ? "on" : "") + '">' + ic("chat") + 'Письма</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
+      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
     $("auTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { S.tab = b.dataset.t; render(); }; });
     var nb = $("auNew"); if (nb) nb.onclick = function () { if (S.tab === "mail") mailEditor(null); else editor(null); };
     load();
@@ -57,7 +58,6 @@
   function paint() {
     var b = $("auBody"); if (!b) return;
     if (S.tab === "bot") { paintBot(b); return; }
-    if (S.tab === "mail") { paintMail(b); return; }
     b.innerHTML = statusCard() + '<div class="x-two"><div class="x-panel">' + (S.rules.map(function (r) {
       return '<div class="auto ' + (r.enabled ? "" : "offr") + '" data-id="' + r.id + '">' + (isAdmin() ? '<button class="x-sw ' + (r.enabled ? "on" : "") + '" data-sw="' + r.id + '" title="Включить/выключить"></button>' : '<span class="x-pill ' + (r.enabled ? "ok" : "") + '">' + (r.enabled ? "вкл" : "выкл") + "</span>")
         + '<div class="fl"><span class="node t">' + ic("clock") + E(trigText(r)) + '</span><span class="arr">' + ic("arrow") + "</span>" + actNodes(r) + '</div><span class="runs"><b>' + r.runs + "</b> срабат.<br>" + agoText(r.last_ts) + "</span></div>";

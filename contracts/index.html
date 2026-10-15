@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Генератор договоров</title>
+<style>
+  :root{--bg:#f3f5f8;--card:#fff;--line:#d9dee6;--tx:#1d2733;--mut:#6b7785;--ac:#1f5fbf;--ac2:#164a96;--warn:#b45309;--dng:#b42318}
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.4 "Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+  header{background:#17263a;color:#fff;display:flex;align-items:center;gap:24px;padding:0 20px;height:52px}
+  header h1{font-size:16px;margin:0;font-weight:600;white-space:nowrap}
+  nav{display:flex;gap:4px}
+  nav button{background:none;border:0;color:#b9c4d4;padding:16px 14px;font:inherit;cursor:pointer;border-bottom:3px solid transparent}
+  nav button.on{color:#fff;border-bottom-color:#5aa0ff}
+  nav button:hover{color:#fff}
+  #main{padding:16px 20px}
+  .two-col{display:grid;grid-template-columns:minmax(520px,640px) 1fr;gap:18px;align-items:start}
+  @media(max-width:1100px){.two-col{grid-template-columns:1fr}}
+  .form section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  h2{margin:0 0 12px;font-size:20px} h3{margin:0 0 10px;font-size:15px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 12px}
+  .fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .fld span{font-size:12px;color:var(--mut)}
+  .w2{grid-column:span 2}.w3,.rows,.pre{grid-column:1/-1}
+  input[type=text],input[type=date],input[type=search],select,textarea{font:inherit;padding:6px 8px;border:1px solid #c4ccd8;border-radius:5px;background:#fff;width:100%;min-width:0}
+  textarea{resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:2px solid #9cc2ff;border-color:var(--ac)}
+  .chk{grid-column:1/-1;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .radio{display:inline-flex;align-items:center;gap:4px;margin-right:12px;cursor:pointer;padding-top:4px}
+  .radio.dis{color:#aab;cursor:not-allowed}
+  .hint{grid-column:1/-1;color:var(--mut);font-size:12px;margin:6px 0 0}.hint.warn{color:var(--warn);font-weight:600}
+  .rows-title{font-weight:600;margin-bottom:6px}
+  .rowline{border:1px solid var(--line);border-radius:6px;padding:8px;margin-bottom:8px;background:#fafbfd}
+  .rowline .preset{margin-bottom:6px;font-size:12px}
+  .cells{display:flex;gap:8px;align-items:flex-end}
+  .x{border:0;background:none;color:var(--dng);cursor:pointer;font-size:16px;padding:6px}
+  .btn{font:inherit;padding:8px 14px;border:1px solid #b9c3d1;border-radius:6px;background:#fff;cursor:pointer;color:var(--tx);display:inline-block}
+  .btn:hover{background:#eef3fa}
+  .btn.primary{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:600}.btn.primary:hover{background:var(--ac2)}
+  .btn.small{padding:4px 10px;font-size:13px}.btn.danger{color:var(--dng)}.btn.ghost{border-color:transparent;color:var(--mut)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .actions.sticky{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 25%);padding:16px 0 8px}
+  .summary{margin-top:10px;font-weight:600;color:var(--ac2)}
+  .prev{position:sticky;top:8px}
+  .prev-title{font-size:12px;color:var(--mut);margin-bottom:6px}
+  .paper{background:#fff;border:1px solid var(--line);box-shadow:0 2px 8px #0002;padding:14mm 16mm;max-height:calc(100vh - 110px);overflow:auto}
+  .page{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 20px;max-width:1200px}
+  .bar{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}.bar input{max-width:320px}.bar select{max-width:280px}
+  .seg{display:flex}.seg button{padding:7px 14px;border:1px solid #b9c3d1;background:#fff;cursor:pointer;font:inherit}
+  .seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button+button{border-left:0}
+  .seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+  table.list{width:100%;border-collapse:collapse}
+  table.list th{text-align:left;font-size:12px;color:var(--mut);border-bottom:2px solid var(--line);padding:6px 8px}
+  table.list td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td.acts{white-space:nowrap;text-align:right}td.acts .btn{margin-left:4px}
+  .empty{color:var(--mut);padding:20px 0}
+  .toast{position:fixed;right:20px;bottom:20px;background:#17263a;color:#fff;padding:10px 16px;border-radius:6px;box-shadow:0 4px 14px #0004;transition:opacity .5s;z-index:50}.toast.hide{opacity:0}
+  .badge{margin-left:auto;font-size:12px;padding:5px 10px;border-radius:12px;cursor:pointer;background:#2b3b52;color:#f3c26b}.badge.ok{color:#7bd88f}.badge.err{color:#ff8b8b}.badge.busy{color:#9cc2ff}
+  #printRoot{display:none}
+  @media print{
+    body.printing > :not(#printRoot){display:none !important}
+    body.printing{background:#fff}
+    body.printing #printRoot{display:block}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔥 Генератор договоров</h1>
+  <nav>
+    <button data-p="new">Новый договор</button>
+    <button data-p="history">История</button>
+    <button data-p="clients">Клиенты</button>
+    <button data-p="backup">Резерв</button>
+  </nav>
+  <span id="syncBadge" class="badge off" title="Общая папка на сервере \\176.197.21.187\ServAmani">● Сервер не подключён — нажмите, чтобы выбрать папку</span>
+</header>
+<div id="main"></div>
+<script src="lib/docx.js"></script>
+<script src="lib/pdfmake.min.js"></script>
+<script src="js/logos.js"></script>
+<script src="js/fonts.js"></script>
+<script src="js/util.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -6,23 +6,24 @@ self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim(
 self.addEventListener('push', function (event) {
   var data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
-  var title = data.title || 'МПБ';
+  var title = data.title || 'Проекты DS';
   var url = data.url || './index.html#/chat';
-  event.waitUntil(
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: 'icon-512.png',
+      badge: 'icon-180.png',
+      tag: data.tag || 'ds-chat',
+      renotify: true,
+      silent: false,
+      vibrate: [200, 100, 200, 100, 300],
+      data: { url: url }
+    }),
+    // если CRM открыта в какой-то вкладке — она проигрывает громкий сигнал сама
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (list) {
-      list.forEach(function (c) { c.postMessage({ type: 'push', title: title }); });   // открытая вкладка сама проиграет сигнал
-      return self.registration.showNotification(title, {
-        body: data.body || '',
-        icon: 'icon-512.png',
-        badge: 'icon-180.png',
-        tag: data.tag || 'mpb-chat',
-        renotify: true,
-        silent: false,                  // звук — системный, как у обычных уведомлений телефона
-        vibrate: [200, 100, 200],
-        data: { url: url }
-      });
+      list.forEach(function (c) { try { c.postMessage({ type: 'push-sound' }); } catch (e) {} });
     })
-  );
+  ]));
 });
 
 self.addEventListener('notificationclick', function (event) {

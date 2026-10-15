@@ -1,174 +1,124 @@
-/* МПБ CRM v2 — боковая панель диалога («Переписка»): клиент, создание клиента и сборка КП рядом с диалогом.
-   Вкладки: «Клиент» · «Создать клиента» · «КП». КП уходит в диалог текстом и файлом PDF, попадает в реестр КП
-   (заявка получает статус «КП отправлено») и сохраняется версией. Услуги и формулировки — те же, что в «Конструкторе КП». */
+/* Проекты DS — боковая панель диалога с заказчиком (переписка Telegram / MAX / почта):
+   вкладка «Заказчик» (привязка диалога к заказчику, его задачи и КП) и вкладка «КП» (КП из диалога:
+   услуги из прайс-листа, запись в реестр КП с датой выставления и отправка текста заказчику в этот же диалог).
+   Данные только с моста (/api/ds); доступ у продаж, операционного менеджера и руководителя. */
 (function () {
   "use strict";
-  var T = window.MPBT, D = window.MPBD = {};
-  if (!T || !T.util) return;
-  var U = T.util, E = U.E;
-  var per = {};                                                  // состояние панели по диалогам
+  var D = window.MPBD = {};
+  var per = {};                       // состояние по диалогам: { tab, kp: {object, pay, items}, link, err }
+  var price = null;
+
   function $(id) { return document.getElementById(id); }
-  function Kc() { return window.__kpc; }
+  function E(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function money(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
-  function st(t) { return per[t.id] || (per[t.id] = { tab: "c", rows: [], num: "", object: "", address: "", init: false, errors: [], busy: false, cl: undefined }); }
-  function crm() { return !!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn()); }
+  function C() { return window.MPBC; }
+  function api(path, body) { return C().call("/../ds" + path, body ? { body: body } : {}); }
+  function toast(m) { if (window.MPBT && MPBT.toast) MPBT.toast(m); else if (window.toast) window.toast(m); }
+  function st(t) { return per[t.id] || (per[t.id] = { tab: "c", err: "", busy: false, link: null, kp: null }); }
 
-  /* ---------- конвертация строк панели в состояние конструктора ---------- */
-  function svcOf(id) { var c = Kc(); return c ? c.CATALOG.filter(function (s) { return s.id === id; })[0] : null; }
-  function qtyField(svc) { return (svc.fields || []).filter(function (f) { return f.type === "int"; })[0]; }
-  function unitPrice(svc) {
-    if (!window.MPBP || !MPBP.suggest) return 0;
-    var f = {}, qf = qtyField(svc); if (qf) f[qf.id] = "1";
-    return MPBP.suggest(svc, { fields: f }) || 0;
-  }
-  function toSaved(s) {
-    var services = {};
-    s.rows.forEach(function (r) {
-      var svc = svcOf(r.id); if (!svc) return;
-      var cur = services[r.id], q = Math.max(1, +r.q || 1), qf = qtyField(svc), f = {};
-      var prev = cur ? (+cur._q || 0) : 0;
-      if (qf) f[qf.id] = String(prev + q);
-      services[r.id] = { on: true, price: String(Math.round(((cur ? +cur.price : 0)) + q * (+r.p || 0))), fields: f, _q: prev + q };
-    });
-    Object.keys(services).forEach(function (k) { delete services[k]._q; });
-    return { num: s.num, object: s.object, address: s.address, noAddress: !s.address, services: services };
-  }
-  function total(s) { return s.rows.reduce(function (a, r) { return a + (svcOf(r.id) ? Math.max(1, +r.q || 1) * (+r.p || 0) : 0); }, 0); }
+  var css = document.createElement("style");
+  css.textContent = ".dsp .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 12px}.dsp .tabs button{padding:8px 12px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;background:none;border-top:0;border-left:0;border-right:0;cursor:pointer}.dsp .tabs button.on{color:var(--brand);border-color:var(--brand)}"
+    + ".dsp .card{display:flex;gap:10px;align-items:center;padding:9px 11px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--surface-2,var(--surface));font-size:.88rem;cursor:pointer;text-decoration:none;color:inherit}.dsp .card small{display:block;color:var(--muted)}"
+    + ".dsp .f{margin-bottom:10px}.dsp .f label{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:4px}.dsp .f input,.dsp .f select{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface);color:var(--ink)}"
+    + ".dsp .sv{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:.84rem}.dsp .sv.on{border-color:var(--brand-2);background:var(--brand-soft)}.dsp .sv span{flex:1}.dsp .sv input[type=number]{width:96px;border:1px solid var(--line);border-radius:8px;padding:4px 6px;background:var(--surface);color:var(--ink)}"
+    + ".dsp .err{color:var(--bad);font-weight:600;margin:6px 0;font-size:.84rem}.dsp .tot{padding:10px 12px;border-radius:12px;background:var(--surface-2,var(--surface));border:1px solid var(--line);margin:8px 0}.dsp .note{font-size:.8rem;color:var(--muted);margin:6px 0}";
+  document.head.appendChild(css);
 
-  /* ---------- вкладки ---------- */
   D.render = function (box, t, name) {
     var s = st(t);
-    if (!s.init) { s.init = true; s.object = name; }
-    box.innerHTML = '<div class="cp-tabs">' + [["c", "Клиент"], ["n", "Создать клиента"], ["k", "КП"]].map(function (x) { return '<button data-t="' + x[0] + '" class="' + (s.tab === x[0] ? "on" : "") + '">' + x[1] + "</button>"; }).join("") + '</div><div class="cp-body" id="cpBody"></div>';
-    box.querySelectorAll(".cp-tabs button").forEach(function (b) { b.onclick = function () { s.tab = b.dataset.t; D.render(box, t, name); }; });
-    var body = $("cpBody");
-    if (s.tab === "c") tabClient(body, t, name, s, box);
-    else if (s.tab === "n") tabNew(body, t, name, s, box);
-    else tabKp(body, t, name, s, box);
+    if (!C() || !MPBC.loggedIn()) { box.innerHTML = '<div class="dsp"><p class="note">Войдите, чтобы работать с заказчиком.</p></div>'; return; }
+    box.innerHTML = '<div class="dsp"><div class="tabs">' + [["c", "Заказчик"], ["k", "КП из диалога"]].map(function (x) { return '<button data-t="' + x[0] + '" class="' + (s.tab === x[0] ? "on" : "") + '">' + x[1] + "</button>"; }).join("") + '</div><div id="dspBody"></div></div>';
+    box.querySelectorAll(".tabs button").forEach(function (b) { b.onclick = function () { s.tab = b.dataset.t; s.err = ""; D.render(box, t, name); }; });
+    var body = $("dspBody");
+    body.innerHTML = '<p class="note">Загрузка…</p>';
+    api("/threads/" + encodeURIComponent(t.id) + "/link?title=" + encodeURIComponent(name || "") + "&peer=" + encodeURIComponent(t.peer || "")).then(function (l) {
+      s.link = l;
+      if (s.tab === "k") tabKp(body, t, name, s, box); else tabCustomer(body, t, name, s, box);
+    }, function (e) { body.innerHTML = '<p class="err">' + E(e) + "</p>"; });
   };
 
-  function tabClient(body, t, name, s, box) {
-    body.innerHTML = '<div class="cp-empty">Ищу в задачах и заявках…</div>';
-    if (!window.MPBK || !MPBK.summary) { body.innerHTML = '<div class="cp-empty">Раздел «Клиенты» не загружен</div>'; return; }
-    MPBK.summary(name, t.peer).then(function (r) {
-      s.cl = r ? r.c : null;
-      if (!$("cpBody") || $("cpBody") !== body) return;
-      if (!r) {
-        body.innerHTML = '<p class="cp-note">Клиента нет в задачах и заявках. Внесите данные справа, не закрывая диалог — карточка появится в разделе «Клиенты».</p><button class="x-btn primary cp-w" id="cpGoNew">Создать клиента</button>';
-        $("cpGoNew").onclick = function () { s.tab = "n"; D.render(box, t, name); };
-        return;
-      }
-      var c = r.c, h = '<a class="cp-card" data-go="#/clients/' + encodeURIComponent(c.key) + '"><span class="cp-av">' + E((c.name || "?").charAt(0)) + "</span><span><b>" + E(c.name) + "</b><small>" + c.open.length + " в работе · заявок: " + c.live.length + "</small></span></a>";
-      c.open.slice(0, 3).forEach(function (x) { h += '<a class="cp-card" data-go="#/task/' + x.row + '"><span><b>' + E(x.workType || "Работа") + "</b><small>" + E(x.stage || "") + "</small></span></a>"; });
-      c.live.slice(0, 2).forEach(function (x) { h += '<a class="cp-card" data-go="#/kpreg/lead/' + x.row + '"><span><b>' + E(x.object || "Заявка") + "</b><small>" + E(x.status || "") + (+x.amount ? " · " + money(+x.amount) : "") + "</small></span></a>"; });
-      h += '<button class="x-btn primary cp-w" id="cpGoKp">Составить КП</button>';
-      body.innerHTML = h;
-      body.querySelectorAll("[data-go]").forEach(function (a) { a.onclick = function () { location.hash = a.getAttribute("data-go"); }; });
-      $("cpGoKp").onclick = function () { s.tab = "k"; s.object = c.name; D.render(box, t, name); };
-    });
-  }
+  function again(box, t, name) { D.render(box, t, name); }
 
-  function tabNew(body, t, name, s, box) {
-    var me = (window.MPBC && MPBC.me && MPBC.me.name) || "", mail = /@/.test(t.peer || ""), funnels = (window.FUNNEL_SOURCES && FUNNEL_SOURCES.length) ? FUNNEL_SOURCES : ["Переписка"];
-    body.innerHTML = '<div class="cp-f"><label>Заказчик</label><input id="ncCust" value="' + E(name) + '"></div><div class="cp-f"><label>Контактное лицо</label><input id="ncContact" value="' + E(mail ? "" : name) + '"></div>'
-      + '<div class="cp-f"><label>Телефон / почта</label><input id="ncPhone" value="' + E(t.peer || "") + '"></div><div class="cp-f"><label>Объект / что нужно</label><input id="ncObj" placeholder="адрес или кратко: что хочет клиент"></div>'
-      + '<div class="cp-f"><label>Откуда клиент</label><select id="ncFun">' + funnels.map(function (f) { return "<option>" + E(f) + "</option>"; }).join("") + '</select></div>'
-      + '<div class="cp-f"><label>Ответственный</label><input id="ncOwn" value="' + E(me) + '"></div><div class="x-err" id="ncErr"></div><button class="x-btn primary cp-w" id="ncGo">Создать клиента</button>';
-    $("ncGo").onclick = function () {
-      var cust = $("ncCust").value.trim(); if (!cust) { $("ncErr").textContent = "Укажите заказчика"; return; }
-      var d = new Date(), today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2), go = $("ncGo");
-      go.disabled = true; go.textContent = "Создаю…";
-      callServer("api_kpregCreate", { date: today, customer: cust, funnel: $("ncFun").value, contact: $("ncContact").value.trim(), phoneEmail: $("ncPhone").value.trim(), object: $("ncObj").value.trim(), essence: "", amount: 0, status: "Новое обращение", owner: $("ncOwn").value.trim(), lastContact: today, comment: "Создано из переписки" })
-        .then(function () {
-          if (window.MPBK && MPBK.invalidate) MPBK.invalidate();
-          s.object = cust; s.address = $("ncObj").value.trim(); s.tab = "k"; U.toast("Клиент «" + cust + "» создан — составьте КП");
-          D.render(box, t, name);
-        }).catch(function (e) { go.disabled = false; go.textContent = "Создать клиента"; $("ncErr").textContent = String(e); });
+  function tabCustomer(body, t, name, s, box) {
+    var l = s.link, h = "";
+    if (l.customer) {
+      var c = l.customer;
+      if (l.auto) h += '<p class="note">Диалог привязан автоматически: ' + E(l.auto) + ".</p>";
+      h += '<div class="card" style="cursor:default"><span><b>' + E(c.name) + "</b> " + (c.regular ? "· постоянный" : "") + "<small>" + (c.contacts || []).map(function (x) { return E((x.fio || "") + (x.phone ? " " + x.phone : "") + (x.email ? " " + x.email : "")); }).join("; ") + "</small></span></div>";
+      if (c.comment) h += '<p class="note">📝 ' + E(c.comment) + "</p>";
+      h += '<div class="note">Задачи заказчика</div>' + (l.orders.map(function (o) { return '<a class="card" href="#/task/' + o.id + '"><span><b>№' + E(o.number) + " · " + E(o.object) + "</b><small>" + E(o.stage) + (o.left_days != null ? " · " + (o.left_days < 0 ? "просрочено" : "осталось") + " " + Math.abs(o.left_days) + " дн." : "") + "</small></span></a>"; }).join("") || '<p class="note">Задач пока нет</p>');
+      h += '<div class="note">КП</div>' + (l.kp.map(function (k) { return '<a class="card" href="#/kpreg/"><span><b>' + E(k.number) + " · " + money(k.amount) + "</b><small>" + E(k.status) + " · " + E(k.object) + "</small></span></a>"; }).join("") || '<p class="note">КП пока нет</p>');
+      h += '<button class="x-btn ghost" id="dspUnlink" style="width:100%;justify-content:center">Отвязать диалог</button>';
+      body.innerHTML = h;
+      $("dspUnlink").onclick = function () { api("/threads/" + encodeURIComponent(t.id) + "/link", { customer_id: 0 }).then(function () { again(box, t, name); }, function (e) { toast(String(e)); }); };
+      return;
+    }
+    if (l.suggestions.length) {
+      h += '<div class="note">Возможно, это:</div>' + l.suggestions.map(function (x) { return '<div class="card" data-id="' + x.id + '"><span><b>' + E(x.name) + "</b><small>Привязать диалог" + (x.why ? " · совпало: " + E(x.why) : "") + "</small></span></div>"; }).join("");
+    }
+    h += '<div class="note">Или создать заказчика:</div>'
+      + '<div class="f"><label>Наименование компании</label><input id="dspName" value="' + E(name || "") + '"></div>'
+      + '<div class="f"><label>Контактное лицо (ФИО)</label><input id="dspFio" value="' + E(name || "") + '"></div>'
+      + '<div class="f"><label>Телефон</label><input id="dspPhone" value="' + E(/^[+\d\s()-]{6,}$/.test(t.peer || "") ? t.peer : "") + '"></div>'
+      + '<div class="f"><label>E-mail</label><input id="dspMail" value="' + E(/@/.test(t.peer || "") ? t.peer : "") + '"></div>'
+      + (s.err ? '<div class="err">' + E(s.err) + "</div>" : "")
+      + '<button class="x-btn primary" id="dspCreate" style="width:100%;justify-content:center">Создать заказчика и привязать</button>';
+    body.innerHTML = h;
+    body.querySelectorAll("[data-id]").forEach(function (n) {
+      n.onclick = function () { api("/threads/" + encodeURIComponent(t.id) + "/link", { customer_id: +n.dataset.id }).then(function () { again(box, t, name); }, function (e) { s.err = String(e); again(box, t, name); }); };
+    });
+    $("dspCreate").onclick = function () {
+      var nm = $("dspName").value.trim();
+      if (!nm) { s.err = "Укажите наименование компании"; return again(box, t, name); }
+      api("/threads/" + encodeURIComponent(t.id) + "/customer", { name: nm, fio: $("dspFio").value.trim(), phone: $("dspPhone").value.trim(), email: $("dspMail").value.trim() })
+        .then(function () { s.err = ""; again(box, t, name); }, function (e) { s.err = String(e); again(box, t, name); });
     };
   }
 
   function tabKp(body, t, name, s, box) {
-    var kc = Kc();
-    if (!kc) { body.innerHTML = '<div class="cp-empty">Конструктор КП ещё не загружен — обновите страницу</div>'; return; }
-    if (!s.rows.length) s.rows.push({ id: kc.CATALOG[0].id, q: 1, p: unitPrice(kc.CATALOG[0]) });
-    if (!s.num) suggestNum(s, function () { if ($("cpNum") && !$("cpNum").value) $("cpNum").value = s.num; });
-    function draw() {
-      var saved = toSaved(s), chk = null;
-      try { chk = kc.checkSaved(saved); } catch (e) { chk = { ok: false, errors: [{ msg: String(e) }] }; }
-      s.errors = chk.errors || [];
-      body.innerHTML = '<div class="cp-two"><div class="cp-f"><label>№ предложения</label><input id="cpNum" inputmode="numeric" value="' + E(s.num) + '" placeholder="212"></div>'
-        + '<div class="cp-f"><label>Объект (заказчик)</label><input id="cpObj" value="' + E(s.object) + '"></div></div><div class="cp-f"><label>Адрес объекта</label><input id="cpAddr" value="' + E(s.address) + '" placeholder="не указывать — оставьте пустым"></div>'
-        + s.rows.map(function (r, i) {
-          return '<div class="cp-row" data-i="' + i + '"><div class="cp-r1"><select data-f="id">' + kc.CATALOG.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.id ? " selected" : "") + ">" + E(c.title) + "</option>"; }).join("") + '</select>'
-            + '<button data-del="' + i + '" title="Убрать строку">×</button></div>'
-            + '<div class="cp-r2"><label>Кол-во<input data-f="q" type="number" min="1" value="' + r.q + '"></label><label>Цена за ед., ₽<input data-f="p" type="number" min="0" value="' + r.p + '"></label><span class="cp-sum">' + money(Math.max(1, +r.q || 1) * (+r.p || 0)) + "</span></div></div>";
-        }).join("")
-        + '<button class="x-btn ghost cp-w" id="cpAdd">+ Добавить строку</button>'
-        + '<div class="cp-tot"><span>Итого</span><b>' + money(total(s)) + '</b></div>'
-        + (s.errors.length ? '<ul class="cp-err">' + s.errors.slice(0, 4).map(function (e) { return "<li>" + E(e.msg) + "</li>"; }).join("") + (s.errors.length > 4 ? "<li>и ещё " + (s.errors.length - 4) + "…</li>" : "") + "</ul>" : '<p class="cp-ok">Всё заполнено — можно отправлять</p>')
-        + '<div class="cp-acts"><button class="x-btn ghost" id="cpTpl">Шаблон…</button><button class="x-btn ghost" id="cpOpen">В конструктор</button></div>'
-        + '<button class="x-btn primary cp-w" id="cpSend"' + (s.busy ? " disabled" : "") + ">" + (s.busy ? "Отправляю…" : "Отправить в чат (текст + PDF)") + "</button>"
-        + '<p class="cp-hint">КП уйдёт сообщением и файлом PDF, а заявка клиента в реестре получит статус «КП отправлено».</p>';
-      $("cpNum").oninput = function () { s.num = this.value; };
-      $("cpObj").oninput = function () { s.object = this.value; };
-      $("cpAddr").oninput = function () { s.address = this.value; };
-      body.querySelectorAll(".cp-row").forEach(function (row) {
-        var i = +row.dataset.i, r = s.rows[i];
-        row.querySelectorAll("[data-f]").forEach(function (inp) {
-          inp.onchange = function () {
-            var f = inp.dataset.f;
-            if (f === "id") { r.id = inp.value; r.p = unitPrice(svcOf(r.id)) || r.p; } else r[f] = +inp.value || 0;
-            draw();
-          };
-        });
-      });
-      body.querySelectorAll("[data-del]").forEach(function (b) { b.onclick = function () { if (s.rows.length > 1) s.rows.splice(+b.dataset.del, 1); draw(); }; });
-      $("cpAdd").onclick = function () { var c = kc.CATALOG[Math.min(1, kc.CATALOG.length - 1)]; s.rows.push({ id: c.id, q: 1, p: unitPrice(c) }); draw(); };
-      $("cpOpen").onclick = function () { kc.load(toSaved(s)); location.hash = "#/kpc"; };
-      $("cpTpl").onclick = function () {
-        if (!window.MPBP || !MPBP.templateList) { U.toast("Модуль шаблонов не загружен"); return; }
-        MPBP.templateList().then(function (l) {
-          var v = U.xmodal('<h3>Шаблон КП</h3><p class="x-sub">Услуги шаблона заменят строки в панели</p>' + l.map(function (x, i) { return '<div class="cp-card" data-i="' + i + '"><span><b>' + E(x.name) + "</b><small>" + E(x.descr || "") + "</small></span></div>"; }).join("") + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button></div>');
-          v.querySelectorAll(".cp-card").forEach(function (c) {
-            c.onclick = function () {
-              var tpl = l[+c.dataset.i], ids = Object.keys(tpl.state.services || {}).filter(function (k) { return tpl.state.services[k].on && svcOf(k); });
-              s.rows = ids.map(function (k) { return { id: k, q: 1, p: unitPrice(svcOf(k)) }; }); T.closeModal(); draw();
-            };
-          });
-        });
-      };
-      $("cpSend").onclick = function () { sendKp(t, s, draw); };
+    if (!s.link.customer) {
+      body.innerHTML = '<p class="note">Сначала привяжите диалог к заказчику на вкладке «Заказчик».</p><button class="x-btn ghost" id="dspGo" style="width:100%;justify-content:center">К заказчику</button>';
+      $("dspGo").onclick = function () { s.tab = "c"; again(box, t, name); };
+      return;
     }
-    draw();
-  }
-
-  function suggestNum(s, cb) {
-    if (!crm()) return;
-    MPBC.call("/kp/versions?limit=200").then(function (l) {
-      var m = 0; l.forEach(function (x) { var n = parseInt(x.num, 10); if (n > m) m = n; });
-      if (m && !s.num) { s.num = String(m + 1); cb(); }
-    }).catch(function () {});
-  }
-
-  function b64(blob) {
-    return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res(String(fr.result).split(",")[1]); }; fr.onerror = rej; fr.readAsDataURL(blob); });
-  }
-  function sendKp(t, s, redraw) {
-    var kc = Kc(), saved = toSaved(s), chk = kc.checkSaved(saved);
-    if (!chk.ok) { U.toast("Исправьте замечания к КП — они показаны под таблицей"); return; }
-    var text = kc.textFor(saved);
-    if (!confirm("Отправить КП в диалог «" + (t.title || t.peer) + "» (текст и PDF)?\n\n" + text.slice(0, 380) + (text.length > 380 ? "…" : ""))) return;
-    s.busy = true; redraw();
-    var info = { name: s.object, address: s.address, total: total(s), num: s.num, phone: t.peer || "", owner: (window.MPBC && MPBC.me && MPBC.me.name) || "" };
-    kc.pdf(saved).then(function (pdf) { return b64(pdf.blob).then(function (data) { return window.__chatSendFile(t.id, text, pdf.name, data); }); })
-      .then(function () {
-        U.toast("КП отправлено в диалог: сообщение и PDF");
-        var jobs = [];
-        if (window.MPBK && MPBK.registerKp) jobs.push(MPBK.registerKp(info).then(function (r) { U.toast(r.created ? "Заявка создана в реестре КП" : "Заявка в реестре: статус «КП отправлено»"); }));
-        if (crm() && info.num) jobs.push(MPBC.call("/kp/versions", { body: { num: String(info.num), object: info.name || "", total: info.total, state: saved, note: "Отправлено в чат: " + (t.title || t.peer), status: "sent" } }));
-        return Promise.all(jobs.map(function (j) { return j.catch(function (e) { U.toast("Не удалось записать в реестр: " + E(e)); }); }));
-      })
-      .catch(function (e) { U.toast("Не отправлено: " + E(e)); })
-      .then(function () { s.busy = false; redraw(); });
+    function draw() {
+      var k = s.kp, total = k.items.reduce(function (a, i) { return a + (i.on ? (+i.price || 0) : 0); }, 0);
+      var pct = k.pay === "adv50" ? 0.5 : k.pay === "adv30" ? 0.3 : 0, adv = Math.round(total * pct);
+      body.innerHTML = '<p class="note">КП для «' + E(s.link.customer.name) + '». Попадёт в реестр КП, а текст появится в окне ответа: вы проверите его и отправите сами.</p>'
+        + '<div class="f"><label>Объект</label><input id="dspObj" value="' + E(k.object) + '"></div>'
+        + k.items.map(function (i, idx) { return '<div class="sv ' + (i.on ? "on" : "") + '"><input type="checkbox" data-sv="' + idx + '" ' + (i.on ? "checked" : "") + "><span>" + E(i.name) + '</span><input type="number" min="0" data-sp="' + idx + '" value="' + (+i.price || 0) + '"></div>'; }).join("")
+        + '<div class="f" style="margin-top:8px"><label>Оплата</label><select id="dspPay">' + [["adv50", "Аванс 50%, остаток по акту"], ["adv30", "Аванс 30%, остаток по акту"], ["post100", "100% по акту"]].map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === k.pay ? " selected" : "") + ">" + x[1] + "</option>"; }).join("") + "</select></div>"
+        + '<div class="tot"><b id="dspTot">' + money(total) + "</b>" + (adv ? "<div>Аванс " + money(adv) + ", остаток " + money(total - adv) + "</div>" : "<div>Без аванса, оплата по акту</div>") + "</div>"
+        + '<label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dspPdf" ' + (k.pdf === false ? "" : "checked") + '> Приложить КП файлом PDF (Telegram и почта; в MAX уйдёт текст)</label>'
+        + (s.err ? '<div class="err">' + E(s.err) + "</div>" : "")
+        + '<button class="x-btn primary" id="dspSend" style="width:100%;justify-content:center"' + (s.busy ? " disabled" : "") + ">Подготовить КП и вставить в окно ответа</button>";
+      $("dspPdf").onchange = function () { k.pdf = this.checked; };
+      $("dspObj").oninput = function () { k.object = this.value; };
+      $("dspPay").onchange = function () { k.pay = this.value; draw(); };
+      body.querySelectorAll("[data-sv]").forEach(function (cb) { cb.onchange = function () { k.items[+cb.dataset.sv].on = cb.checked; draw(); }; });
+      body.querySelectorAll("[data-sp]").forEach(function (inp) { inp.oninput = function () { k.items[+inp.dataset.sp].price = +inp.value || 0; var tt = $("dspTot"); if (tt) tt.textContent = money(k.items.reduce(function (a, i) { return a + (i.on ? (+i.price || 0) : 0); }, 0)); }; });
+      $("dspSend").onclick = send;
+    }
+    function send() {
+      var k = s.kp, items = k.items.filter(function (i) { return i.on && +i.price > 0; }).map(function (i) { return { name: i.name, price: +i.price }; });
+      if (!items.length) { s.err = "Отметьте хотя бы одну услугу с ценой"; return draw(); }
+      s.busy = true; s.err = ""; draw();
+      api("/threads/" + encodeURIComponent(t.id) + "/kp", { object: k.object, services: items, pay: k.pay, send: false }).then(function (r) {
+        var withPdf = s.kp.pdf !== false;
+        var fileP = withPdf ? C().blob("/ds/kp/" + r.id + "/doc?kind=kp&fmt=pdf").then(function (f) { return new File([f.blob], f.name, { type: "application/pdf" }); }, function () { return null; }) : Promise.resolve(null);
+        return fileP.then(function (file) {
+          s.busy = false; s.kp = null; s.tab = "c";
+          if (window.__chatDraft) window.__chatDraft(r.text, file, r.id);
+          toast("КП " + r.number + " готово: проверьте текст в окне ответа и нажмите «Отправить»");
+          again(box, t, name);
+        });
+      }, function (e) { s.busy = false; s.err = String(e); draw(); });
+    }
+    if (s.kp) { draw(); return; }
+    var load = price ? Promise.resolve(price) : api("/price").then(function (p) { price = p.items.filter(function (i) { return i.active; }); return price; });
+    load.then(function (items) {
+      s.kp = { object: "", pay: "adv50", items: items.map(function (i) { return { name: i.name, price: i.price, on: false }; }) };
+      draw();
+    }, function (e) { body.innerHTML = '<p class="err">' + E(e) + "</p>"; });
   }
 })();

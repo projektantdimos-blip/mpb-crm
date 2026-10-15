@@ -5,7 +5,7 @@
 (function () {
   "use strict";
   var C = window.MPBC, T = window.MPBT, S = window.MPBS = {};
-  var KEY = "mpb_stages", PAL = ["#2f6fe4", "#ee9264", "#2fa67a", "#e0a02b", "#8e6fd6", "#d65d8a", "#3bb0c9", "#7a8a3a"];
+  var KEY = "ds_stages", PAL = ["#2f6fe4", "#ee9264", "#2fa67a", "#e0a02b", "#8e6fd6", "#d65d8a", "#3bb0c9", "#7a8a3a"];
   var doc = null;
   var LEGACY = { version: 0, default: "std", pools: [{ id: "std", name: "Стандартный", keys: [], stages: (window.STAGES || []).map(function (s) { return { name: s.name, who: s.who, days: s.days != null ? s.days : 3 }; }) }] };
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -95,6 +95,7 @@
   function nz(n, a, b, c) { var m = n % 100, k = n % 10; return (m >= 11 && m <= 14) ? c : k === 1 ? a : (k >= 2 && k <= 4) ? b : c; }
 
   function render() {
+    if (window.DS) return;      /* «Этапы и сроки» проектной CRM рисует ds.js */
     var el = $("stages-app"), sub = "У каждого вида работ свой порядок этапов, исполнители и сроки по умолчанию";
     if (!U.gate(el, "Этапы и сроки", sub, render)) return;
     if (!doc) { el.innerHTML = U.head("Этапы и сроки", sub) + '<div class="wrap"><div class="x-empty">Загрузка…</div></div>'; S.load().then(function (d) { if (d) render(); else el.innerHTML = U.head("Этапы и сроки", sub) + '<div class="wrap"><div class="x-panel"><div class="x-empty">Не удалось загрузить наборы этапов. Проверьте связь с мостом (в ⚙) и обновите страницу.</div></div></div>'; }); return; }
