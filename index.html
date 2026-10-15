@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<title>Проекты DS — CRM</title>
+<title>МПБ — Рабочие инструменты</title>
 <meta name="description" content="Задачи, коммерческие предложения и реестр КП — Мир пожарной безопасности">
 <meta name="theme-color" content="#1f5c99">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Проекты DS">
+<meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="logo.png" type="image/png">
@@ -270,19 +270,18 @@ textarea{resize:vertical;min-height:64px}
 .kpc-scope .paper .tot{font-weight:700}
 
 </style>
-<!-- шрифты подгружаются без блокировки страницы: если Google Fonts недоступен (в РФ бывает), CRM всё равно откроется -->
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="theme-v2.css">
-<script>try{var __t=localStorage.getItem("ds_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
-<link rel="stylesheet" href="ds.css">
+<script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
 <div class="app">
 <aside class="side">
-  <div class="sbrand" onclick="location.hash='#/'"><img src="logo.png" alt="Проекты DS"><b>Проекты DS</b><small>Проектная компания</small></div>
+  <div class="sbrand" onclick="location.hash='#/'"><img src="bear.png" alt="МПБ — Мир пожарной безопасности"><b>МПБ</b><small>Полный спектр защиты</small></div>
   <nav id="topnav"></nav>
-  <div class="side-foot"><button class="ib2" id="themeBtn" title="Светлая / тёмная тема" aria-label="Тема"></button><div class="me" id="meChip">Проекты DS<small>CRM проектного отдела</small></div></div>
+  <div class="side-foot"><button class="ib2" id="themeBtn" title="Светлая / тёмная тема" aria-label="Тема"></button><div class="me" id="meChip">МПБ CRM<small>Рабочие инструменты</small></div></div>
 </aside>
 <div class="main">
 <div class="subnavM" id="subnavM"></div>
@@ -299,12 +298,21 @@ textarea{resize:vertical;min-height:64px}
 <div id="auto-app" style="display:none"></div>
 <div id="stages-app" style="display:none"></div>
 <div id="clients-app" style="display:none"></div>
-<div id="report-app" style="display:none"></div>
-<div id="flow-app" style="display:none"></div>
-<div id="tz-app" style="display:none"></div>
-<div id="stats-app" style="display:none"></div>
 <div id="price-app" style="display:none"></div>
-<div id="contracts-app" style="display:none"></div>
+<div id="contracts-app" style="display:none">
+  <div style="padding:8px 16px;font-size:.85rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:var(--card);border-bottom:1px solid var(--line)">
+    <span id="contracts-status" style="font-weight:600">Проверяю связь…</span>
+    <span>База клиентов, история и папки договоров — на сервере. Новый договор МПБ создаёт задачу «Договор Подписать» и папку.</span>
+    <a id="contracts-open" href="http://176.197.21.187:8791/" target="_blank" rel="noopener" style="color:var(--blue);font-weight:600">Открыть в отдельной вкладке ↗</a>
+  </div>
+  <div id="contracts-off" style="display:none;max-width:640px;margin:24px auto;padding:18px 22px;background:var(--card);border:1px solid var(--line);border-radius:12px">
+    <h3 id="contracts-off-title" style="margin:0 0 8px">Генератор договоров не отвечает</h3>
+    <p id="contracts-off-text" style="margin:0 0 12px;color:var(--muted)">Проверьте, что вы в сети офиса и сервер включён. Если генератор не установлен на сервере — запустите на нём «Установка на сервер (от администратора).bat» (или на этом ПК «Автозапуск (один раз).bat»).</p>
+    <a id="contracts-bigopen" href="http://176.197.21.187:8791/" target="_blank" rel="noopener" style="display:none;background:var(--blue);color:#fff;padding:10px 18px;border-radius:8px;font-weight:700">Открыть генератор договоров ↗</a>
+    <button class="primary" id="contracts-retry">Проверить ещё раз</button>
+  </div>
+  <iframe id="contracts-frame" title="Договоры" style="width:100%;height:calc(100vh - 160px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe>
+</div>
 <div id="to-app" style="display:none"><iframe id="to-frame" title="ТО МПБ" style="width:100%;height:calc(100vh - 110px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe></div>
 </div></div>
 <nav class="bottomnav" id="bottomnav"></nav>
@@ -319,7 +327,7 @@ var cache = { tasks: [] };
 var listFilter = { person: "Все", q: "", view: "list", kpi: "" };
 
 var ICONS={
-  flow:'<circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 12h4a3 3 0 0 0 3-3V6M7.5 12h4a3 3 0 0 1 3 3v3"/>',
+  clip:'<path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 01-7.8-7.8l8.5-8.5a3.7 3.7 0 015.2 5.2l-8.5 8.5a1.8 1.8 0 01-2.6-2.6l7.8-7.8"/>',
   tasks:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/>',
   briefcase:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 13h18"/>',
   list:'<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
@@ -419,9 +427,9 @@ function stageIndex(name, wt){ var st = stagesFor(wt); for(var i=0;i<st.length;i
 /* ---------- связь с таблицей ----------
    Внутри Apps Script — google.script.run (как раньше).
    Как отдельный файл/сайт/PWA — POST на URL веб-приложения (адрес и ключ в ⚙). */
-var DEFAULT_API_URL = "";   /* таблица МПБ здесь не используется: данные проектной CRM хранит мост (/api/ds) */
+var DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycby6jhByQ02pEOiEn1CYeN45o1lDE6d72UNU0Qn2B-09KqzEKxcQLiem5TDJHhkwUfs-/exec";
 function apiCfg(){
-  try { var c = JSON.parse(localStorage.getItem("ds_api") || "{}"); return { url: c.url || DEFAULT_API_URL, key: c.key || "" }; }
+  try { var c = JSON.parse(localStorage.getItem("mpb_api") || "{}"); return { url: c.url || DEFAULT_API_URL, key: c.key || "" }; }
   catch(e){ return { url: DEFAULT_API_URL, key: "" }; }
 }
 function callServer(fn){
@@ -435,18 +443,24 @@ function callServer(fn){
     });
   }
   var cfg = apiCfg();
-  if (!cfg.key || !cfg.url) return Promise.reject("Таблица не используется: данные проектной CRM хранит сервер CRM");
-  return fetch(cfg.url, {
-    method: "POST", redirect: "follow",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },   // без preflight
-    body: JSON.stringify({ key: cfg.key, fn: fn, args: args })
-  }).then(function(r){ return r.json(); }, function(){ throw "Нет связи с таблицей. Проверьте интернет и адрес в ⚙"; })
+  if (!cfg.key) { setTimeout(function(){ if (window.openApiSettings) openApiSettings(); }, 0); return Promise.reject("Не задан ключ доступа — откройте ⚙ Настройки"); }
+  var readOnly = !/(Save|Create|Delete|Merge|Add|Remove|Update)/.test(fn);   // чтение можно безопасно повторить при сбое сети
+  var body = JSON.stringify({ key: cfg.key, fn: fn, args: args });
+  function attempt(n) {
+    return fetch(cfg.url, {
+      method: "POST", redirect: "follow",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },   // без preflight
+      body: body
+    }).then(function(r){ return r.json(); }, function(){
+      if (readOnly && n < 2) return new Promise(function(res){ setTimeout(res, 1200 * (n + 1)); }).then(function(){ return attempt(n + 1); });
+      throw "Нет связи с таблицей Google. Проверьте интернет и VPN (нужен доступ к script.google.com), затем обновите страницу. Адрес таблицы — в ⚙";
+    });
+  }
+  return attempt(0)
     .then(function(j){ if (!j || !j.ok) throw (j && j.error) || "Ошибка сервера"; return j.data; });
 }
 
 function tasksRouter(){
-  if (window.DS) { DS.route(); }   /* экран «Задачи» проектной CRM — ds.js; прежний экран из таблицы МПБ отключён */
-  return;
   var h = location.hash;
   if(h.indexOf("#/task/")===0){
     var row = +h.slice(7);
@@ -715,47 +729,24 @@ function sectionForHash(h){
   if (h.indexOf("#/me") === 0) return "me";
   if (h.indexOf("#/auto") === 0) return "auto";
   if (h.indexOf("#/stages") === 0) return "stages";
-  if (h.indexOf("#/clients") === 0) return "clients"; if (h.indexOf("#/report") === 0) return "report"; if (h.indexOf("#/stats") === 0) return "stats"; if (h.indexOf("#/flow") === 0) return "flow"; if (h.indexOf("#/tz") === 0) return "tz";
+  if (h.indexOf("#/clients") === 0) return "clients";
   return "tasks";
-}
-/* Какие разделы видит каждая роль (позиция сотрудника в CRM). Это интерфейс; данные ограничиваются на сервере (этап 2). */
-var DS_ALLOWED = {
-  owner:    ["dash","flow","tasks","tz","cal","my","clients","kpreg","kpc","price","contracts","chat","team","report","stats","log","auto","stages","me"],
-  design:   ["dash","tasks","cal","my","clients","chat","team","report","me"],
-  sales:    ["dash","flow","tasks","cal","clients","kpreg","kpc","price","contracts","chat","team","report","me"],
-  ops:      ["dash","flow","tasks","tz","cal","my","clients","kpreg","kpc","price","contracts","chat","team","report","me"],
-  acc:      ["tasks","kpreg","team","me"],
-  designer: ["tasks","my","team","me"]
-};
-var DS_HOME = { owner: "#/dash", design: "#/dash", sales: "#/dash", ops: "#/dash", acc: "#/", designer: "#/" };
-function dsPosition(){ return (window.MPBC && MPBC.me) ? (MPBC.me.position || (MPBC.me.role === "admin" ? "owner" : "")) : ""; }
-var DS_READY = false, DS_HAS_TOKEN = false;
-try { DS_HAS_TOKEN = !!localStorage.getItem("ds_session"); } catch (e) {}
-function dsAllowed(sec){
-  var p = dsPosition();
-  if (!p && DS_HAS_TOKEN && !DS_READY) return true;      /* вход ещё проверяется: не выкидываем со страницы */
-  if (!p) return sec === "me";
-  var a = DS_ALLOWED[p]; return !a || a.indexOf(sec) >= 0;
 }
 function renderTopNav(){
   var cur = sectionForHash(location.hash);
-  var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1, report:1, stats:1, flow:1, tz:1 };
+  var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1 };
   var pa = own[cur] ? cur : "commerce";
-  var ok = dsAllowed;
-  var b = function(go, ic, t, on, sec){ return ok(sec) ? '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>' : ""; };
-  var pos = dsPosition();
-  var sub = '<div class="sub">'+b("#/kpreg/","list","Реестр КП",cur==="kpreg","kpreg")+b("#/kpc","calc","Конструктор КП",cur==="kpc","kpc")+b("#/price","list","Прайс",cur==="price","price")+b("#/contracts","file","Договоры",cur==="contracts","contracts")+'</div>';
-  var comm = (ok("kpreg") || ok("kpc") || ok("contracts")) ? '<button data-goto="#/kpreg/" class="'+(pa==="commerce"?"active":"")+'">'+icon("briefcase")+'<span>Коммерция</span></button>' + (pa==="commerce" ? sub : "") : "";
-  var lab = function(t, secs){ return secs.some(ok) ? '<div class="nav-label">'+t+'</div>' : ""; };
+  var b = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
+  var sub = '<div class="sub">'+b("#/kpreg/","list","Реестр КП",cur==="kpreg")+b("#/kpc","calc","Конструктор КП",cur==="kpc")+b("#/price","list","Прайс",cur==="price")+b("#/contracts","file","Договоры",cur==="contracts")+'</div>';
   document.getElementById("topnav").innerHTML =
-    lab("Работа", ["dash","flow","tasks","tz","cal","my"]) + b("#/dash","chart",pos==="designer"?"Сводка":"Обзор",pa==="dash","dash") + b("#/flow","flow","Конвейер",pa==="flow","flow") + b("#/","tasks",pos==="designer"?"Мои проекты":pos==="acc"?"Закрытие":"Задачи",pa==="tasks","tasks") + b("#/tz","list","Технические задания",pa==="tz","tz") + b("#/cal","cal","Занятость",pa==="cal","cal") + b("#/my","bell",pos==="designer"?"План на неделю":"Мои задачи",pa==="my","my")
-    + lab("Заказчики и продажи", ["clients","kpreg","kpc","contracts"]) + b("#/clients","users",pos==="design"?"Кому звонить":"Заказчики",pa==="clients","clients") + comm
-    + lab("Общение", ["team","chat","report"]) + b("#/team","team","Команда",pa==="team","team") + b("#/chat","chat","Переписка",pa==="chat","chat") + b("#/report","list","Недельный отчёт",pa==="report","report")
+    '<div class="nav-label">Работа</div>' + b("#/dash","chart","Сводка",pa==="dash") + b("#/","tasks","Задачи",pa==="tasks") + b("#/cal","cal","Календарь",pa==="cal") + b("#/my","bell","Мои задачи",pa==="my")
+    + '<div class="nav-label">Клиенты и продажи</div>' + b("#/clients","users","Клиенты",pa==="clients") + b("#/kpreg/","briefcase","Коммерция",pa==="commerce") + (pa==="commerce" ? sub : "") + b("#/to","wrench","ТО МПБ",pa==="to")
+    + '<div class="nav-label">Общение</div>' + b("#/team","team","Команда",pa==="team") + b("#/chat","chat","Переписка",pa==="chat")
     + '<button data-notif="1">'+icon("bell")+'<span>Уведомления</span></button>'
-    + (ok("stats") ? '<div class="nav-label">Только для вас</div>' + b("#/stats","lock","Статистика",pa==="stats","stats") : "") + lab("Система", ["auto","stages","log","me"]) + b("#/auto","zap","Автоматизация",pa==="auto","auto") + b("#/stages","layers","Этапы и сроки",pa==="stages","stages") + b("#/log","history","Журнал изменений",pa==="log","log") + b("#/me","user","Личный кабинет",pa==="me","me");
+    + '<div class="nav-label">Система</div>' + b("#/auto","zap","Автоматизация",pa==="auto") + b("#/stages","layers","Этапы и сроки",pa==="stages") + b("#/log","history","Журнал изменений",pa==="log") + b("#/me","user","Личный кабинет",pa==="me");
   var bn = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+t+'</button>'; };
   document.getElementById("bottomnav").innerHTML =
-    (dsAllowed("tasks")?bn("#/","tasks",pos==="designer"?"Проекты":pos==="acc"?"Закрытие":"Задачи",pa==="tasks"):"") + (dsAllowed("my")?bn("#/my","bell",pos==="designer"?"План":"Мои",pa==="my"):"") + (dsAllowed("kpreg")?bn("#/kpreg/","briefcase","Коммерция",pa==="commerce"):"") + (dsAllowed("team")?bn("#/team","team","Команда",pa==="team"):"")
+    bn("#/","tasks","Задачи",pa==="tasks") + bn("#/my","bell","Мои",pa==="my") + bn("#/kpreg/","briefcase","Коммерция",pa==="commerce") + bn("#/team","team","Команда",pa==="team")
     + '<button data-more="1">'+icon("menu")+'Ещё</button>';
   document.getElementById("subnavM").innerHTML = pa==="commerce"
     ? [["#/kpreg/","Реестр КП","kpreg"],["#/kpc","Конструктор КП","kpc"],["#/price","Прайс","price"],["#/contracts","Договоры","contracts"]].map(function(x){ return '<button data-goto="'+x[0]+'" class="tab '+(cur===x[2]?"active":"")+'">'+x[1]+'</button>'; }).join("")
@@ -768,9 +759,41 @@ function renderTopNav(){
   if (window.__chatBadge) window.__chatBadge();
   if (window.MPBX && window.MPBX.badge) window.MPBX.badge();
   if (window.MPBC && window.MPBC.afterNav) window.MPBC.afterNav();
-}function globalRouter(){
-  var sec0 = sectionForHash(location.hash);
-  if (!dsAllowed(sec0)) { var hm = dsPosition() ? (DS_HOME[dsPosition()] || '#/me') : '#/me'; if (location.hash !== hm) { location.hash = hm; return; } }
+}/* Генератор договоров (локальный сервер на ПК): проверяем связь и показываем, куда пишутся данные */
+var CONTRACTS_URLS = ["http://176.197.21.187:8791/", "http://10.10.10.1:8791/", "http://localhost:8791/"];   // сервер снаружи, внутри офиса, ПК   // сервер, затем ПК
+try { var cu = localStorage.getItem("mpb_contracts_url"); if (cu) CONTRACTS_URLS.unshift(cu); } catch(e){}
+function contractsProbe(){
+  var st = document.getElementById("contracts-status"), off = document.getElementById("contracts-off"), fr = document.getElementById("contracts-frame");
+  var openLink = document.getElementById("contracts-open");
+  openLink.href = CONTRACTS_URLS[0];
+  if (location.protocol === "https:") {   // https-сайт не может показывать http-страницу внутри себя — открываем отдельной вкладкой
+    fr.style.display = "none"; off.style.display = "block";
+    document.getElementById("contracts-off-title").textContent = "Генератор договоров";
+    document.getElementById("contracts-off-text").textContent = "Он работает на сервере и открывается отдельной вкладкой. Новый договор МПБ автоматически создаст задачу «Договор Подписать» в CRM и папку на сервере.";
+    document.getElementById("contracts-retry").style.display = "none";
+    var big = document.getElementById("contracts-bigopen"); big.href = CONTRACTS_URLS[0]; big.style.display = "inline-block";
+    st.textContent = "● Открывается в новой вкладке"; st.style.color = "";
+    return;
+  }
+  st.textContent = "Проверяю связь…"; st.style.color = "";
+  var i = 0;
+  (function next(){
+    if (i >= CONTRACTS_URLS.length) {
+      fr.style.display = "none"; off.style.display = "block";
+      st.textContent = "● Генератор не отвечает"; st.style.color = "var(--bad)"; return;
+    }
+    var base = CONTRACTS_URLS[i++];
+    var ac = new AbortController(); setTimeout(function(){ ac.abort(); }, 3000);
+    fetch(base + "api/status", { cache: "no-store", signal: ac.signal }).then(function(r){ return r.json(); }).then(function(j){
+      off.style.display = "none"; fr.style.display = "block"; openLink.href = base;
+      if (fr.getAttribute("src") !== base) fr.setAttribute("src", base);
+      if (j.mode === "server") { st.textContent = "● Хранилище: сервер" + (j.path ? " (" + j.path + ")" : "") + (j.auth ? " · вход по PIN" : ""); st.style.color = "var(--ok)"; }
+      else { st.textContent = "● Сервер недоступен — данные пока локально"; st.style.color = "var(--warn)"; }
+    }).catch(next);
+  })();
+}
+document.getElementById("contracts-retry").onclick = contractsProbe;
+function globalRouter(){
   renderTopNav();
   var sec = sectionForHash(location.hash);
   document.getElementById("tasks-app").style.display = (sec === "tasks") ? "block" : "none";
@@ -778,43 +801,29 @@ function renderTopNav(){
   document.getElementById("kpc-app").style.display = (sec === "kpc") ? "block" : "none";
   document.getElementById("chat-app").style.display = (sec === "chat") ? "block" : "none";
   document.getElementById("contracts-app").style.display = (sec === "contracts") ? "block" : "none";
-  if (sec === "contracts" && window.DS) DS.mount("contract", document.getElementById("contracts-app"));
-  if (sec === "kpc" && window.DS) DS.mount("kpc", document.getElementById("kpc-app"));
+  if (sec === "contracts") { contractsProbe(); }
   document.getElementById("to-app").style.display = (sec === "to") ? "block" : "none";
   if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) tf.setAttribute("src", "to-mpb.html"); }
   document.getElementById("dash-app").style.display = (sec === "dash") ? "block" : "none";
   document.getElementById("cal-app").style.display = (sec === "cal") ? "block" : "none";
   document.getElementById("my-app").style.display = (sec === "my") ? "block" : "none";
-  if (sec === "dash" && window.DS) DS.mount("ov", document.getElementById("dash-app"));
-  else if (sec === "cal" && window.DS) DS.mount("load", document.getElementById("cal-app"));
-  else if (sec === "my" && window.DS && (dsPosition() === "designer" || dsPosition() === "design")) DS.mount("week", document.getElementById("my-app"));
-  else if (sec === "my" && window.MPBX && window.MPBX.render) window.MPBX.render(sec);
+  if ((sec === "dash" || sec === "cal" || sec === "my") && window.MPBX && window.MPBX.render) window.MPBX.render(sec);
   document.getElementById("team-app").style.display = (sec === "team") ? "block" : "none";
   document.getElementById("log-app").style.display = (sec === "log") ? "block" : "none";
   document.getElementById("me-app").style.display = (sec === "me") ? "block" : "none";
   document.getElementById("auto-app").style.display = (sec === "auto") ? "block" : "none";
   document.getElementById("stages-app").style.display = (sec === "stages") ? "block" : "none";
-  if (sec === "stages" && window.DS) DS.mount("stages", document.getElementById("stages-app"));
-  if (sec === "auto" && window.DS) DS.mount("auto", document.getElementById("auto-app"));
+  if (sec === "stages" && window.MPBS && window.MPBS.render) window.MPBS.render();
   document.getElementById("clients-app").style.display = (sec === "clients") ? "block" : "none";
-  document.getElementById("report-app").style.display = (sec === "report") ? "block" : "none";
-  document.getElementById("flow-app").style.display = (sec === "flow") ? "block" : "none";
-  document.getElementById("tz-app").style.display = (sec === "tz") ? "block" : "none";
-  if (sec === "flow" && window.DS) DS.mount("flow", document.getElementById("flow-app"));
-  if (sec === "tz" && window.DS) DS.mount("tz", document.getElementById("tz-app"));
-  document.getElementById("stats-app").style.display = (sec === "stats") ? "block" : "none";
-  if (sec === "report" && window.DS) DS.mount("report", document.getElementById("report-app"));
-  if (sec === "stats" && window.DS) DS.mount("stats", document.getElementById("stats-app"));
-  if (sec === "clients" && window.DS) DS.mount("cust", document.getElementById("clients-app"));
+  if (sec === "clients" && window.MPBK && window.MPBK.render) window.MPBK.render();
   document.getElementById("price-app").style.display = (sec === "price") ? "block" : "none";
-  if (sec === "price" && window.DS) DS.mount("price", document.getElementById("price-app"));
-  if ((sec === "team" || sec === "log" || sec === "me") && window.MPBT && window.MPBT.render) window.MPBT.render(sec);
+  if (sec === "price" && window.MPBP && window.MPBP.render) window.MPBP.render();
+  if ((sec === "team" || sec === "log" || sec === "me" || sec === "auto") && window.MPBT && window.MPBT.render) window.MPBT.render(sec);
   if (sec === "chat" && window.__subRouters && window.__subRouters.chat) window.__subRouters.chat();
-  if (sec === "kpreg") { if (window.DS) DS.mount("kp", document.getElementById("kpreg-app")); }
+  if (sec === "kpreg") { if (window.__subRouters && window.__subRouters.kpreg) window.__subRouters.kpreg(); }
   else if (sec === "tasks") { tasksRouter(); }
 }
 window.addEventListener("hashchange", globalRouter);
-if (window.MPBC) { ["login","logout","ready"].forEach(function(e){ MPBC.on(e, function(){ if (e === "ready") DS_READY = true; globalRouter(); }); }); }
 globalRouter();
 </script>
 <script>
@@ -1521,7 +1530,7 @@ async function buildDocx(state, JSZipLib, templateB64, outType) {
   const X = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const run = (t, o = {}) => '<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>' + (o.b ? '<w:b/>' : '') + (o.i ? '<w:i/>' : '') +
     (o.color ? '<w:color w:val="' + o.color + '"/>' : '') + '<w:sz w:val="' + (o.sz || 22) + '"/></w:rPr><w:t xml:space="preserve">' + X(t) + '</w:t></w:r>';
-  const par = (content, o = {}) => '<w:p><w:pPr>' + (o.keep ? '<w:keepNext/>' : '') + '<w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after == null ? 80 : o.after) + '"/>' +
+  const par = (content, o = {}) => '<w:p><w:pPr>' + (o.keep ? '<w:keepNext/>' : '') + (o.topLine ? '<w:pBdr><w:top w:val="single" w:sz="6" w:space="4" w:color="' + o.topLine + '"/></w:pBdr>' : '') + '<w:spacing w:before="' + (o.before || 0) + '" w:after="' + (o.after == null ? 80 : o.after) + '"/>' +
     (o.jc ? '<w:jc w:val="' + o.jc + '"/>' : '') + '</w:pPr>' + content + '</w:p>';
   const img = (rid, id, cx, cy, name) => '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + cx + '" cy="' + cy + '"/><wp:docPr id="' + id + '" name="' + name + '"/>' +
     '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
@@ -1540,9 +1549,9 @@ async function buildDocx(state, JSZipLib, templateB64, outType) {
   body.push(par(img('rIdBn', 1, W * EMU, Math.round(W * EMU * 320 / 1489), 'Шапка МПБ'), { after: 160 }));
   body.push(par(run('Коммерческое предложение № ' + model.num, { b: 1, sz: 34 }), { jc: 'center', after: 20 }));
   body.push(par(run('от ' + model.date, { color: '66717E', sz: 22 }), { jc: 'center', after: 200 }));
-  const meta = [['Объект', model.object]].concat(model.address ? [['Адрес', model.address]] : []);
-  body.push(tbl([2000, W - 2000], meta.map(m => tc(2000, par(run(m[0], { color: '66717E' }), { after: 0 })) + tc(W - 2000, par(run(m[1], { b: 1 }), { after: 0 })))));
-  body.push(par(run(model.intro, { color: '46515F', sz: 21 }), { before: 160, after: 200 }));
+  body.push(par(run(model.object, { b: 1, sz: 25 }), { jc: 'right', after: model.address ? 20 : 160 }));
+  if (model.address) body.push(par(run(model.address, { color: '46515F', sz: 23 }), { jc: 'right', after: 160 }));
+  body.push(par(run(model.intro, { color: '46515F', sz: 24 }), { jc: 'center', before: 80, after: 200 }));
   const wN = 560, wP = 2000, wT = W - wN - wP;
   const head = tc(wN, par(run('№', { b: 1, color: 'FFFFFF', sz: 21 }), { jc: 'center', after: 0 }), { fill: 'EE9264' }) +
     tc(wT, par(run('Наименование работ', { b: 1, color: 'FFFFFF', sz: 21 }), { after: 0 }), { fill: 'EE9264' }) +
@@ -1552,7 +1561,7 @@ async function buildDocx(state, JSZipLib, templateB64, outType) {
     tc(wP, (r.priceLines.length ? r.priceLines : ['']).map(l => par(run(l, { b: 1 }), { jc: 'right', after: 20 })).join('')));
   body.push(tbl([wN, wT, wP], [head].concat(rows), { rowLines: true }));
   body.push(par(run('Итого к оплате:  ' + (model.total || '—'), { b: 1, sz: 30, color: '1F5C99' }), { jc: 'right', before: 220, after: 40 }));
-  body.push(par(run(KP_TXT.nds, { sz: 18, color: '66717E' }), { jc: 'right', after: 200 }));
+  body.push(par(run(KP_TXT.nds, { sz: 16, color: '66717E' }), { jc: 'right', after: 200, topLine: '6B7580' }));
   model.note.forEach(n => body.push(par(run(n, { sz: 20, color: '46515F' }), { after: 40 })));
   body.push(par('', { after: 160 }));
   const qw = 1500, tw1 = 3500, gap = 250, tw2 = W - qw - tw1 - gap - qw, qimg = 900000;
@@ -1566,7 +1575,7 @@ async function buildDocx(state, JSZipLib, templateB64, outType) {
   body.push(par('', { after: 160 }));
   const sgW = 3000000;
   body.push(tbl([4300, W - 4300], [tc(4300, KP_TXT.sign.map((l, i) => par(run(l, { b: i === 1 ? 1 : 0, sz: 24 }), { after: 100 })).join(''), { valign: 'center' }) +
-    tc(W - 4300, par(img('rIdSg', 4, sgW, Math.round(sgW * 316 / 871), 'Подпись и печать'), { jc: 'right', after: 0 }), { valign: 'center' })]));
+    tc(W - 4300, par(img('rIdSg', 4, sgW, Math.round(sgW * 316 / 899), 'Подпись и печать'), { jc: 'right', after: 0 }), { valign: 'center' })]));
   const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"';
   const docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ' + NS + '><w:body>' + body.join('') +
     '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="600" w:right="850" w:bottom="700" w:left="850" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>';
@@ -1638,7 +1647,7 @@ function kpAssets() {                                    // QR, подпись �
       if (mask) { g.fillStyle = '#fff'; g.fillRect(mask[0], mask[1], mask[2], mask[3]); }
       return c;
     };
-    return { banner, qr1: crop(308, 22, 240, 236), qr2: crop(966, 22, 240, 236), sign: crop(618, 395, 871, 316, [0, 140, 10, 45]) };
+    return { banner, qr1: crop(308, 22, 240, 236), qr2: crop(966, 22, 240, 236), sign: crop(590, 395, 899, 316, [0, 140, 14, 45]) };
   });
   return kpAssetsP;
 }
@@ -1669,20 +1678,16 @@ async function renderKpPages(model) {
   txt('Коммерческое предложение № ' + model.num, PDF.W / 2, y + 16, F(19, 'bold'), '#1d2733', 'center'); y += 28;
   txt('от ' + model.date, PDF.W / 2, y + 10, F(12), GREY, 'center'); y += 28;
 
-  // реквизиты
-  const LX = MX + 118;
+  // заказчик справа (жирным), адрес под ним, затем вводный текст по центру
+  const XR = PDF.W - MX;
+  y += 4;
   ctx.font = F(12.5, 'bold');
-  [['Объект', model.object]].concat(model.address ? [['Адрес', model.address]] : []).forEach(([k, v]) => {
-    const ls = pdfWrap(ctx, v, CW - 118);
-    txt(k, MX, y + 12, F(12), GREY);
-    ls.forEach((l, i) => txt(l, LX, y + 12 + i * 17, F(12.5, 'bold'), '#1d2733'));
-    y += Math.max(1, ls.length) * 17 + 4;
-  });
-  y += 6;
-  ctx.font = F(12);
-  pdfWrap(ctx, model.intro, CW).forEach(l => { txt(l, MX, y + 12, F(12), DARK); y += 17; });
-  y += 12;
-
+  pdfWrap(ctx, model.object, CW * 0.8).forEach(l => { txt(l, XR, y + 12, F(12.5, 'bold'), '#1d2733', 'right'); y += 17; });
+  if (model.address) { ctx.font = F(11.5); pdfWrap(ctx, model.address, CW * 0.8).forEach(l => { txt(l, XR, y + 12, F(11.5), DARK, 'right'); y += 16; }); }
+  y += 14;
+  ctx.font = F(12.5);
+  pdfWrap(ctx, model.intro, CW * 0.88).forEach(l => { txt(l, PDF.W / 2, y + 12, F(12.5), DARK, 'center'); y += 18; });
+  y += 14;
   // таблица услуг: № · наименование · стоимость
   const X0 = MX, XN = MX + 30, X2 = PDF.W - MX - 120, X3 = PDF.W - MX, HH = 26;
   const header = () => {
@@ -1708,11 +1713,9 @@ async function renderKpPages(model) {
   // итог и НДС
   if (y + 120 > PDF.BOTTOM) newPage();
   y += 14;
-  const TX = X3 - 270;
-  hline(TX, X3, y, BLUE, 1.6); y += 26;
-  txt('Итого к оплате', TX, y, F(14, 'bold'), BLUE);
-  txt(model.total || '—', X3 - 8, y, F(15, 'bold'), BLUE, 'right'); y += 14;
-  ctx.font = F(10); pdfWrap(ctx, KP_TXT.nds, 330).forEach(l => { y += 13; txt(l, X3 - 8, y, F(10), GREY, 'right'); }); y += 16;
+  txt('Итого к оплате:  ' + (model.total || '—'), X3 - 8, y + 18, F(16, 'bold'), BLUE, 'right'); y += 34;
+  hline(X0, X3, y, '#6B7580', 0.8);
+  ctx.font = F(8.5); pdfWrap(ctx, KP_TXT.nds, CW).forEach(l => { y += 12; txt(l, X3 - 8, y + 2, F(8.5), GREY, 'right'); }); y += 20;
 
   // условия
   ctx.font = F(11);
@@ -1736,8 +1739,8 @@ async function renderKpPages(model) {
   });
   y += CARD_H + 22;
   KP_TXT.sign.forEach((l, i) => txt(l, MX, y + 18 + i * 21, F(12.5, i === 1 ? 'bold' : ''), '#1d2733'));
-  const sw = 240, sh = sw * 316 / 871;
-  ctx.drawImage(A.sign, PDF.W - MX - sw, y - 4, sw, sh);
+  const sw = 310, sh = sw * 316 / 899;
+  ctx.drawImage(A.sign, PDF.W - MX - sw + 10, y - 8, sw, sh);
   return pages;
 }
 function pdfFromJpegs(pages) {
@@ -2066,24 +2069,34 @@ function refresh() {
   renderPreview();
   return res;
 }
+let kpPrevImgs = null;
 function renderPreview() {
+  if (!kpPrevImgs) {                                   // картинки шапки, QR, подписи и печати — те же, что в PDF
+    kpAssets().then(A => {
+      kpPrevImgs = { banner: A.banner.src, qr1: A.qr1.toDataURL('image/png'), qr2: A.qr2.toDataURL('image/png'), sign: A.sign.toDataURL('image/png') };
+      renderPreview();
+    }).catch(() => {});
+  }
+  const I = kpPrevImgs || {};
   const m = buildModel(state, true);
-  const rows = m.rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + r.lines.map(l => '<div>' + markHtml(l) + '</div>').join('') + '</td><td class="r">' +
+  const rows = m.rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + r.lines.map((l, k) => '<div' + (k === 0 ? ' class="b"' : '') + '>' + markHtml(l) + '</div>').join('') + '</td><td class="r">' +
     r.priceLines.map(l => '<div>' + markHtml(l) + '</div>').join('') + '</td></tr>').join('');
   const empty = '<tr><td colspan="3" class="emptyrow">Услуги не выбраны — отметьте их слева</td></tr>';
-  const logo = window.LOGO ? '<img src="' + window.LOGO + '" alt="МПБ">' : '';
+  const card = (img, c) => '<div class="kp2-card">' + (img ? '<img src="' + img + '" alt="QR">' : '<i></i>') + '<div><b>' + html(c.title) + '</b><span>' + html(c.text) + '</span>' + (c.num ? '<em>' + html(c.num) + '</em>' : '') + '</div></div>';
   previewEl.innerHTML =
-    '<div class="lh">' + logo + '<div class="rq">г. Санкт-Петербург<br>' + markHtml(m.date) + '</div></div>' +
-    '<h2>Коммерческое предложение № ' + markHtml(m.num) + '</h2>' +
-    '<div class="sbt">' + markHtml(m.object) + '</div>' +
-    '<div class="meta"><span>Объект</span><b>' + markHtml(m.object) + '</b>' + (m.address ? '<span>Адрес</span><b>' + markHtml(m.address) + '</b>' : '') + '</div>' +
-    '<p class="intro">' + html(m.intro) + '</p>' +
-    '<table class="srv"><tr><th class="n">№</th><th>Наименование</th><th class="r">Стоимость</th></tr>' + (rows || empty) + '</table>' +
-    '<div class="tot"><div><span>НДС</span><span>не облагается (АУСН)</span></div><div class="gt"><span>Итого</span><b>' + markHtml(m.total || '—') + '</b></div></div>' +
-    '<div class="cond">' + m.note.map(markHtml).join('<br>') + '</div>' +
-    '<div class="sign"><span>Генеральный директор</span><span>М.П.</span></div>' +
-    '<div class="fixed">Дальше подставляются автоматически: лицензия МЧС, QR-коды, подпись и печать — как в КП № 211.</div>';
-}async function download(kind) {
+    (I.banner ? '<img class="kp2-bn" src="' + I.banner + '" alt="МПБ">' : '') +
+    '<div class="kp2-ttl">Коммерческое предложение № ' + markHtml(m.num) + '</div>' +
+    '<div class="kp2-dt">от ' + markHtml(m.date) + '</div>' +
+    '<div class="kp2-obj">' + markHtml(m.object) + '</div>' +
+    (m.address ? '<div class="kp2-adr">' + markHtml(m.address) + '</div>' : '') +
+    '<p class="kp2-intro">' + html(m.intro) + '</p>' +
+    '<table class="srv"><tr><th class="n">№</th><th>Наименование работ</th><th class="r">Стоимость</th></tr>' + (rows || empty) + '</table>' +
+    '<div class="kp2-tot">Итого к оплате:&nbsp; ' + markHtml(m.total || '—') + '</div>' +
+    '<div class="kp2-nds">' + html(KP_TXT.nds) + '</div>' +
+    '<div class="kp2-note">' + m.note.map(markHtml).join('<br>') + '</div>' +
+    '<div class="kp2-cards">' + card(I.qr1, KP_TXT.cards[0]) + card(I.qr2, KP_TXT.cards[1]) + '</div>' +
+    '<div class="kp2-sign"><div>' + KP_TXT.sign.map((l, i) => i === 1 ? '<b>' + html(l) + '</b>' : '<span>' + html(l) + '</span>').join('') + '</div>' +
+    (I.sign ? '<img src="' + I.sign + '" alt="Подпись и печать">' : '') + '</div>';}async function download(kind) {
   showAll = true;
   const res = refresh();
   if (!res.ok) {
@@ -2250,14 +2263,15 @@ document.addEventListener('DOMContentLoaded', init);
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="sound.js"></script>
 <script src="chat.js"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
-  <h2>Подключение к серверу CRM</h2>
-  <p>Адрес сервера проектной CRM и ключ доступа (BRIDGE_KEY из настроек сервера). Хранятся только в этом браузере. Обычно их вписывает администратор в файл config.js, и вводить ничего не нужно.</p>
-  <label for="brUrl">Адрес сервера (https://…)</label><input id="brUrl" type="url" autocomplete="off" placeholder="https://ds-bridge.example.org">
-  <label for="brKey">Ключ доступа</label><input id="brKey" type="password" autocomplete="off">
+  <h2>Подключение к таблице</h2>
+  <p>Адрес веб-приложения Apps Script и ключ доступа (свойство <b>API_KEY</b> в настройках скрипта). Хранятся только в этом браузере.</p>
+  <label for="apiUrl">URL веб-приложения (…/exec)</label><input id="apiUrl" type="url" autocomplete="off">
+  <label for="apiKey">Ключ доступа</label><input id="apiKey" type="password" autocomplete="off">
+  <label for="brUrl">Мост «Общение» — адрес (https://…)</label><input id="brUrl" type="url" autocomplete="off" placeholder="https://mpb-bridge.example.org">
+  <label for="brKey">Мост «Общение» — ключ (BRIDGE_KEY)</label><input id="brKey" type="password" autocomplete="off">
   <div class="btns"><button type="button" id="apiCancel">Отмена</button><button type="button" class="ok" id="apiSave">Сохранить</button></div>
 </div></div>
 <script>
@@ -2265,26 +2279,21 @@ document.addEventListener('DOMContentLoaded', init);
   if (window.google && google.script && google.script.run) { document.getElementById("apiGear").style.display = "none"; return; }
   var m = document.getElementById("apiModal");
   window.openApiSettings = function(){
-    var b = {}; try { b = JSON.parse(localStorage.getItem("ds_bridge") || "{}"); } catch(e){}
-    var d = window.DS_CONFIG || {};
-    document.getElementById("brUrl").value = b.url || d.url || ""; document.getElementById("brKey").value = b.key || d.key || "";
+    var c = apiCfg(); document.getElementById("apiUrl").value = c.url; document.getElementById("apiKey").value = c.key;
+    var b = {}; try { b = JSON.parse(localStorage.getItem("mpb_bridge") || "{}"); } catch(e){}
+    document.getElementById("brUrl").value = b.url || ""; document.getElementById("brKey").value = b.key || "";
     m.classList.add("on");
   };
   document.getElementById("apiGear").onclick = openApiSettings;
   document.getElementById("apiCancel").onclick = function(){ m.classList.remove("on"); };
   document.getElementById("apiSave").onclick = function(){
-    try { localStorage.setItem("ds_bridge", JSON.stringify({ url: document.getElementById("brUrl").value.trim().replace(/\/+$/, ""), key: document.getElementById("brKey").value.trim() })); } catch(e){}
+    try { localStorage.setItem("mpb_api", JSON.stringify({ url: document.getElementById("apiUrl").value.trim(), key: document.getElementById("apiKey").value.trim() }));
+      localStorage.setItem("mpb_bridge", JSON.stringify({ url: document.getElementById("brUrl").value.trim(), key: document.getElementById("brKey").value.trim() })); } catch(e){}
     location.reload();
   };
-  /* окно подключения открывается само только если сервер нигде не задан (ни в config.js, ни в этом браузере) */
-  window.addEventListener("load", function(){
-    var b = {}; try { b = JSON.parse(localStorage.getItem("ds_bridge") || "{}"); } catch(e){}
-    var d = window.DS_CONFIG || {};
-    if (!((b.url || d.url) && (b.key || d.key))) openApiSettings();
-  });
+  if (!apiCfg().key) openApiSettings();
 })();
 </script>
-<script src="config.js"></script>
 <script src="crm.js"></script>
 <script src="extras.js"></script>
 <script src="team.js"></script>
@@ -2293,10 +2302,9 @@ document.addEventListener('DOMContentLoaded', init);
 <script src="clients.js"></script>
 <script src="kpv.js"></script>
 <script src="chatpanel.js"></script>
-<script src="ds.js"></script>
 <script>
 (function(){
-  var KEY = "ds_theme", t = "light";
+  var KEY = "mpb_theme", t = "light";
   try { t = localStorage.getItem(KEY) || ((window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light"); } catch(e){}
   function apply(){
     document.documentElement.setAttribute("data-theme", t);

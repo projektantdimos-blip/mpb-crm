@@ -5,7 +5,7 @@
 (function () {
   "use strict";
   var C = window.MPBC, T = window.MPBT, P = window.MPBP = {};
-  var KEY = "ds_price";
+  var KEY = "mpb_price";
   var doc = { version: 0, items: {} };
   function lsGet() { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } }
   function lsSet(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
@@ -47,7 +47,6 @@
   /* ====================================================== прайс ====================================================== */
   var G = { draft: null, tab: "price" };
   function render() {
-    if (window.DS) return;      /* экран «Прайс» проектной CRM рисует ds.js */
     var el = $("price-app"), sub = "Цены хранятся здесь — конструктор КП берёт их автоматически";
     if (!U.gate(el, "Прайс и шаблоны КП", sub, render)) return;
     if (!K()) { el.innerHTML = U.head("Прайс", sub) + '<div class="wrap"><div class="x-empty">Загрузка…</div></div>'; setTimeout(render, 400); return; }
@@ -233,7 +232,7 @@
   }
   P.templateList = function () { return loadTpl(false).then(function (d) { return d.kp; }); };
   P.thread = null;                                                // диалог, из которого начали готовить КП (для «Отправить в чат»)
-  P.prepareKp = function (hdr, t, thread) {                      // КП для заказчика: объект и адрес подставляем, услуги — по шаблону или пустое
+  P.prepareKp = function (hdr, t, thread) {                      // КП для клиента: объект и адрес подставляем, услуги — по шаблону или пустое
     P.thread = thread || null;
     if (t) return P.useTemplate(t, hdr);
     T.closeModal(); location.hash = "#/kpc";
@@ -294,7 +293,7 @@
   function money0(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
   function ctHtml(t, f) {
     var body = t.body.replace(/\{object\}/g, f.object || "—").replace(/\{sum\}/g, money0(+f.sum)).replace(/\{days\}/g, f.days || "—").replace(/\{pay\}/g, f.pay).replace(/\{client\}/g, f.client || "—").replace(/\{num\}/g, f.num).replace(/\{date\}/g, f.date);
-    return '<div class="ct-paper"><div class="ct-h"><img src="logo.png" alt=""><div><b>МПБ</b><small>Полный спектр защиты</small></div><div class="ct-r">г. Санкт-Петербург<br>' + E(f.date) + "</div></div>"
+    return '<div class="ct-paper"><div class="ct-h"><img src="bear.png" alt=""><div><b>МПБ</b><small>Полный спектр защиты</small></div><div class="ct-r">г. Санкт-Петербург<br>' + E(f.date) + "</div></div>"
       + "<h2>ДОГОВОР " + E(f.num) + '</h2><div class="ct-t">' + E(t.type || t.name) + "</div>"
       + '<div class="ct-meta"><span>Заказчик</span><b>' + E(f.client || "—") + "</b><span>Объект</span><b>" + E(f.object || "—") + "</b><span>Стоимость</span><b>" + money0(+f.sum) + "</b></div>"
       + body.split("\n").map(function (p) { return "<p>" + E(p) + "</p>"; }).join("")

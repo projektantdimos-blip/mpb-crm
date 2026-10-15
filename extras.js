@@ -1,6 +1,6 @@
 /* МПБ CRM v2 — этап 2 (без сервера): Сводка, Календарь, Мои задачи.
    Данные берутся теми же запросами, что и в основном приложении (api_listTasks, api_kpregList).
-   «Мои задачи» хранятся на этом устройстве (localStorage: ds_my). Подключается в index.html после основных скриптов. */
+   «Мои задачи» хранятся на этом устройстве (localStorage: mpb_my). Подключается в index.html после основных скриптов. */
 (function () {
   "use strict";
   var X = window.MPBX = {};
@@ -65,8 +65,8 @@
   /* ================================================================
      СВОДКА
      ================================================================ */
-  function capGet() { try { return Math.max(1, +localStorage.getItem("ds_cap") || 8); } catch (e) { return 8; } }
-  function capSet(v) { try { localStorage.setItem("ds_cap", String(v)); } catch (e) {} }
+  function capGet() { try { return Math.max(1, +localStorage.getItem("mpb_cap") || 8); } catch (e) { return 8; } }
+  function capSet(v) { try { localStorage.setItem("mpb_cap", String(v)); } catch (e) {} }
 
   function renderDash() {
     var el = mount("dash-app");
@@ -168,7 +168,7 @@
      КАЛЕНДАРЬ
      ================================================================ */
   var cal = { v: "month", y: new Date().getFullYear(), m: new Date().getMonth(), kind: "all", who: "all", sel: iso(today()) };
-  var KINDS = [["all", "Всё", "#9aa7bd"], ["dl", "Дедлайны этапов", "var(--bad)"], ["due", "Сроки по договорам", "#1f5c99"], ["call", "Контакт с заказчиками", "#e0a21c"], ["to", "ТО МПБ", "#1f9d8a"], ["my", "Мои напоминания", MY_COLOR]];
+  var KINDS = [["all", "Всё", "#9aa7bd"], ["dl", "Дедлайны этапов", "var(--bad)"], ["due", "Сроки по договорам", "#1f5c99"], ["call", "Контакт с клиентами", "#e0a21c"], ["to", "ТО МПБ", "#1f9d8a"], ["my", "Мои напоминания", MY_COLOR]];
 
   function calEvents() {
     var ev = [], tdy = today();
@@ -203,7 +203,7 @@
   function renderCal() {
     var el = mount("cal-app");
     var refresh = '<button class="refresh" id="xRef">⟳ Обновить</button>';
-    el.innerHTML = head("Календарь", "Дедлайны этапов, сроки договоров, контакты с заказчиками и ваши напоминания", refresh) + '<div class="wrap"><div class="loading">Загружаю данные…</div></div>';
+    el.innerHTML = head("Календарь", "Дедлайны этапов, сроки договоров, контакты с клиентами и ваши напоминания", refresh) + '<div class="wrap"><div class="loading">Загружаю данные…</div></div>';
     el.querySelector("#xRef").onclick = function () { S.ts = 0; S.toAt = 0; renderCal(); };
     Promise.all([load(false), myLoad(), toLoad()]).then(function () { if (cur() === "cal") paintCal(el, refresh); }).catch(function (e) { fail(el, "Календарь", e, renderCal); });
   }
@@ -249,7 +249,7 @@
           return '<div class="x-gr" data-href="#/task/' + t.row + '"><div class="nm"><b>' + E(t.customer) + "</b><small>" + E(t.workType || "") + " · " + E(t.responsible || "") + '</small></div><div class="tm" style="--tc:' + wtColor(t.workType) + ";--wk:" + (7 / span * 100) + '%"><span class="x-gtd" style="left:' + tdp + '%"></span><div class="x-gbar" style="left:' + l + "%;width:" + w + '%"><i style="width:' + pc + '%"></i><span>' + E(stageName(t)) + " · " + (stageIdx(t) + 1) + "/" + n + "</span></div>" + (dd ? '<span class="x-gdl" style="left:calc(' + gp(dd) + '% - 7px)" title="Дедлайн этапа ' + dmy(dd) + '"></span>' : "") + "</div></div>";
         }).join("") || '<div class="x-empty">Нет задач для графика</div>') + '</div></div><p class="x-hint">Полоса — срок от начала до даты по договору, заливка — пройденная часть этапов. Красный ромб — дедлайн текущего этапа, оранжевая линия — сегодня.</p>';
     }
-    el.innerHTML = head("Календарь", "Дедлайны этапов, сроки договоров, контакты с заказчиками и ваши напоминания", refresh) + '<div class="wrap">' + top + html + "</div>";
+    el.innerHTML = head("Календарь", "Дедлайны этапов, сроки договоров, контакты с клиентами и ваши напоминания", refresh) + '<div class="wrap">' + top + html + "</div>";
     el.querySelector("#xRef").onclick = function () { S.ts = 0; renderCal(); };
     el.querySelectorAll("#xV button").forEach(function (b) { b.onclick = function () { cal.v = b.dataset.v; paintCal(el, refresh); }; });
     el.querySelectorAll(".x-chip[data-k]").forEach(function (b) { b.onclick = function () { cal.kind = b.dataset.k; paintCal(el, refresh); }; });
@@ -270,24 +270,24 @@
     return { id: r.id, t: r.title, d: r.d, tm: r.tm, b: r.before, rep: r.rep, task: r.task_row, tl: r.task_label, done: !!r.done, fired: !!r.fired, fireTs: r.fire_ts * 1000, created: (r.created || 0) * 1000, server: true };
   }
   function localLoad() {
-    var a; try { a = JSON.parse(localStorage.getItem("ds_my") || "[]"); } catch (e) { a = []; }
+    var a; try { a = JSON.parse(localStorage.getItem("mpb_my") || "[]"); } catch (e) { a = []; }
     a.forEach(function (x) { if (x.id >= myNext) myNext = x.id + 1; });
     return a;
   }
   function myList() { if (!MY) MY = srv() ? [] : localLoad(); return MY; }
-  function mySave() { if (!srv()) { try { localStorage.setItem("ds_my", JSON.stringify(MY)); } catch (e) {} } X.badge(); }
+  function mySave() { if (!srv()) { try { localStorage.setItem("mpb_my", JSON.stringify(MY)); } catch (e) {} } X.badge(); }
 
   /* загрузка списка: с сервера или с устройства; при первом входе переносит локальные записи на сервер */
   function myLoad() {
     if (!srv()) { MY = localLoad(); return Promise.resolve(MY); }
     return MPBC.call("/reminders").then(function (rs) {
       MY = rs.map(fromServer);
-      var done = false; try { done = localStorage.getItem("ds_my_imported") === "1"; } catch (e) {}
+      var done = false; try { done = localStorage.getItem("mpb_my_imported") === "1"; } catch (e) {}
       var loc = done ? [] : localLoad().filter(function (x) { return !x.done && fireAtLocal(x) > Date.now() - 29 * 864e5; });
-      if (!loc.length) { try { localStorage.setItem("ds_my_imported", "1"); } catch (e) {} return MY; }
+      if (!loc.length) { try { localStorage.setItem("mpb_my_imported", "1"); } catch (e) {} return MY; }
       var items = loc.map(function (x) { return { title: x.t, d: x.d || "", tm: x.tm || "", before: x.b || 0, fire_ts: fireAtLocal(x) / 1000, rep: x.rep || "", task_row: x.task || 0, task_label: x.tl || "" }; });
       return MPBC.call("/reminders/import", { body: { items: items } }).then(function () {
-        try { localStorage.setItem("ds_my_backup", localStorage.getItem("ds_my") || "[]"); localStorage.removeItem("ds_my"); localStorage.setItem("ds_my_imported", "1"); } catch (e) {}
+        try { localStorage.setItem("mpb_my_backup", localStorage.getItem("mpb_my") || "[]"); localStorage.removeItem("mpb_my"); localStorage.setItem("mpb_my_imported", "1"); } catch (e) {}
         toast("Перенёс личные напоминания на сервер: " + loc.length);
         return MPBC.call("/reminders").then(function (rs2) { MY = rs2.map(fromServer); return MY; });
       }, function () { return MY; });
@@ -326,17 +326,17 @@
     if (notifState() !== "granted") return;
     if (srv() && window.MPBC && MPBC.pushOn()) return;          // push с сервера уже покажет системное уведомление
     var opts = { body: x.t, icon: "icon-512.png", badge: "icon-180.png", tag: "mpb-my-" + x.id, renotify: true, data: { url: "./index.html#/my" } };
-    var title = "Проекты DS · " + (x.b ? "напоминание " + beforeLabel(x.b) : "напоминание");
+    var title = "МПБ · " + (x.b ? "напоминание " + beforeLabel(x.b) : "напоминание");
     if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
       navigator.serviceWorker.getRegistration().then(function (r) { if (r) r.showNotification(title, opts); else new Notification(title, opts); }, function () { try { new Notification(title, opts); } catch (e) {} });
     } else { try { new Notification(title, opts); } catch (e) {} }
   }
   var shown = {};
-  try { shown = JSON.parse(localStorage.getItem("ds_shown") || "{}"); } catch (e) {}
+  try { shown = JSON.parse(localStorage.getItem("mpb_shown") || "{}"); } catch (e) {}
   function markShown(k) {
     shown[k] = Date.now();
     var ks = Object.keys(shown); if (ks.length > 200) ks.sort(function (a, b) { return shown[a] - shown[b]; }).slice(0, ks.length - 200).forEach(function (z) { delete shown[z]; });
-    try { localStorage.setItem("ds_shown", JSON.stringify(shown)); } catch (e) {}
+    try { localStorage.setItem("mpb_shown", JSON.stringify(shown)); } catch (e) {}
   }
   function fire(x) {
     if (x.server) markShown(x.id + ":" + x.fireTs); else { x.fired = true; x.snoozeTo = null; mySave(); }
@@ -385,20 +385,19 @@
   X.remindTask = function (row, customer) { myPrefill = { task: row, text: "Задача: " + (customer || "") + " — " }; if (location.hash === "#/my") renderMy(); else go("#/my"); };
 
   function renderMy() {
-    if (window.DS && DS.ownsMy && DS.ownsMy()) return;      /* у проектировщиков «Мои задачи» заменены на «План на неделю» (ds.js) */
     var el = mount("my-app");
     el.innerHTML = head("Мои задачи", "Поставьте себе задачу — приложение напомнит в нужное время", "") + '<div class="wrap"><div id="myBody"></div></div>';
     paintMy();
     myLoad().then(function () { if (cur() === "my") paintMy(); X.badge(); });
-    (window.DS && DS.ensureOrders ? DS.ensureOrders() : Promise.resolve()).then(function () { if (cur() === "my") fillTaskSelect(); }, function () {});
+    load(false).then(function () { if (cur() === "my") fillTaskSelect(); }, function () {});
   }
   function fillTaskSelect() {
-    var sel = $("myTask"); if (!sel) return;
-    var keep = sel.value, list = window.DS && DS.orders ? DS.orders() : [];
-    sel.innerHTML = '<option value="">— без привязки —</option>' + list.map(function (o) { return '<option value="' + o.id + '">' + E(o.label) + "</option>"; }).join("");
+    var sel = $("myTask"); if (!sel || !S.tasks) return;
+    var keep = sel.value;
+    sel.innerHTML = '<option value="">— без привязки —</option>' + S.tasks.filter(isOpen).map(function (t) { return '<option value="' + t.row + '">' + E(t.customer) + " · " + E(t.workType || "") + "</option>"; }).join("");
     if (myPrefill && myPrefill.task) sel.value = String(myPrefill.task); else sel.value = keep;
   }
-  function taskLabel(row) { var o = (window.DS && DS.orders ? DS.orders() : []).filter(function (x) { return x.id === +row; })[0]; return o ? o.label : "Задача"; }
+  function taskLabel(row) { var t = (S.tasks || []).filter(function (x) { return x.row === +row; })[0]; return t ? t.customer : "Задача"; }
 
   function todoHtml(x) {
     var d = pd(x.d), over = d && d < today() && !x.done;
@@ -408,7 +407,6 @@
       + (x.task ? '<span class="x-pill acc" style="cursor:pointer" data-a="task">' + ic("tasks") + E(x.tl || taskLabel(x.task)) + "</span>" : "") + '</div></div><button class="del" data-a="del" title="Удалить">' + ic("trash") + "</button></div>";
   }
   function paintMy() {
-    if (window.DS && DS.ownsMy && DS.ownsMy()) return;
     var body = $("myBody"); if (!body) return;
     var list = myList(), tdy = today(), tdyIso = iso(tdy), i;
     var keepText = $("myText") ? $("myText").value : (myPrefill ? myPrefill.text : "");
@@ -426,11 +424,10 @@
     var ns = notifState(), nCls = ns === "granted" ? "on" : ns === "denied" ? "bad" : "", nTxt = ns === "granted" ? ["Системные уведомления включены", "Напоминания появятся и в системе, пока приложение открыто (в том числе свёрнутое)"] : ns === "denied" ? ["Уведомления заблокированы в браузере", "Разрешите их в настройках сайта — иначе будут только сообщения внутри приложения"] : ns === "unsupported" ? ["Браузер не поддерживает уведомления", "Напоминания будут показываться внутри приложения"] : ["Системные уведомления выключены", "Включите, чтобы напоминания приходили поверх других окон"];
     var mode = srv() ? ["on", "Напоминания на сервере", "Хранятся на сервере и придут на все ваши устройства, в Telegram и push — даже при закрытом приложении (если включены в «Личном кабинете»)"] : ["", "Только на этом устройстве", "Напоминания придут, пока приложение открыто. Войдите по PIN в «Личном кабинете» — тогда они переедут на сервер"];
     var now = new Date(), nowTxt = p2(now.getHours()) + ":" + p2(now.getMinutes());
-    var phone = nx ? '<div class="x-push"><span class="pi"><img src="logo.png" alt=""></span><div><b>Проекты DS · напоминание' + (nx.b ? " " + beforeLabel(nx.b) : "") + "</b><small>" + E(nx.t) + '</small></div><span class="pt">' + E(nx.tm || "") + "</span></div>" : '<div class="x-push"><div><b>Пока пусто</b><small>Добавьте первое напоминание слева</small></div></div>';
+    var phone = nx ? '<div class="x-push"><span class="pi"><img src="bear.png" alt=""></span><div><b>МПБ · напоминание' + (nx.b ? " " + beforeLabel(nx.b) : "") + "</b><small>" + E(nx.t) + '</small></div><span class="pt">' + E(nx.tm || "") + "</span></div>" : '<div class="x-push"><div><b>Пока пусто</b><small>Добавьте первое напоминание слева</small></div></div>';
     body.innerHTML = '<div class="x-two"><div>'
       + '<div class="x-wk" id="myWk">' + wk + "</div>"
       + '<div class="x-panel pad x-qadd" style="margin-bottom:18px"><div class="big"><input type="text" id="myText" placeholder="Что нужно сделать? Например: позвонить заказчику по пропускам" autocomplete="off"><button class="x-btn accent" id="myAdd">' + ic("plus") + "Добавить</button></div>"
-      + '<div style="margin-top:10px"><button class="x-btn ghost" id="myAssign">' + ic("plus") + "Поставить задачу сотруднику…</button></div>"
       + '<div class="x-opts"><div class="x-opt"><label>Дата</label><input type="date" id="myDate"></div><div class="x-opt"><label>Время</label><input type="time" id="myTime"></div>'
       + '<div class="x-opt"><label>Напомнить</label><select id="myBefore">' + BEFORE.map(function (b) { return '<option value="' + b[0] + '">' + b[1] + "</option>"; }).join("") + "</select></div>"
       + '<div class="x-opt"><label>Повтор</label><select id="myRep">' + REPS.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + "</option>"; }).join("") + "</select></div>"
@@ -462,7 +459,6 @@
       tick();
     }
     $("myAdd").onclick = add; $("myText").onkeydown = function (e) { if (e.key === "Enter") add(); };
-    var as_ = $("myAssign"); if (as_) as_.onclick = function () { if (window.DS && DS.newTask) DS.newTask({}); else toast("Раздел задач ещё не загрузился — обновите страницу"); };
     var al = $("myAllow"); if (al) al.onclick = function () { Notification.requestPermission().then(function () { paintMy(); }); };
     var ml = $("myLogin"); if (ml) ml.onclick = function () { MPBC.requireLogin().then(function () { renderMy(); }, function () {}); };
     body.querySelectorAll("#myWk div").forEach(function (b) { b.onclick = function () { mySel = (mySel === b.dataset.d) ? null : b.dataset.d; paintMy(); }; });
@@ -491,13 +487,7 @@
      «Ещё» на телефоне
      ================================================================ */
   X.more = function () {
-    var ps = (window.MPBC && MPBC.me && (MPBC.me.position || (MPBC.me.role === "admin" ? "owner" : ""))) || "";
-    var ALL = [["dash", "chart", "Обзор", "#/dash"], ["flow", "flow", "Конвейер", "#/flow"], ["tasks", "tasks", ps === "designer" ? "Мои проекты" : ps === "acc" ? "Закрытие" : "Задачи", "#/"], ["tz", "list", "Технические задания", "#/tz"],
-      ["cal", "cal", "Занятость", "#/cal"], ["my", "bell", ps === "designer" ? "План на неделю" : "Мои задачи", "#/my"], ["clients", "users", ps === "design" ? "Кому звонить" : "Заказчики", "#/clients"],
-      ["kpreg", "list", "Реестр КП", "#/kpreg/"], ["kpc", "calc", "Конструктор КП", "#/kpc"], ["price", "list", "Прайс", "#/price"], ["contracts", "file", "Договоры", "#/contracts"],
-      ["team", "team", "Команда", "#/team"], ["chat", "chat", "Переписка", "#/chat"], ["report", "list", "Недельный отчёт", "#/report"], ["stats", "lock", "Статистика", "#/stats"],
-      ["stages", "layers", "Этапы и сроки", "#/stages"], ["auto", "zap", "Автоматизация", "#/auto"], ["log", "history", "Журнал", "#/log"], ["me", "user", "Кабинет", "#/me"]];
-    var L = ALL.filter(function (x) { return window.dsAllowed ? window.dsAllowed(x[0]) : true; }).map(function (x) { return [x[3], x[1], x[2]]; });
+    var L = [["#/dash", "chart", "Сводка"], ["#/", "tasks", "Задачи"], ["#/cal", "cal", "Календарь"], ["#/my", "bell", "Мои задачи"], ["#/clients", "users", "Клиенты"], ["#/kpreg/", "list", "Реестр КП"], ["#/kpc", "calc", "Конструктор КП"], ["#/contracts", "file", "Договоры"], ["#/to", "wrench", "ТО МПБ"], ["#/team", "team", "Команда"], ["#/chat", "chat", "Переписка"], ["#/auto", "zap", "Автоматизация"], ["#/stages", "layers", "Этапы и сроки"], ["#/log", "history", "Журнал"], ["#/me", "user", "Кабинет"]];
     var v = document.createElement("div"); v.className = "x-veil on";
     v.innerHTML = '<div class="x-sheet"><h3>Все разделы</h3><div class="grid">' + L.map(function (x) { return '<button data-g="' + x[0] + '">' + ic(x[1]) + x[2] + "</button>"; }).join("") + "</div></div>";
     v.onclick = function (e) { if (e.target === v) v.remove(); };
@@ -507,8 +497,7 @@
 
   /* ---------- маршрутизация ---------- */
   X.render = function (sec) {
-    /* «Обзор» и «Занятость» рисует ds.js (проектная CRM); здесь остаются «Мои задачи» */
-    if (sec === "my") renderMy();
+    if (sec === "dash") renderDash(); else if (sec === "cal") renderCal(); else if (sec === "my") renderMy();
   };
   X.ready = true;
   var s0 = cur(); if (s0 === "dash" || s0 === "cal" || s0 === "my") X.render(s0);

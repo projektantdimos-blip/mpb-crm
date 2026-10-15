@@ -12,7 +12,7 @@
   var LEAD_KEYS = ["date", "customer", "contact", "phoneEmail", "funnel", "object", "essence", "amount", "status", "lastContact", "owner", "comment"];
   var LEGAL = { ооо: 1, оао: 1, зао: 1, пао: 1, ао: 1, ип: 1, тоо: 1, нко: 1, мбоу: 1, гбоу: 1, мдоу: 1, мбдоу: 1, оу: 1 };
   var S = { at: 0, tasks: [], leads: [], list: [], by: {}, dups: [], q: "", sort: "act", tab: "all", busy: false, f: "all", meta: {} };
-  var DKEY = "ds_notdup";
+  var DKEY = "mpb_notdup";
 
   /* ---------- нормализация ---------- */
   function norm(s) {

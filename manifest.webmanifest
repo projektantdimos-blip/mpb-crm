@@ -1,6 +1,6 @@
 {
-  "name": "Проекты DS — CRM",
-  "short_name": "Проекты DS",
+  "name": "МПБ — Рабочие инструменты",
+  "short_name": "МПБ",
   "description": "Задачи, реестр КП и конструктор коммерческих предложений",
   "lang": "ru",
   "start_url": "./index.html",

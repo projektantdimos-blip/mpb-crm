@@ -63,27 +63,15 @@
      КОМАНДА
      ================================================================ */
   var S = { rooms: [], cur: "general", msgs: [], lastId: 0, urg: false, tick: 0, timer: null, users: [] };
-  var ROOM_IC = { general: "hash", buy: "wallet", calc: "calc", kp: "file" };
+  var ROOM_IC = { general: "hash", buy: "wallet", calc: "calc", kp: "file", accounting: "briefcase" };
 
   function renderTeam() {
-    var el = $("team-app"), sub = "Внутренние чаты: общий, проектный, операционный отделы, отдел продаж и отдельный диалог по каждой задаче";
+    var el = $("team-app"), sub = "Внутренние чаты МПБ: общие вопросы, закупки, расчёты, КП, бухгалтерия и отдельный диалог по каждой задаче";
     if (!gate(el, "Команда", sub, renderTeam)) { stopTimer(); return; }
-    var q = /[?&]room=([^&]+)/.exec(location.hash); if (q) S.cur = decodeURIComponent(q[1]);
-    var isOwner = C.me && (C.me.position === "owner" || C.me.role === "admin");
-    el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span>'
-      + (isOwner ? '<label class="x-chip" style="cursor:pointer" title="Новые сообщения заказчиков из Telegram, MAX и почты копируются в закрытый канал «Отдел продаж»"><input type="checkbox" id="tMirror" style="margin-right:6px">Диалоги заказчиков в канал продаж</label>' : "") + "</div>")
-      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="hd"><button class="x-btn primary" id="tDm" style="justify-content:center;width:100%">' + ic("plus") + 'Личное сообщение</button><button class="x-btn ghost" id="tNew" style="justify-content:center;width:100%;margin-top:8px">' + ic("tasks") + 'Диалог по задаче</button><input type="text" id="tSearch" placeholder="Поиск по чатам…" autocomplete="off" style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--surface);color:var(--ink)"></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
-    if (q) { var ch1 = document.querySelector(".x-chat"); if (ch1) ch1.classList.add("open"); }                   /* ссылка на чат открывает его сразу */
+    var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
+    el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
+      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="hd"><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("plus") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
     $("tNew").onclick = newTaskRoom;
-    if ($("tMirror")) {
-      C.call("/../ds/settings/mirror").then(function (r) { $("tMirror").checked = !!r.on; }).catch(function () {});
-      $("tMirror").onchange = function () {
-        var on = this.checked, box = this;
-        C.call("/../ds/settings/mirror", { body: { on: on } }).then(function () { toast(on ? "Диалоги заказчиков будут копироваться в канал «Отдел продаж»" : "Копирование в общий чат выключено"); }).catch(function (e) { box.checked = !on; toast(E(e)); });
-      };
-    }
-    $("tDm").onclick = newDm;
-    $("tSearch").oninput = paintRooms;
     $("tUrgChip").onclick = function () { var r = S.rooms.filter(function (x) { return x.urgent_open > 0; })[0]; if (r) openRoom(r.id); };
     loadRooms().then(function () { if (!S.rooms.some(function (r) { return r.id === S.cur; })) S.cur = "general"; openRoom(S.cur, true); }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
     C.call("/auth/users", { auth: false }).then(function (n) { S.users = n; paintInfo(); }).catch(function () {});
@@ -105,33 +93,24 @@
   function loadRooms() {
     return C.call("/team/rooms").then(function (rs) { S.rooms = rs; paintRooms(); });
   }
-  function roomIcon(r) {
-    if (r.kind === "dm" && /^d\d+_\d+$/.test(r.id)) return ava(r.name, "sm");
-    return '<span class="x-rm ' + (r.kind === "task" ? "task" : "") + '">' + ic(r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")) + "</span>";
-  }
   function roomItem(r) {
     var hasU = r.urgent_open > 0, last = r.last;
-    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '">' + roomIcon(r) + '<div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
+    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '"><span class="x-rm ' + (r.kind === "task" ? "task" : "") + '">' + ic(r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")) + '</span><div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
   }
   function paintRooms() {
     var el = $("tRooms"); if (!el) return;
     var urg = S.rooms.filter(function (r) { return r.urgent_open > 0; }), n = urg.reduce(function (a, r) { return a + r.urgent_open; }, 0);
     if ($("tUrgN")) $("tUrgN").textContent = n;
-    var q = ($("tSearch") && $("tSearch").value || "").trim().toLowerCase();
-    var ok = function (r) { return !q || (r.name + " " + (r.descr || "") + " " + (r.last ? r.last.text : "")).toLowerCase().indexOf(q) >= 0; };
-    var dms = S.rooms.filter(function (r) { return r.kind === "dm" && ok(r); });
-    var chans = S.rooms.filter(function (r) { return r.kind === "chan" && ok(r); });
-    var tasks = S.rooms.filter(function (r) { return r.kind === "task" && ok(r); });
     el.innerHTML = (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")
-      + '<div class="x-grp">Личные сообщения</div>' + (dms.map(roomItem).join("") || '<p class="x-empty" style="padding:14px">' + (q ? "Ничего не найдено" : "Пока нет. Нажмите «Личное сообщение»") + "</p>")
-      + '<div class="x-grp">Каналы</div>' + chans.map(roomItem).join("")
-      + '<div class="x-grp">Диалоги по задачам</div>' + (tasks.map(roomItem).join("") || '<p class="x-empty" style="padding:14px">' + (q ? "Ничего не найдено" : "Чат создаётся сам при подписании договора. Свою задачу можно найти кнопкой «Диалог по задаче»") + "</p>");
+      + '<div class="x-grp">Каналы</div>' + S.rooms.filter(function (r) { return r.kind === "chan"; }).map(roomItem).join("")
+      + '<div class="x-grp">Диалоги по задачам</div>' + (S.rooms.filter(function (r) { return r.kind === "task"; }).map(roomItem).join("") || '<p class="x-empty" style="padding:14px">Пока нет. Нажмите «Диалог по задаче» или «Обсуждение» в карточке задачи</p>');
     el.querySelectorAll(".x-dlg").forEach(function (d) { d.onclick = function () { openRoom(d.dataset.r); }; });
     if (C.sync) { /* бейдж меню обновится при следующем опросе */ }
   }
   function openRoom(id, first) {
     S.cur = id; S.msgs = []; S.lastId = 0; S.urg = false;
-    if (!first) { var ch0 = document.querySelector(".x-chat"); if (ch0) ch0.classList.add("open"); }      /* на телефоне: список → чат */
+    var chatBox = document.querySelector(".x-chat");
+    if (chatBox) { if (first && !S.deep) chatBox.classList.remove("room-open"); else chatBox.classList.add("room-open"); }
     if (!first) { try { history.replaceState(null, "", "#/team?room=" + encodeURIComponent(id)); } catch (e) {} }
     paintRooms();
     $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">Загрузка…</div>';
@@ -140,11 +119,40 @@
       return C.call("/team/rooms/" + encodeURIComponent(id) + "/read", { body: {} }).then(loadRooms).then(function () { C.refresh(); });
     }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
   }
+  function fsize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + " МБ" : Math.max(1, Math.round(n / 1024)) + " КБ"; }
+  S.files = [];
+  function addFiles(list) {
+    var msg = "";
+    Array.prototype.forEach.call(list || [], function (f) {
+      var sum = S.files.reduce(function (a, x) { return a + x.size; }, 0);
+      if (!f.size) msg = "Файл «" + f.name + "» пустой";
+      else if (f.size > 10485760) msg = "Файл «" + f.name + "» больше 10 МБ";
+      else if (S.files.length >= 10) msg = "Не больше 10 файлов за раз";
+      else if (sum + f.size > 26214400) msg = "Файлы вместе больше 25 МБ";
+      else S.files.push(f);
+    });
+    if (msg) toast(msg);
+    paintFiles();
+  }
+  function paintFiles() {
+    var b = $("tFiles"); if (!b) return;
+    b.hidden = !S.files.length;
+    b.innerHTML = S.files.map(function (f, i) { return '<span class="x-fchip">' + ic("file") + '<span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + '</small><button type="button" data-x="' + i + '" title="Убрать">×</button></span>'; }).join("");
+    Array.prototype.forEach.call(b.querySelectorAll("[data-x]"), function (x) { x.onclick = function () { S.files.splice(+x.dataset.x, 1); paintFiles(); }; });
+  }
+  function readB64(f) {
+    return new Promise(function (ok, bad) {
+      var r = new FileReader();
+      r.onload = function () { var s = String(r.result || ""); ok(s.slice(s.indexOf(",") + 1)); };
+      r.onerror = function () { bad("Не удалось прочитать файл"); };
+      r.readAsDataURL(f);
+    });
+  }
   function msgHtml(m) {
     var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0;
-    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small></div><div class="tx">'
-      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + E(m.text)
-      + (m.files && m.files.length ? '<div class="x-files">' + m.files.map(function (f) { return '<button class="x-file" data-tfile="' + f.id + '" title="Скачать">📎 ' + E(f.name) + "<small>" + Math.max(1, Math.round(f.size / 1024)) + " КБ</small></button>"; }).join("") + "</div>" : "") + "</div>"
+    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small>' + ((me || (C.me && C.me.role === "admin")) && m.user_id ? '<button type="button" class="x-del" data-del="' + m.id + '" title="Удалить сообщение" aria-label="Удалить">' + ic("trash") + "</button>" : "") + '</div><div class="tx">'
+      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((m.files && m.files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
+      + ((m.files && m.files.length) ? '<div class="x-files">' + m.files.map(function (f) { return '<button type="button" class="x-file" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="fi">' + ic("file") + '</span><span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + "</small></button>"; }).join("") + "</div>" : "") + "</div>"
       + (m.urgent ? '<div class="x-ack">' + ic("check") + (m.acks.length ? "Прочитали: " + E(m.acks.join(", ")) : "Пока никто не подтвердил") + (!me && !mine ? '<button data-ack="' + m.id + '">Прочитал(а)</button>' : "") + "</div>" : "") + "</div></div>";
   }
   function paintThread(keep) {
@@ -154,30 +162,45 @@
     var prevDay = "", body = S.msgs.map(function (m) { var d = dayLabel(m.ts), h = (d !== prevDay ? '<span class="x-day">' + d + "</span>" : "") + msgHtml(m); prevDay = d; return h; }).join("");
     var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
     if (old && keep) wasBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 80;
-    el.innerHTML = '<div class="x-th-h"><button class="x-btn ghost x-back" data-back="1" style="padding:6px 10px">←</button>' + roomIcon(room) + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>"
-      + (room.kind === "task" && room.task_row ? '<a class="x-btn ghost" style="margin-left:auto;padding:7px 12px" href="#/task/' + room.task_row + '">Открыть задачу</a>' : "") + "</div>"
+    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button><span class="x-rm ' + (room.kind === "task" ? "task" : "") + '">' + ic(room.kind === "task" ? "tasks" : (ROOM_IC[room.id] || "hash")) + "</span><div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div></div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-comp"><button class="x-btn ghost" id="tAtt" title="Прикрепить файл (до 10 МБ). Файл можно перетащить прямо в окно чата" style="padding:12px 13px">📎</button><input type="file" id="tFile" hidden><input type="text" id="tIn" placeholder="Написать в «' + E(room.name) + '»… (@Имя — упомянуть)" autocomplete="off"><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+      + '<div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (window.innerWidth <= 760 ? "Сообщение…" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
-    var bk = el.querySelector("[data-back]"); if (bk) bk.onclick = function () { var ch = document.querySelector(".x-chat"); if (ch) ch.classList.remove("open"); };
     $("tIn").value = val;
     $("tSend").onclick = send;
-    $("tAtt").onclick = function () { $("tFile").click(); };
-    $("tFile").onchange = function () { var f = this.files && this.files[0]; this.value = ""; if (f) sendFile(f); };
-    el.ondragover = function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0) { e.preventDefault(); el.classList.add("x-drop"); } };
-    el.ondragleave = function (e) { if (!el.contains(e.relatedTarget)) el.classList.remove("x-drop"); };
-    el.ondrop = function (e) { el.classList.remove("x-drop"); var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) { e.preventDefault(); sendFile(f); } };
-    el.querySelectorAll("[data-tfile]").forEach(function (b) {
+    $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
+    $("tAttach").onclick = function () { $("tFile").click(); };
+    $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
+    paintFiles();
+    var th = el;
+    th.ondragover = function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0) { e.preventDefault(); th.classList.add("drop"); } };
+    th.ondragleave = function (e) { if (!th.contains(e.relatedTarget)) th.classList.remove("drop"); };
+    th.ondrop = function (e) { th.classList.remove("drop"); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } };
+    $("tIn").onpaste = function (e) { var fl = e.clipboardData && e.clipboardData.files; if (fl && fl.length) { e.preventDefault(); addFiles(fl); } };
+    el.querySelectorAll("[data-tf]").forEach(function (b) {
       b.onclick = function () {
-        C.blob("/crm/team/files/" + b.dataset.tfile).then(function (r) {
-          var a = document.createElement("a"); a.href = URL.createObjectURL(r.blob); a.download = r.name; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        C.blob("/team/files/" + b.dataset.tf).then(function (bl) {
+          var a = document.createElement("a"); a.href = URL.createObjectURL(bl); a.download = b.dataset.name || "file";
+          document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
         }).catch(function (e) { toast(E(e)); });
       };
     });
     mentionBox($("tIn"));
-    $("tIn").onkeydown = function (e) { if (e.key === "Enter" && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) send(); };
+    var tin = $("tIn");
+    function grow() { tin.style.height = "auto"; tin.style.height = Math.min(tin.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px"; }
+    tin.addEventListener("input", grow); setTimeout(grow, 0);
+    tin.onkeydown = function (e) {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) { e.preventDefault(); send(); }
+    };
+    el.querySelectorAll("[data-del]").forEach(function (b) {
+      b.onclick = function () {
+        if (!confirm("Удалить это сообщение у всех?")) return;
+        C.call("/team/messages/" + b.dataset.del + "/delete", { body: {} }).then(function () {
+          S.msgs = S.msgs.filter(function (m) { return String(m.id) !== b.dataset.del; }); paintThread(true); loadRooms();
+        }).catch(function (e) { toast(E(e)); });
+      };
+    });
     $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
     el.querySelectorAll("[data-ack]").forEach(function (b) { b.onclick = function () { C.call("/team/messages/" + b.dataset.ack + "/ack", { body: {} }).then(function () { return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages"); }).then(function (ms) { S.msgs = ms; paintThread(true); loadRooms(); C.refresh(); }); }; });
   }
@@ -216,27 +239,13 @@
       else if (e.key === "Escape") close();
     }, true);
   }
-  function sendFile(f) {
-    if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { toast("Файл больше 10 МБ"); return; }
-    var i = $("tIn"), text = i ? i.value.trim() : "", urgent = S.urg, rd = new FileReader();
-    rd.onload = function () {
-      var b64 = String(rd.result || "").split(",")[1];
-      toast("Загружаю «" + f.name + "»…");
-      C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send-file", { body: { text: text, filename: f.name, mime: f.type || "application/octet-stream", data: b64, urgent: urgent } }).then(function () {
-        S.urg = false; if ($("tIn")) $("tIn").value = "";
-        return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId);
-      }).then(function (ms) { if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; } paintThread(); loadRooms(); })
-        .catch(function (e) { toast(E(e)); });
-    };
-    rd.onerror = function () { toast("Не удалось прочитать файл"); };
-    rd.readAsDataURL(f);
-  }
   function send() {
-    var i = $("tIn"), text = i.value.trim(); if (!text) return;
+    var i = $("tIn"), text = i.value.trim(), fs = S.files.slice(); if (!text && !fs.length) return;
     var urgent = S.urg; i.disabled = true;
-    C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent } }).then(function () {
-      S.urg = false; i.value = "";
+    Promise.all(fs.map(readB64)).then(function (d) {
+      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
+    }).then(function () {
+      S.urg = false; i.value = ""; i.style.height = "auto"; S.files = [];
       return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId);
     }).then(function (ms) { if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; } paintThread(); loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
       .catch(function (e) { i.disabled = false; toast(E(e)); });
@@ -244,58 +253,20 @@
   function paintInfo() {
     var el = $("tInfo"); if (!el) return;
     var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0], urgs = S.msgs.filter(function (m) { return m.urgent; });
-    el.innerHTML = (room && room.kind === "task" ? '<div><h6>Задача</h6><a class="x-linkcard" href="#/task/' + room.task_row + '"><span class="x-rm task">' + ic("tasks") + "</span><span><b>" + E(room.name) + "</b><small>Открыть карточку задачи</small></span></a></div>" : '<div><h6>' + (room && room.kind === "dm" ? "Личная переписка" : "О канале") + '</h6><p style="font-size:.86rem;color:var(--muted);margin:0">' + E(room ? room.descr : "") + "</p></div>")
-      + "<div><h6>" + (room && room.kind === "dm" ? "Участники" : "Сотрудники") + "</h6>" + ((room && room.kind === "dm" ? [C.me && C.me.name, room.name].filter(Boolean) : S.users).map(function (n) { return '<div class="x-member">' + ava(n, "sm") + E(n) + (C.me && n === C.me.name ? '<small style="margin-left:auto;color:var(--muted)">вы</small>' : "") + "</div>"; }).join("") || '<p class="x-empty" style="padding:6px">—</p>') + "</div>"
-      + (room && room.kind === "chan" && room.id !== "general" && C.me && (C.me.position === "owner" || C.me.role === "admin") ? '<div id="tAccess"><h6>Кто видит канал</h6><p style="font-size:.84rem;color:var(--muted);margin:0">Загрузка…</p></div>' : "")
+    el.innerHTML = (room && room.kind === "task" ? '<div><h6>Задача</h6><a class="x-linkcard" href="#/task/' + room.task_row + '"><span class="x-rm task">' + ic("tasks") + "</span><span><b>" + E(room.name) + "</b><small>Открыть карточку задачи</small></span></a></div>" : '<div><h6>О канале</h6><p style="font-size:.86rem;color:var(--muted);margin:0">' + E(room ? room.descr : "") + "</p></div>")
+      + "<div><h6>Сотрудники</h6>" + (S.users.map(function (n) { return '<div class="x-member">' + ava(n, "sm") + E(n) + (C.me && n === C.me.name ? '<small style="margin-left:auto;color:var(--muted)">вы</small>' : "") + "</div>"; }).join("") || '<p class="x-empty" style="padding:6px">—</p>') + "</div>"
       + "<div><h6>Срочные в этом чате</h6>" + (urgs.slice(-4).map(function (m) { return '<div class="x-linkcard" style="background:var(--bad-l);border-color:transparent;color:var(--bad)">' + ic("flame") + "<span><b>" + E(m.user) + '</b><small style="color:inherit;opacity:.8">' + E(m.text.slice(0, 80)) + "</small></span></div>"; }).join("") || '<p style="font-size:.84rem;color:var(--muted);margin:0">Пока нет</p>') + "</div>";
-    if (room && $("tAccess")) loadAccess(room.id);
-  }
-  function loadAccess(roomId) {
-    var box = $("tAccess"); if (!box) return;
-    C.call("/../ds/room-access").then(function (r) {
-      var cur = (r.rooms.filter(function (x) { return x.id === roomId; })[0] || {}).roles;
-      if (!cur) cur = r.positions.map(function (p) { return p.id; });
-      box.innerHTML = '<h6>Кто видит канал</h6><p style="font-size:.8rem;color:var(--muted);margin:0 0 8px">Руководитель видит всегда. Остальные получают и сообщения, и уведомления только если отмечены.</p>'
-        + r.positions.map(function (p) { return '<label class="x-member" style="cursor:pointer"><input type="checkbox" data-acc="' + p.id + '" ' + (cur.indexOf(p.id) >= 0 ? "checked" : "") + ' style="margin-right:8px">' + E(p.title) + "</label>"; }).join("");
-      box.querySelectorAll("[data-acc]").forEach(function (cb) {
-        cb.onchange = function () {
-          var roles = [].slice.call(box.querySelectorAll("[data-acc]:checked")).map(function (x) { return x.dataset.acc; });
-          C.call("/../ds/room-access", { body: { room_id: roomId, roles: roles } }).then(function () { toast("Права на канал сохранены"); }).catch(function (e) { cb.checked = !cb.checked; toast(E(e)); });
-        };
-      });
-    }).catch(function (e) { box.innerHTML = '<h6>Кто видит канал</h6><p style="font-size:.84rem;color:var(--bad)">' + E(e) + "</p>"; });
   }
   function newTaskRoom() {
-    xmodal('<h3>Диалог по задаче</h3><p class="x-sub">Выберите задачу из доступных вам — откроется её чат</p><div class="x-field"><input type="text" id="tFind" placeholder="Номер, заказчик или объект…"></div><div id="tList" style="max-height:50vh;overflow:auto"><div class="x-empty">Загрузка…</div></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>', true);
+    xmodal('<h3>Диалог по задаче</h3><p class="x-sub">Выберите задачу — для неё создастся отдельный чат команды</p><div class="x-field"><input type="text" id="tFind" placeholder="Поиск по заказчику или адресу…"></div><div id="tList" style="max-height:50vh;overflow:auto"><div class="x-empty">Загрузка…</div></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>', true);
     var all = [];
     function paint() {
       var q = ($("tFind").value || "").toLowerCase();
-      $("tList").innerHTML = all.filter(function (t) { return !q || (t.number + " " + (t.customer || "") + " " + t.object).toLowerCase().indexOf(q) >= 0; }).slice(0, 60).map(function (t) {
-        return '<div class="x-linkcard" data-t="' + t.id + '"><span class="x-rm task">' + ic("tasks") + "</span><span><b>№" + E(t.number) + " · " + E(t.customer || "") + "</b><small>" + E(t.object || "") + " · " + E(t.stage) + "</small></span></div>"; }).join("") || '<div class="x-empty">Ничего не найдено</div>';
-      $("tList").querySelectorAll("[data-t]").forEach(function (n) { n.onclick = function () { var t = all.filter(function (x) { return x.id === +n.dataset.t; })[0]; T.closeModal(); T.openTaskRoom(t.id, "№" + t.number + " · " + (t.object || "").slice(0, 60)); }; });
+      $("tList").innerHTML = all.filter(function (t) { return !q || (t.customer + " " + t.address).toLowerCase().indexOf(q) >= 0; }).slice(0, 60).map(function (t) { return '<div class="x-linkcard" data-t="' + t.row + '"><span class="x-rm task" style="--tc:' + (window.wtColor ? wtColor(t.workType) : "var(--blue)") + '">' + ic("tasks") + "</span><span><b>" + E(t.customer) + "</b><small>" + E(t.workType || "") + " · " + E(t.address || "") + "</small></span></div>"; }).join("") || '<div class="x-empty">Ничего не найдено</div>';
+      $("tList").querySelectorAll("[data-t]").forEach(function (n) { n.onclick = function () { var t = all.filter(function (x) { return x.row === +n.dataset.t; })[0]; T.closeModal(); T.openTaskRoom(t.row, t.customer); }; });
     }
-    C.call("/../ds/orders").then(function (ts) { all = ts; paint(); }).catch(function (e) { $("tList").innerHTML = '<div class="x-empty">' + E(e) + "</div>"; });
+    callServer("api_listTasks").then(function (ts) { all = ts.filter(function (t) { return !t.closed; }); paint(); }).catch(function (e) { $("tList").innerHTML = '<div class="x-empty">' + E(e) + "</div>"; });
     $("tFind").oninput = paint;
-  }
-  /* личное сообщение: выбираем сотрудника, чат создаётся (или открывается уже существующий) */
-  function newDm() {
-    xmodal('<h3>Личное сообщение</h3><p class="x-sub">Переписку видите только вы и собеседник</p><div class="x-field"><input type="text" id="tFindU" placeholder="Поиск сотрудника…" autocomplete="off"></div><div id="tUList" style="max-height:50vh;overflow:auto"><div class="x-empty">Загрузка…</div></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button></div>', true);
-    var all = [];
-    function paint() {
-      var q = ($("tFindU").value || "").toLowerCase(), me = C.me ? C.me.id : 0;
-      $("tUList").innerHTML = all.filter(function (u) { return u.id !== me && (!q || (u.name + " " + (u.title || "")).toLowerCase().indexOf(q) >= 0); }).map(function (u) {
-        return '<div class="x-linkcard" data-u="' + u.id + '">' + ava(u.name, "sm") + "<span><b>" + E(u.name) + "</b><small>" + E(u.title || "") + "</small></span></div>"; }).join("") || '<div class="x-empty">Никого не найдено</div>';
-      $("tUList").querySelectorAll("[data-u]").forEach(function (n) {
-        n.onclick = function () {
-          C.call("/../ds/dm", { body: { user_id: +n.dataset.u } }).then(function (r) {
-            T.closeModal();
-            if (cur() === "team") { S.cur = r.id; loadRooms().then(function () { openRoom(r.id); }); } else location.hash = "#/team?room=" + r.id;
-          }).catch(function (e) { toast(E(e)); });
-        };
-      });
-    }
-    C.call("/people").then(function (l) { all = l; paint(); }).catch(function (e) { $("tUList").innerHTML = '<div class="x-empty">' + E(e) + "</div>"; });
-    $("tFindU").oninput = paint;
   }
   T.openTaskRoom = function (row, customer) {
     C.requireLogin().then(function () { return C.call("/team/rooms", { body: { task_row: row, name: customer } }); }).then(function (r) {
@@ -315,7 +286,7 @@
     C.call("/journal?limit=200").then(function (items) { LG.items = items; paintLog(); }).catch(function (e) { $("lgOut").innerHTML = '<div class="x-empty">' + E(e) + "</div>"; });
   }
   function paintLog() {
-    var fs = ["Все", "Задача", "КП", "Заказчик", "Чат", "Настройки"];
+    var fs = ["Все", "Задача", "КП", "Чат", "Настройки"];
     $("lgChips").innerHTML = fs.map(function (f) { return '<span class="x-chip ' + (LG.f === f ? "on" : "") + '" data-f="' + f + '">' + f + "</span>"; }).join("");
     var rows = LG.items.filter(function (l) { return LG.f === "Все" || l.entity.indexOf(LG.f) === 0; }), day = "", h = "";
     rows.forEach(function (l) {
@@ -337,18 +308,15 @@
      ЛИЧНЫЙ КАБИНЕТ
      ================================================================ */
   var P = { tab: "notif" };
-  var EVENTS = [["reminder", "Моё напоминание", "Из раздела «Мои задачи»"], ["urgent", "Срочное", "Срочные работы и срочные сообщения в чатах; пробивает тихие часы, если включено ниже"],
-    ["mention", "Упоминание и личные сообщения", "Вас позвали через @Имя или написали лично"], ["chat", "Новое сообщение в чате", "Любое сообщение в каналах (может быть шумно)"],
-    ["task", "Мне поставлена задача", "Договор подписан, задача пришла на ваш этап, назначены исполнителем, затянулась стадия"], ["deadline", "Скоро срок по договору", "За сколько дней — настраивает руководитель в «Автоматизации»"],
-    ["overdue", "Срок по договору просрочен", "По вашей задаче срок по договору прошёл"], ["lead", "Оплата и КП", "Аванс и оплата получены, КП без ответа, аванс не пришёл"],
-    ["mail", "Заказчик написал", "Новые сообщения заказчиков в Telegram, MAX и почте"]];
-  var POS_TITLE = { owner: "Руководитель", design: "Руководитель проектного отдела", sales: "Руководитель отдела продаж", ops: "Операционный менеджер", acc: "Бухгалтер", designer: "Проектировщик" };
+  var EVENTS = [["reminder", "Моё напоминание", "Из раздела «Мои задачи»"], ["urgent", "Срочное в чатах", "Всегда пробивает тихие часы, если включено ниже"], ["mention", "Упоминание @Имя", "Когда вас позвали в чате"], ["chat", "Новое сообщение в чате", "Любое сообщение (может быть шумно)"],
+    ["task", "Этап перешёл ко мне", "Задача пришла на ваш этап"], ["deadline", "Скоро дедлайн этапа", "За сколько дней — настраивает руководитель в «Автоматизации»"],
+    ["overdue", "Дедлайн просрочен", "Задача на вашем этапе просрочена"], ["lead", "Клиенты и заявки", "Нет контакта, КП без ответа, КП выиграно"], ["mail", "Письма мне", "Письма и диалоги, переданные вам"]];
 
   function renderMe() {
     var el = $("me-app"), sub = "Настройки уведомлений, профиль и доступ сотрудников";
     if (!gate(el, "Личный кабинет", sub, renderMe)) return;
     var u = C.me, tabs = [["notif", "bell", "Уведомления"], ["info", "user", "Профиль"]].concat(u.role === "admin" ? [["staff", "users", "Сотрудники"]] : []);
-    el.innerHTML = head("Личный кабинет", sub) + '<div class="wrap"><div class="prof2">' + ava(u.name, "xl") + "<div><h2>" + E(u.name) + "</h2><p>" + (u.title ? E(u.title) + " · " : "") + (POS_TITLE[u.position] || (u.role === "admin" ? "Руководитель" : "Сотрудник")) + '</p><div class="pf-pills"><span>' + (u.tg ? "Telegram подключён" : "Telegram не подключён") + '</span><span>' + (C.pushOn && C.pushOn() ? "Push включён" : "Push выключен") + '</span></div></div>' + '<div class="pf-stats"><div><b>' + ((C.sync || {}).notif_unread || 0) + '</b><small>новых уведомлений</small></div><div><b>' + ((C.sync || {}).team_unread || 0) + '</b><small>непрочитано в «Команде»</small></div><div><b>' + (((C.sync || {}).urgent || []).length) + '</b><small>срочных</small></div></div><button class="x-btn ghost" id="meOut">Выйти</button></div>'
+    el.innerHTML = head("Личный кабинет", sub) + '<div class="wrap"><div class="prof2">' + ava(u.name, "xl") + "<div><h2>" + E(u.name) + "</h2><p>" + (u.title ? E(u.title) + " · " : "") + (u.role === "admin" ? "Руководитель" : "Сотрудник") + '</p><div class="pf-pills"><span>' + (u.tg ? "Telegram подключён" : "Telegram не подключён") + '</span><span>' + (C.pushOn && C.pushOn() ? "Push включён" : "Push выключен") + '</span></div></div>' + '<div class="pf-stats"><div><b>' + ((C.sync || {}).notif_unread || 0) + '</b><small>новых уведомлений</small></div><div><b>' + ((C.sync || {}).team_unread || 0) + '</b><small>непрочитано в «Команде»</small></div><div><b>' + (((C.sync || {}).urgent || []).length) + '</b><small>срочных</small></div></div><button class="x-btn ghost" id="meOut">Выйти</button></div>'
       + '<div class="x-bar"><div class="x-seg" id="meTabs">' + tabs.map(function (t) { return '<button data-t="' + t[0] + '" class="' + (P.tab === t[0] ? "on" : "") + '">' + ic(t[1]) + t[2] + "</button>"; }).join("") + '</div></div><div id="meBody"></div></div>';
     $("meOut").onclick = function () { C.logout().then(renderMe); };
     $("meTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { P.tab = b.dataset.t; renderMe(); }; });
@@ -360,7 +328,7 @@
     body.innerHTML = '<div class="x-two"><div>'
       + '<div class="x-chcards">'
       + '<div class="x-chc"><div class="t"><span class="x-rm">' + ic("bell") + "</span><div><b>В приложении</b><small>Колокольчик в меню</small></div></div><span class=\"x-pill ok\">Всегда включено</span></div>"
-      + '<div class="x-chc"><div class="t"><span class="x-rm">' + ic("phone") + "</span><div><b>Push на это устройство</b><small>" + (pushOk ? (pushOn ? "Подключено" : "Выключено") : (C.pushWhy ? C.pushWhy() : "") || "Недоступно на этом устройстве") + '</small></div></div><button class="x-btn ' + (pushOn ? "ghost" : "primary") + '" id="mePush" ' + "" + ">" + (pushOn ? "Отключить" : "Включить") + "</button></div>"
+      + '<div class="x-chc"><div class="t"><span class="x-rm">' + ic("phone") + "</span><div><b>Push на это устройство</b><small>" + (pushOk ? (pushOn ? "Подключено" : "Выключено") : "Не поддерживается браузером") + '</small></div></div><button class="x-btn ' + (pushOn ? "ghost" : "primary") + '" id="mePush" ' + (pushOk ? "" : "disabled") + ">" + (pushOn ? "Отключить" : "Включить") + "</button></div>"
       + '<div class="x-chc"><div class="t"><span class="x-rm">' + ic("send") + "</span><div><b>Telegram</b><small>" + (!C.bot ? "Бот не подключён на сервере" : tg ? "Подключён" : "Не привязан") + '</small></div></div>' + (C.bot ? '<button class="x-btn ' + (tg ? "ghost" : "primary") + '" id="meTg">' + (tg ? "Отвязать" : "Получить код") + "</button>" : '<span class="x-pill">нужен TG_BOT_TOKEN</span>') + '<div id="meTgCode"></div></div></div>'
       + '<div class="x-panel" style="margin-bottom:18px"><div style="padding:18px 20px 4px"><h3>Что и куда присылать</h3><p class="x-sub">Отметьте, какие события вам важны и в каком канале о них сообщать</p></div><div style="overflow-x:auto"><table class="x-mx"><thead><tr><th>Событие</th><th>В приложении</th><th>Push</th><th>Telegram</th></tr></thead><tbody>'
       + EVENTS.map(function (e) { return "<tr><td>" + e[1] + "<small>" + e[2] + "</small></td>" + ["app", "push", "telegram"].map(function (ch) { return '<td><button class="x-cb ' + (pr.events[e[0]][ch] ? "on" : "") + '" data-e="' + e[0] + '" data-c="' + ch + '">' + ic("check") + "</button></td>"; }).join("") + "</tr>"; }).join("")
@@ -369,15 +337,7 @@
       + '<div class="x-qrow"><div><b>Не беспокоить</b><small>Push и Telegram молчат, внутри приложения всё сохраняется</small></div><button class="x-sw ' + (pr.quiet.on ? "on" : "") + '" id="qOn"></button></div>'
       + '<div class="x-qrow"><div><b>С</b></div><input type="time" id="qFrom" value="' + pr.quiet.from + '"><div style="margin-left:14px"><b>До</b></div><input type="time" id="qTo" value="' + pr.quiet.to + '"></div>'
       + '<div class="x-qrow"><div><b>«Срочное» пробивает тишину</b><small>Срочные сообщения придут всегда</small></div><button class="x-sw ' + (pr.quiet.urgent_through ? "on" : "") + '" id="qUrg"></button></div></div>'
-      + '</div><div class="x-sticky"><div class="x-panel pad"><h3>Проверка</h3><p class="x-sub">Отправим тестовое уведомление по вашим настройкам</p><button class="x-btn primary" id="meTest" style="width:100%;justify-content:center">' + ic("bell") + 'Отправить тест</button><div class="x-hint" id="meTestOut"></div>'
-      + '<h3 style="margin-top:16px">Звук в CRM</h3><p class="x-sub">Сигнал при новых сообщениях и уведомлениях, пока CRM открыта</p>'
-      + '<div class="x-qrow"><div><b>Звук включён</b></div><button class="x-sw ' + (window.DSSound && DSSound.get().on ? "on" : "") + '" id="sndOn"></button></div>'
-      + '<div class="x-qrow"><div><b>Громкость</b></div><input type="range" id="sndVol" min="0.1" max="1" step="0.1" value="' + (window.DSSound ? DSSound.get().vol : 0.9) + '" style="flex:1;margin-left:12px"></div>'
-      + '<button class="x-btn ghost" id="sndTest" style="width:100%;justify-content:center">Проверить звук</button></div></div></div>';
-    var sOn = $("sndOn"), sVol = $("sndVol"), sTest = $("sndTest");
-    if (sOn) sOn.onclick = function () { var on = !DSSound.get().on; DSSound.set({ on: on }); sOn.classList.toggle("on", on); };
-    if (sVol) sVol.oninput = function () { DSSound.set({ vol: sVol.value }); };
-    if (sTest) sTest.onclick = function () { DSSound.test(); };
+      + '</div><div class="x-sticky"><div class="x-panel pad"><h3>Проверка</h3><p class="x-sub">Отправим тестовое уведомление по вашим настройкам</p><button class="x-btn primary" id="meTest" style="width:100%;justify-content:center">' + ic("bell") + 'Отправить тест</button><div class="x-hint" id="meTestOut"></div></div></div></div>';
     $("mePush").onclick = function () { var p = pushOn ? C.disablePush() : C.enablePush(); p.then(function () { toast(pushOn ? "Push отключён" : "Push включён на этом устройстве"); paintNotif(); }).catch(function (e) { toast(E(e)); }); };
     var tgb = $("meTg"); if (tgb) tgb.onclick = function () {
       if (tg) C.call("/me/tg/unlink", { body: {} }).then(function () { C.me.tg = false; renderMe(); });
@@ -434,17 +394,17 @@
       + '<div class="x-field"><label>Текущий PIN</label><input type="password" id="pOld" inputmode="numeric" maxlength="8"></div><div class="x-field"><label>Новый PIN (4–8 цифр)</label><input type="password" id="pNew" inputmode="numeric" maxlength="8"></div><div class="x-field"><label>Повторите новый PIN</label><input type="password" id="pNew2" inputmode="numeric" maxlength="8"></div><div class="x-err" id="pErr"></div><button class="x-btn primary" id="pGo">Сменить PIN</button></div>';
     $("pGo").onclick = function () {
       if ($("pNew").value !== $("pNew2").value) { $("pErr").textContent = "Новые PIN не совпадают"; return; }
-      C.call("/me/pin", { body: { old: $("pOld").value, new: $("pNew").value } }).then(function () { C.me = null; try { localStorage.removeItem("ds_session"); } catch (e) {} toast("PIN изменён — войдите заново"); renderMe(); }).catch(function (e) { $("pErr").textContent = String(e); });
+      C.call("/me/pin", { body: { old: $("pOld").value, new: $("pNew").value } }).then(function () { C.me = null; try { localStorage.removeItem("mpb_session"); } catch (e) {} toast("PIN изменён — войдите заново"); renderMe(); }).catch(function (e) { $("pErr").textContent = String(e); });
     };
   }
   function paintStaff() {
     var body = $("meBody"); body.innerHTML = '<div class="x-panel"><div class="x-empty">Загрузка…</div></div>';
     C.call("/admin/users").then(function (us) {
-      body.innerHTML = '<div class="x-two"><div class="x-panel" id="stList">' + us.map(function (u) { return '<div class="x-urow">' + ava(u.name) + "<div><b>" + E(u.name) + "</b><small>" + (POS_TITLE[u.position] || "роль не назначена") + (u.tg ? " · Telegram" : "") + (u.active ? "" : " · отключён") + '</small></div><div class="acts"><button class="x-btn ghost" style="padding:7px 12px" data-pin="' + u.id + '">Сбросить PIN</button><select data-pos="' + u.id + '" style="border:1px solid var(--line);border-radius:10px;padding:6px 8px;background:var(--surface);color:var(--ink)">' + (u.position ? "" : '<option value="">— роль —</option>') + Object.keys(POS_TITLE).map(function (k) { return '<option value="' + k + '"' + (u.position === k ? " selected" : "") + ">" + POS_TITLE[k] + "</option>"; }).join("") + '</select><button class="x-sw ' + (u.active ? "on" : "") + '" data-act="' + u.id + '" title="Доступ"></button></div></div>'; }).join("") + "</div>"
-        + '<div class="x-sticky"><div class="x-panel pad"><h3>Новый сотрудник</h3><p class="x-sub">PIN сообщите сотруднику лично</p><div class="x-field"><label>Имя</label><input type="text" id="nName"></div><div class="x-field"><label>Роль в CRM</label><select id="nPos">' + Object.keys(POS_TITLE).map(function (k) { return '<option value="' + k + '"' + (k === "designer" ? " selected" : "") + ">" + POS_TITLE[k] + "</option>"; }).join("") + '</select></div><div class="x-field"><label>PIN (4–8 цифр)</label><input type="password" id="nPin" inputmode="numeric" maxlength="8"></div><div class="x-err" id="nErr"></div><button class="x-btn primary" id="nAdd">' + ic("plus") + "Добавить</button></div></div></div>";
-      $("nAdd").onclick = function () { C.call("/admin/users", { body: { name: $("nName").value, pin: $("nPin").value, role: $("nPos").value === "owner" ? "admin" : "user", position: $("nPos").value } }).then(function () { toast("Сотрудник добавлен"); paintStaff(); }).catch(function (e) { $("nErr").textContent = String(e); }); };
+      body.innerHTML = '<div class="x-two"><div class="x-panel" id="stList">' + us.map(function (u) { return '<div class="x-urow">' + ava(u.name) + "<div><b>" + E(u.name) + "</b><small>" + (u.role === "admin" ? "руководитель" : "сотрудник") + (u.tg ? " · Telegram" : "") + (u.active ? "" : " · отключён") + '</small></div><div class="acts"><button class="x-btn ghost" style="padding:7px 12px" data-pin="' + u.id + '">Сбросить PIN</button><button class="x-btn ghost" style="padding:7px 12px" data-role="' + u.id + '" data-r="' + u.role + '">' + (u.role === "admin" ? "Сделать сотрудником" : "Сделать руководителем") + '</button><button class="x-sw ' + (u.active ? "on" : "") + '" data-act="' + u.id + '" title="Доступ"></button></div></div>'; }).join("") + "</div>"
+        + '<div class="x-sticky"><div class="x-panel pad"><h3>Новый сотрудник</h3><p class="x-sub">PIN сообщите сотруднику лично</p><div class="x-field"><label>Имя</label><input type="text" id="nName"></div><div class="x-field"><label>PIN (4–8 цифр)</label><input type="password" id="nPin" inputmode="numeric" maxlength="8"></div><div class="x-err" id="nErr"></div><button class="x-btn primary" id="nAdd">' + ic("plus") + "Добавить</button></div></div></div>";
+      $("nAdd").onclick = function () { C.call("/admin/users", { body: { name: $("nName").value, pin: $("nPin").value, role: "user" } }).then(function () { toast("Сотрудник добавлен"); paintStaff(); }).catch(function (e) { $("nErr").textContent = String(e); }); };
       body.querySelectorAll("[data-act]").forEach(function (b) { b.onclick = function () { var on = !b.classList.contains("on"); C.call("/admin/users/" + b.dataset.act + "/active", { body: { active: on } }).then(paintStaff).catch(function (e) { toast(E(e)); }); }; });
-      body.querySelectorAll("[data-pos]").forEach(function (s) { s.onchange = function () { if (!s.value) return; C.call("/admin/users/" + s.dataset.pos + "/position", { body: { position: s.value } }).then(function () { toast("Роль изменена"); paintStaff(); }).catch(function (e) { toast(E(e)); paintStaff(); }); }; });
+      body.querySelectorAll("[data-role]").forEach(function (b) { b.onclick = function () { C.call("/admin/users/" + b.dataset.role + "/role", { body: { role: b.dataset.r === "admin" ? "user" : "admin" } }).then(paintStaff).catch(function (e) { toast(E(e)); }); }; });
       body.querySelectorAll("[data-pin]").forEach(function (b) {
         b.onclick = function () {
           xmodal('<h3>Сбросить PIN</h3><p class="x-sub">Новый PIN сотрудника (4–8 цифр). Он будет разлогинен на всех устройствах.</p><div class="x-field"><input type="password" id="rPin" class="x-pin" inputmode="numeric" maxlength="8"></div><div class="x-err" id="rErr"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="rGo">Сохранить</button></div>');

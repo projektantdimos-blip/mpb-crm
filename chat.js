@@ -1,7 +1,48 @@
 /* Вкладка «Общение»: единая лента Telegram + почта через «мост» (см. bridge/INSTALL.md).
-   Подключается в index.html после основного скрипта. Адрес и ключ моста — в ⚙ (localStorage: ds_bridge). */
+   Подключается в index.html после основного скрипта. Адрес и ключ моста — в ⚙ (localStorage: mpb_bridge). */
 (function () {
   "use strict";
+
+  /* ---------- звук уведомлений (Web Audio; работает, пока приложение открыто) ---------- */
+  var MPBSound = window.MPBSound = (function () {
+    var ctx = null, last = 0;
+    function on() { try { return localStorage.getItem("mpb_sound") !== "0"; } catch (e) { return true; } }
+    function ac() {
+      if (!ctx) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { ctx = new C(); } catch (e) { return null; } }
+      return ctx;
+    }
+    function unlock() {                     // браузер разрешает звук только после первого касания страницы
+      var c = ac(); if (c && c.state === "suspended") c.resume().then(null, function () {});
+    }
+    ["pointerdown", "keydown", "touchstart"].forEach(function (n) { document.addEventListener(n, unlock, { passive: true }); });
+    function tone(c, f, t0, dur, vol) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + dur + 0.05);
+    }
+    function play(force) {
+      if (!force && !on()) return;
+      var now = Date.now();
+      if (!force && now - last < 2000) return;       // push и опрос могут сработать одновременно — один сигнал
+      last = now;
+      var c = ac(); if (!c) return;
+      try {
+        if (c.state === "suspended") c.resume();
+        var t = c.currentTime + 0.01;
+        tone(c, 880, t, 0.22, 0.35); tone(c, 1318, t + 0.16, 0.34, 0.35);
+      } catch (e) {}
+      try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {}
+    }
+    return { play: play, on: on, set: function (v) { try { localStorage.setItem("mpb_sound", v ? "1" : "0"); } catch (e) {} } };
+  })();
+  // service worker сообщает, что пришёл push, а вкладка открыта: сам он звук воспроизвести не может
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", function (e) { if (e.data && e.data.type === "push") MPBSound.play(); });
+  }
+
   var root = document.getElementById("chat-app");
   if (!root) return;
 
@@ -15,8 +56,8 @@
 
   function cfg() {
     try {
-      var c = JSON.parse(localStorage.getItem("ds_bridge") || "{}"), d = window.DS_CONFIG || {};      // адрес и ключ: из настроек браузера или из config.js
-      return { url: String(c.url || d.url || "").replace(/\/+$/, ""), key: c.key || d.key || "" };
+      var c = JSON.parse(localStorage.getItem("mpb_bridge") || "{}");
+      return { url: String(c.url || "").replace(/\/+$/, ""), key: c.key || "" };
     } catch (e) { return { url: "", key: "" }; }
   }
   function esc(s) {
@@ -33,6 +74,24 @@
     var d = new Date(ts * 1000);
     return pad(d.getDate()) + "." + pad(d.getMonth() + 1) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
+  var IC = {
+    clip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
+    vol: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>',
+    mute: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/></svg>',
+    bell: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>',
+    camera: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+    flip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>',
+    done: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>',
+    sent: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    warn: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/></svg>',
+    sort: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>',
+    clip: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 11.1l-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8"/></svg>',
+    unread: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M22 7l-10 7L2 7"/><circle cx="19" cy="5" r="3.2" fill="currentColor" stroke="none"/></svg>'
+  };
   function chInfo(id) { return CH[id] || { label: id, color: "#888" }; }
 
   /* push-уведомления на это устройство: регистрация service worker при загрузке страницы */
@@ -40,18 +99,16 @@
     navigator.serviceWorker.register("sw.js").then(null, function () {});
   }
 
-  function sess() { try { return localStorage.getItem("ds_session") || ""; } catch (e) { return ""; } }
   function api(path, opts) {
     var c = cfg();
     if (!c.url || !c.key) return Promise.reject("NOCFG");
     opts = opts || {};
     return fetch(c.url + path, {
       method: opts.method || "GET", cache: "no-store",
-      headers: { "X-Api-Key": c.key, "X-Session": sess(), "Content-Type": "application/json" },
+      headers: { "X-Api-Key": c.key, "Content-Type": "application/json" },
       body: opts.body ? JSON.stringify(opts.body) : undefined
     }).then(function (r) {
-      if (r.status === 401) throw "Нужно войти (сессия истекла) или неверный ключ моста — проверьте ⚙";
-      if (r.status === 403) throw "Переписка с заказчиками доступна отделу продаж и операционному менеджеру";
+      if (r.status === 401) throw "Неверный ключ моста — проверьте ⚙";
       if (!r.ok) {
         return r.json().then(function (j) { return j; }, function () { return {}; }).then(function (j) {
           throw (j && j.detail) ? String(j.detail) : ("Ошибка сервера " + r.status);
@@ -118,36 +175,6 @@
     ".chat-wrap .chat-thread{display:none}.chat-wrap.has-sel .chat-list{display:none}.chat-wrap.has-sel .chat-thread{display:flex}" +
     "#chatHead .back{display:block}}";
   document.head.appendChild(css);
-  var css2 = document.createElement("style");
-  css2.textContent =
-    ".chat-box{display:flex;gap:6px;margin-bottom:8px}.chat-box button{flex:1;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:10px;padding:7px 8px;font:inherit;font-weight:600;cursor:pointer}" +
-    ".chat-box button.on{background:var(--blue);border-color:var(--blue);color:#fff}.chat-box button{white-space:nowrap;font-size:.84rem;padding:7px 4px}" +
-    "#chatHead{flex-wrap:wrap}#chat-app #chatHead .hmain{flex:0 1 auto;min-width:120px}#chatHead .chat-pill{margin-left:auto}" +
-    ".chat-new{width:100%;height:42px;margin-bottom:10px;border:0;border-radius:12px;background:linear-gradient(135deg,var(--blue),#1f5c99);color:#fff;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(31,92,153,.25)}" +
-    ".chat-tools .chat-chips{margin:0 0 8px}" +
-    "#chat-app #chatHead .chat-infobtn{width:auto!important;min-width:0;height:32px;padding:0 12px!important;display:inline-flex;align-items:center;white-space:nowrap;font-size:.8rem;font-weight:700;color:var(--blue)}" +
-    "@media(min-width:1181px){#chat-app #chatHead .chat-infobtn{display:none!important}}" +
-    ".cm .fl{flex-direction:row;flex-wrap:wrap;gap:10px}" +
-    ".cm .cf.tile{flex-direction:column;align-items:center;gap:4px;width:132px;padding:10px 8px 8px;border-radius:14px;text-align:center;background:var(--card);border:1px solid var(--line);transition:.12s}" +
-    ".cm .cf.tile:hover{border-color:var(--blue);box-shadow:0 6px 16px rgba(31,92,153,.18);transform:translateY(-1px)}" +
-    ".cm .cf.tile .ti{display:grid;place-items:center;width:100%;height:78px;border-radius:10px;background:linear-gradient(160deg,var(--blue-l),var(--bg))}" +
-    ".cm .cf.tile .ti img{width:100%;height:78px;object-fit:cover;border-radius:10px}" +
-    ".cm .cf.tile .tn{display:block;width:100%;font-size:.78rem;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
-    ".cm .cf.tile .sz{margin:0;font-size:.7rem;color:var(--muted)}" +
-    "#chat-app #chatHead .chat-taskbtn{flex:none;display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--blue),#1f5c99);color:#fff;font:inherit;font-size:.82rem;font-weight:700;white-space:nowrap;cursor:pointer;box-shadow:0 4px 12px rgba(31,92,153,.25)}" +
-    "#chat-app #chatHead .chat-taskbtn:hover{filter:brightness(1.1)}#chat-app #chatHead .chat-taskbtn span{display:inline;color:#fff}" +
-    ".chat-handbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:40px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}" +
-    ".chat-handbtn:hover{border-color:var(--blue);color:var(--blue)}" +
-    ".ct{padding-left:4px}.ct .udot{width:20px;flex:none;align-self:center;display:grid;place-items:center;cursor:pointer;height:38px}" +
-    ".ct .udot i{width:10px;height:10px;border-radius:50%;border:2px solid transparent;transition:.12s}" +
-    ".ct .udot.on i{background:var(--blue);border-color:var(--blue)}" +
-    ".ct:hover .udot:not(.on) i{border-color:var(--blue)}" +
-    ".ct .asg{background:#fdf0e9;color:#c96a2c;border-radius:8px;padding:0 7px;font-size:.72rem;font-weight:700;line-height:20px;flex:none;white-space:nowrap}" +
-    ".chat-wrap{position:relative}" +
-    ".chat-wrap.drop::after{content:\"Отпустите файл, чтобы прикрепить к ответу\";position:absolute;inset:0;display:grid;place-items:center;background:rgba(31,92,153,.12);border:3px dashed var(--blue);border-radius:12px;font-weight:700;color:var(--blue);z-index:5;pointer-events:none}" +
-    "#chatAssign:not(:empty){padding:7px 14px;background:var(--blue-l);border-bottom:1px solid var(--line);font-size:.84rem}" +
-    "#chatHead .hbtn.wide{width:auto;padding:0 10px;font-weight:600;font-size:.82rem;white-space:nowrap}";
-  document.head.appendChild(css2);
 
   /* ---------- каркас ---------- */
   function buildSetup() {
@@ -161,17 +188,17 @@
 
   function build() {
     root.innerHTML =
-      '<header class="top"><div class="brand"><div><h1>Общение с заказчиками</h1><p>Почта, Telegram и MAX — в одном окне, с привязкой к заказчикам и задачам</p></div></div></header>' +
+      '<header class="top"><div class="brand"><div><h1>Общение с клиентами</h1><p>Почта, Telegram и Max — в одном окне, с привязкой к клиентам и задачам</p></div></div></header>' +
       '<div id="chatBanner"></div>' +
       '<div class="chat-wrap" id="chatWrap">' +
-        '<aside class="chat-list"><div class="chat-tools"><button type="button" id="chatNew" class="chat-new">＋ Новое сообщение</button><div class="chat-box" id="chatBox"></div>' +
-        '<div class="chat-chips" id="chatChips"></div><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
+        '<aside class="chat-list"><div class="chat-tools"><button type="button" id="chatNew" class="chat-new">' + IC.plus + 'Новое сообщение</button><div class="chat-chips" id="chatChips"></div><input id="chatQ" type="search" placeholder="Поиск по имени и тексту">' +
         '<div class="chat-sync"><span id="chatSyncT">Загрузка…</span><span class="right">' +
-        '<button type="button" id="chatPush" title="Уведомления на этом устройстве">🔔</button>' +
-        '<button type="button" id="chatRefresh" title="Обновить сейчас">⟳</button></span></div></div>' +
+        '<button type="button" id="chatSound" class="ibtn" title="Звук новых сообщений"></button>' +
+        '<button type="button" id="chatPush" class="ibtn" title="Уведомления на этом устройстве">' + IC.bell + '</button>' +
+        '<button type="button" id="chatRefresh" class="ibtn" title="Обновить сейчас">' + IC.refresh + '</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
-        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">📎</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
+        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">' + IC.clip + '</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
         '<aside class="chat-info" id="chatInfoPane"></aside>' +
       '</div>';
     el.banner = document.getElementById("chatBanner");
@@ -182,139 +209,117 @@
     el.info = document.getElementById("chatInfoPane");
     el.msgs = document.getElementById("chatMsgs");
     el.text = document.getElementById("chatText");
+    if (window.innerWidth <= 760) el.text.placeholder = "Сообщение…";
     el.send = document.getElementById("chatSend");
     el.q = document.getElementById("chatQ");
     el.chips = document.getElementById("chatChips");
     el.q.oninput = function () { st.q = el.q.value.trim().toLowerCase(); renderThreads(); };
     el.send.onclick = sendMsg;
     el.fileBar = document.getElementById("chatFileBar");
-    el.box = document.getElementById("chatBox");
-    el.wrap.addEventListener("dragover", function (e) {          // перенос файла в окно переписки
-      var dt = e.dataTransfer;
-      if (st.sel && dt && Array.prototype.indexOf.call(dt.types || [], "Files") >= 0) { e.preventDefault(); el.wrap.classList.add("drop"); }
-    });
-    el.wrap.addEventListener("dragleave", function (e) { if (!el.wrap.contains(e.relatedTarget)) el.wrap.classList.remove("drop"); });
-    el.wrap.addEventListener("drop", function (e) {
-      el.wrap.classList.remove("drop");
-      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!f) return;
-      e.preventDefault();
-      if (!st.sel) { setErr("Сначала выберите диалог слева"); return; }
-      if (f.size > 10 * 1024 * 1024) { setErr("Файл больше 10 МБ"); return; }
-      st.file = f; showFileBar(); setErr("");
-    });
     var fileIn = document.getElementById("chatFile");
     document.getElementById("chatAttach").onclick = function () { fileIn.click(); };
-    fileIn.onchange = function () {
-      var f = fileIn.files && fileIn.files[0]; fileIn.value = "";
-      if (!f) return;
-      if (f.size > 10 * 1024 * 1024) { setErr("Файл больше 10 МБ"); return; }
-      st.file = f; showFileBar(); setErr("");
+    fileIn.multiple = true;
+    fileIn.onchange = function () { addFiles(fileIn.files); fileIn.value = ""; };
+    el.fileBar.onclick = function (e) {
+      var x = e.target.getAttribute && e.target.getAttribute("data-x");
+      if (x !== null && x !== undefined) { st.files.splice(+x, 1); showFileBar(); }
     };
-    el.fileBar.onclick = function (e) { if (e.target.getAttribute && e.target.getAttribute("data-x")) { st.file = null; showFileBar(); } };
+    // перетаскивание файлов в диалог и вставка из буфера
+    var thr = document.querySelector(".chat-thread"), depth = 0;
+    function hasFiles(e) { var t = e.dataTransfer && e.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, "Files") >= 0; }
+    thr.addEventListener("dragenter", function (e) { if (!hasFiles(e)) return; e.preventDefault(); depth++; thr.classList.add("drop"); });
+    thr.addEventListener("dragover", function (e) { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+    thr.addEventListener("dragleave", function (e) { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) thr.classList.remove("drop"); });
+    thr.addEventListener("drop", function (e) {
+      if (!hasFiles(e)) return;
+      e.preventDefault(); depth = 0; thr.classList.remove("drop");
+      addFiles(e.dataTransfer.files);
+    });
+    el.text.addEventListener("paste", function (e) {
+      var fl = e.clipboardData && e.clipboardData.files;
+      if (fl && fl.length) { e.preventDefault(); addFiles(fl); }
+    });
+    // браузер по умолчанию открывает бросок мимо поля как файл — гасим это на странице чата
+    ["dragover", "drop"].forEach(function (n) {
+      window.addEventListener(n, function (e) { if (inChat() && hasFiles(e) && !thr.contains(e.target)) e.preventDefault(); });
+    });
     document.getElementById("chatRefresh").onclick = function () { refreshNow(); };
-    document.getElementById("chatNew").onclick = function () { newMessageDialog(); };
+    document.getElementById("chatNew").onclick = newDialog;
     document.getElementById("chatPush").onclick = togglePush;
+    var sndBtn = document.getElementById("chatSound");
+    function paintSnd() { sndBtn.innerHTML = MPBSound.on() ? IC.vol : IC.mute; sndBtn.title = MPBSound.on() ? "Звук включён — нажмите, чтобы выключить" : "Звук выключен — нажмите, чтобы включить"; }
+    sndBtn.onclick = function () { MPBSound.set(!MPBSound.on()); paintSnd(); if (MPBSound.on()) MPBSound.play(true); };
+    paintSnd();
     showSync();
     refreshPushBtn();
     el.msgs.onclick = function (e) {
+      var d = e.target.closest ? e.target.closest(".mdel") : null;
+      if (d) {
+        if (!confirm("Убрать это сообщение из CRM?\n\nУ получателя (в почте или Telegram) оно останется.")) return;
+        api("/api/messages/" + d.getAttribute("data-mid") + "/delete", { method: "POST" }).then(function () {
+          return Promise.all([loadMessages(true), loadThreads()]);
+        }).then(null, function (er) { setErr(String(er)); });
+        return;
+      }
       var b = e.target.closest ? e.target.closest(".cf") : null;
       if (b) openFile(b.getAttribute("data-fid"), b.getAttribute("data-name"), b.getAttribute("data-mime"));
     };
+    el.text.addEventListener("input", growText);
     el.text.onkeydown = function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMsg(); } };
     st.built = true;
-    renderBox(); renderChips(); renderThreads(); renderThread();
+    renderChips(); renderThreads(); renderThread();
   }
 
-  /* «Передать специалисту»: кому передан диалог (список с сервера, новые первыми) */
+  /* ---------- передача писем сотрудникам (нужен вход в CRM) ---------- */
   st.assign = [];
-  st.box = "all";
-  var POSN = { owner: "Руководитель", design: "Руководитель проектного отдела", sales: "Руководитель отдела продаж", ops: "Операционный менеджер", acc: "Бухгалтер", designer: "Проектировщик" };
   function crmOn() { return !!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn() && MPBC.me); }
-  function me() { return window.MPBC && MPBC.me ? MPBC.me : null; }
-  function myPos() { var m = me(); return m ? (m.position || (m.role === "admin" ? "owner" : "")) : ""; }
-  function lastAssign(tid) { for (var i = 0; i < st.assign.length; i++) if (st.assign[i].thread_id === tid) return st.assign[i]; return null; }
-  function myOpen() { var m = me(); return m ? st.assign.filter(function (a) { return a.to_id === m.id; }) : []; }
+  function myOpen() { return crmOn() ? st.assign.filter(function (a) { return a.user_id === MPBC.me.id && a.status === "open"; }) : []; }
+  function assignsFor(tid) { return st.assign.filter(function (a) { return a.thread_id === tid && a.status === "open"; }); }
   function assignPill(t) {
-    var a = lastAssign(t.id);
-    return a ? '<span class="asg" title="Передан: ' + esc(a.to_name) + (a.note ? " — " + esc(a.note) : "") + '">→ ' + esc(a.to_name) + "</span>" : "";
+    var l = assignsFor(t.id); if (!l.length) return "";
+    return '<span class="as-pill" title="Передано: ' + esc(l.map(function (a) { return a.user; }).join(", ")) + '">→ ' + esc(l[0].user) + (l.length > 1 ? " +" + (l.length - 1) : "") + "</span>";
   }
   function loadAssign() {
-    if (!crmOn()) return Promise.resolve();
-    return api("/api/ds/handoff").then(function (l) { st.assign = l || []; if (st.built) { renderBox(); renderThreads(); renderAssign(); } }, function () {});
+    if (!crmOn()) { if (st.assign.length) { st.assign = []; } return Promise.resolve(); }
+    return MPBC.call("/mail/assignments?status=open").then(function (l) { st.assign = l; if (st.built) { renderChips(); renderThreads(); renderAssign(); } }).catch(function () {});
   }
   function renderAssign() {
     if (!el.assign) return;
-    var t = curThread(), a = t ? lastAssign(t.id) : null;
-    el.assign.innerHTML = a ? "Передан специалисту: <b>" + esc(a.to_name) + "</b>" + (a.by_name ? " · от " + esc(a.by_name) : "") + (a.note ? " · «" + esc(a.note) + "»" : "") : "";
+    var t = curThread(), l = t ? assignsFor(t.id) : [];
+    el.assign.innerHTML = l.map(function (a) {
+      return '<div class="as-bar"><span>📨 Передано: <b>' + esc(a.user) + "</b>" + (a.by_name ? " · от " + esc(a.by_name) : " · автоматически") + (a.note ? " — " + esc(a.note) : "") + '</span><button class="hbtn" data-done="' + a.id + '">Готово</button></div>';
+    }).join("");
+    Array.prototype.forEach.call(el.assign.querySelectorAll("[data-done]"), function (b) {
+      b.onclick = function () { MPBC.call("/mail/assignments/" + b.getAttribute("data-done") + "/done", { body: { done: true } }).then(loadAssign).catch(function (e) { alert(String(e)); }); };
+    });
   }
-  function renderBox() {
-    if (!el.box) return;
-    var n = myOpen().length;
-    el.box.innerHTML = '<button data-b="all" class="' + (st.box === "all" ? "on" : "") + '">Все диалоги</button><button data-b="mine" class="' + (st.box === "mine" ? "on" : "") + '">Мне передали' + (n ? " · " + n : "") + "</button>";
-    Array.prototype.forEach.call(el.box.querySelectorAll("button"), function (b) { b.onclick = function () { st.box = b.getAttribute("data-b"); renderBox(); renderThreads(); }; });
-  }
-  function handoffDialog(t) {
-    api("/api/ds/handoff/targets").then(function (list) {
-      var bg = document.createElement("div");
-      bg.style.cssText = "position:fixed;inset:0;background:rgba(10,20,35,.5);z-index:400;display:grid;place-items:center;padding:16px";
-      var def = list.filter(function (u) { return u.position === "design"; })[0] || list[0];
-      var fld = "width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px;background:var(--card);color:var(--ink);font:inherit";
-      bg.innerHTML = '<div style="background:var(--card,#fff);color:var(--ink);border-radius:16px;padding:20px 22px;width:min(460px,100%);box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
-        '<h3 style="margin:0 0 4px">Передать специалисту</h3><p style="margin:0 0 12px;color:var(--muted);font-size:.88rem">Диалог «' + esc(t.title || t.peer) + '» откроется сотруднику, ему поставится задача в «Мои задачи» и придёт уведомление.</p>' +
-        '<label style="font-size:.8rem;color:var(--muted)">Кому</label><select id="hdTo" style="' + fld + '">' + list.map(function (u) { return '<option value="' + u.id + '"' + (def && u.id === def.id ? " selected" : "") + ">" + esc(u.name) + " — " + esc(POSN[u.position] || u.position || "") + "</option>"; }).join("") + "</select>" +
-        '<label style="font-size:.8rem;color:var(--muted)">Что нужно сделать</label><textarea id="hdNote" rows="3" placeholder="Например: позвонить заказчику, уточнить объём" style="' + fld + '"></textarea>' +
-        '<div id="hdErr" style="color:var(--bad);min-height:18px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button id="hdCancel" style="padding:9px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;cursor:pointer;font:inherit">Отмена</button>' +
-        '<button id="hdGo" style="padding:9px 18px;border:0;background:var(--blue);color:#fff;border-radius:10px;cursor:pointer;font:inherit;font-weight:600">Передать</button></div></div>';
-      document.body.appendChild(bg);
-      var close = function () { bg.remove(); };
-      bg.onclick = function (e) { if (e.target === bg) close(); };
-      bg.querySelector("#hdCancel").onclick = close;
-      bg.querySelector("#hdGo").onclick = function () {
-        var btn = this; btn.disabled = true;
-        api("/api/ds/threads/" + encodeURIComponent(t.id) + "/handoff", { method: "POST", body: { user_id: +bg.querySelector("#hdTo").value, note: bg.querySelector("#hdNote").value } })
-          .then(function (r) { close(); setErr(""); loadAssign(); if (window.MPBT && MPBT.toast) MPBT.toast("Передано: " + r.to); }, function (e) { btn.disabled = false; bg.querySelector("#hdErr").textContent = String(e); });
+  function assignDialog(t) {
+    if (!crmOn()) { alert("Войдите в «Личном кабинете», чтобы передавать письма сотрудникам"); return; }
+    var U = window.MPBT && MPBT.util; if (!U) return;
+    var lastIn = null; for (var i = st.msgs.length - 1; i >= 0; i--) { if (st.msgs[i].direction === "in") { lastIn = st.msgs[i]; break; } }
+    MPBC.call("/people").then(function (people) {
+      var others = people.filter(function (p) { return p.id !== MPBC.me.id; });
+      var v = U.xmodal('<h3>Передать сотруднику</h3><p class="x-sub">' + esc(t.title || t.peer) + (lastIn && lastIn.subject ? " · " + esc(lastIn.subject) : "") + '</p>'
+        + '<div class="x-field"><label>Кому</label><select id="asTo">' + others.map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + (p.title ? " — " + esc(p.title) : "") + "</option>"; }).join("") + '</select></div>'
+        + '<div class="x-field"><label>Что нужно сделать</label><input id="asNote" maxlength="300" placeholder="Например: оплатить счёт до пятницы"></div><div class="x-err" id="asErr"></div>'
+        + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="asGo">Передать</button></div>');
+      document.getElementById("asGo").onclick = function () {
+        MPBC.call("/mail/assign", { body: { thread_id: t.id, user_id: +document.getElementById("asTo").value, note: document.getElementById("asNote").value, message_id: lastIn ? lastIn.id : 0 } })
+          .then(function (r) { MPBT.closeModal(); U.toast(r.already ? "Уже передано этому сотруднику" : "Передано"); loadAssign(); })
+          .catch(function (e) { document.getElementById("asErr").textContent = String(e); });
       };
-    }, function (e) { setErr(String(e)); });
-  }
-  window.__chatHandoff = function () { var t = curThread(); if (t) handoffDialog(t); };
-  function newMessageDialog() {
-    var bg = document.createElement("div");
-    bg.style.cssText = "position:fixed;inset:0;background:rgba(10,20,35,.5);z-index:400;display:grid;place-items:center;padding:16px";
-    var fld = "width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;margin:4px 0 10px;background:var(--card);color:var(--ink);font:inherit";
-    bg.innerHTML = '<div style="background:var(--card,#fff);color:var(--ink);border-radius:16px;padding:20px 22px;width:min(480px,100%);box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
-      '<h3 style="margin:0 0 10px">Новое сообщение</h3>' +
-      '<label style="font-size:.8rem;color:var(--muted)">Канал</label><select id="nmCh" style="' + fld + '"><option value="mail">Почта</option><option value="tg">Telegram</option></select>' +
-      '<label style="font-size:.8rem;color:var(--muted)" id="nmToL">E-mail получателя</label><input id="nmTo" placeholder="client@company.ru" style="' + fld + '">' +
-      '<div id="nmSubW"><label style="font-size:.8rem;color:var(--muted)">Тема</label><input id="nmSub" placeholder="Тема письма" style="' + fld + '"></div>' +
-      '<label style="font-size:.8rem;color:var(--muted)">Сообщение</label><textarea id="nmText" rows="5" style="' + fld + '"></textarea>' +
-      '<div id="nmErr" style="color:var(--bad);min-height:18px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px"><button id="nmCancel" style="padding:9px 16px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;cursor:pointer;font:inherit">Отмена</button>' +
-      '<button id="nmGo" style="padding:9px 18px;border:0;background:var(--blue);color:#fff;border-radius:10px;cursor:pointer;font:inherit;font-weight:600">Отправить</button></div></div>';
-    document.body.appendChild(bg);
-    var close = function () { bg.remove(); };
-    bg.onclick = function (e) { if (e.target === bg) close(); };
-    bg.querySelector("#nmCancel").onclick = close;
-    bg.querySelector("#nmCh").onchange = function () {
-      var mail = this.value === "mail";
-      bg.querySelector("#nmToL").textContent = mail ? "E-mail получателя" : "Telegram: @имя или телефон +7…";
-      bg.querySelector("#nmTo").placeholder = mail ? "client@company.ru" : "@username или +79991234567";
-      bg.querySelector("#nmSubW").style.display = mail ? "" : "none";
-    };
-    bg.querySelector("#nmGo").onclick = function () {
-      var btn = this, body = { channel: bg.querySelector("#nmCh").value, to: bg.querySelector("#nmTo").value, subject: bg.querySelector("#nmSub").value, text: bg.querySelector("#nmText").value };
-      btn.disabled = true; btn.textContent = "Отправка…";
-      api("/api/threads/new", { method: "POST", body: body }).then(function (r) {
-        close(); setErr("");
-        return loadThreads().then(function () { if (r && r.id) openThread(r.id); });
-      }, function (e) { btn.disabled = false; btn.textContent = "Отправить"; bg.querySelector("#nmErr").textContent = String(e); });
-    };
+    }).catch(function (e) { alert(String(e)); });
   }
 
   function renderChips() {
-    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "MAX"], ["mail", "Почта"]];
-    el.chips.innerHTML = items.map(function (i) {
-      return '<button data-f="' + i[0] + '" class="' + (st.filter === i[0] ? "on" : "") + '">' + i[1] + "</button>";
-    }).join("");
+    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
+    var seg = crmOn()
+      ? '<div class="seg"><button data-f="all" class="' + (mine ? "" : "on") + '">Все диалоги</button>' +
+        '<button data-f="mine" class="' + (mine ? "on" : "") + '">' + IC.sort + 'Мне передали' + (n ? '<b class="cnt">' + n + "</b>" : "") + "</button></div>"
+      : "";
+    el.chips.innerHTML = seg + '<div class="chs' + (mine ? " dim" : "") + '">' + items.map(function (i) {
+      return '<button data-f="' + i[0] + '" class="' + (!mine && st.filter === i[0] ? "on" : "") + '">' + i[1] + "</button>";
+    }).join("") + "</div>";
     Array.prototype.forEach.call(el.chips.querySelectorAll("button"), function (b) {
       b.onclick = function () { st.filter = b.getAttribute("data-f"); renderChips(); renderThreads(); };
     });
@@ -322,8 +327,9 @@
 
   function visibleThreads() {
     return st.threads.filter(function (t) {
-      if (st.box === "mine" && !myOpen().some(function (a) { return a.thread_id === t.id; })) return false;
-      if (st.filter !== "all" && t.channel !== st.filter) return false;
+      if (st.filter === "mine") { if (!myOpen().some(function (a) { return a.thread_id === t.id; })) return false; }
+      else if (st.filter === "done") { if (!t.done) return false; }
+      else if (st.filter !== "all" && t.channel !== st.filter) return false;
       if (st.q && (t.title + " " + t.last_text + " " + t.peer).toLowerCase().indexOf(st.q) < 0) return false;
       return true;
     });
@@ -337,33 +343,29 @@
     }
     el.threads.innerHTML = list.map(function (t) {
       var ci = chInfo(t.channel), ini = (t.title || "?").trim().charAt(0).toUpperCase(), av = avUrl(t);
-      return '<div class="ct' + (t.id === st.sel ? " on" : "") + '" data-id="' + esc(t.id) + '">' +
-        '<span class="udot' + (t.unread ? " on" : "") + '" title="' + (t.unread ? "Отметить прочитанным" : "Отметить непрочитанным") + '"><i></i></span>' +
+      return '<div class="ct' + (t.id === st.sel ? " on" : "") + (t.unread ? " is-un" : "") + (t.done ? " is-done" : "") + '" data-id="' + esc(t.id) + '">' +
+        '<button type="button" class="udot' + (t.unread ? " on" : "") + '" data-u="' + esc(t.id) + '" title="' + (t.unread ? "Отметить прочитанным" : "Отметить непрочитанным") + '" aria-label="Непрочитано"></button>' +
         '<div class="ava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
-        '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + "</span></div>" +
+        '<div class="mid"><div class="r1"><span class="nm">' + esc(t.title || t.peer) + '</span><span class="tm">' + fmtTime(t.last_ts) + '</span><button type="button" class="dchk' + (t.done ? " on" : "") + '" data-dn="' + esc(t.id) + '" title="' + (t.done ? "Отработано — нажмите, чтобы снять отметку" : "Отметить отработанным") + '" aria-label="Отработано">' + IC.done + "</button></div>" +
         '<div class="r2"><span class="pv">' + esc(t.last_text) + "</span>" + assignPill(t) + (t.unread ? '<span class="un">' + t.unread + "</span>" : "") + "</div></div></div>";
     }).join("");
+    Array.prototype.forEach.call(el.threads.querySelectorAll(".dchk"), function (b) {
+      b.onclick = function (e) { e.stopPropagation(); toggleDone(b.getAttribute("data-dn")); };
+    });
+    Array.prototype.forEach.call(el.threads.querySelectorAll(".udot"), function (b) {
+      b.onclick = function (e) { e.stopPropagation(); toggleUnread(b.getAttribute("data-u")); };
+    });
     Array.prototype.forEach.call(el.threads.querySelectorAll(".ct"), function (d) {
       d.onclick = function () { openThread(d.getAttribute("data-id")); };
-    });
-    Array.prototype.forEach.call(el.threads.querySelectorAll(".udot"), function (dot) {      // синяя точка: прочитано / непрочитано
-      dot.onclick = function (e) {
-        e.stopPropagation();
-        var id = dot.parentNode.getAttribute("data-id"), t = st.threads.filter(function (x) { return x.id === id; })[0];
-        if (!t) return;
-        var wasUnread = !!t.unread;
-        t.unread = wasUnread ? 0 : 1; renderThreads(); applyBadge();
-        api("/api/threads/" + encodeURIComponent(id) + (wasUnread ? "/read" : "/unread"), { method: "POST" }).then(null, function () { t.unread = wasUnread ? 1 : 0; renderThreads(); applyBadge(); });
-      };
     });
     el.threads.scrollTop = keep;
   }
 
   /* режим «перевернуть письма»: блоки текста (разделённые пустой строкой) идут в обратном порядке */
   function flipOn() {
-    try { return localStorage.getItem("ds_chat_flip") !== "0"; } catch (e) { return true; }
+    try { return localStorage.getItem("mpb_chat_flip") !== "0"; } catch (e) { return true; }
   }
-  function setFlip(on) { try { localStorage.setItem("ds_chat_flip", on ? "1" : "0"); } catch (e) {} }
+  function setFlip(on) { try { localStorage.setItem("mpb_chat_flip", on ? "1" : "0"); } catch (e) {} }
   function flipBlocks(text) {
     var blocks = String(text || "").replace(/\r/g, "").split(/\n[ \t]*\n+/).map(function (b) { return b.replace(/^\n+|\n+$/g, ""); })
       .filter(function (b) { return b.trim() !== ""; });
@@ -390,20 +392,15 @@
     el.head.innerHTML = '<button class="back" id="chatBack" title="К списку">←</button>' +
       '<div class="hava" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div>" +
       '<div class="hmain"><b>' + esc(t.title || t.peer) + "</b><small>" + esc(t.peer) + "</small></div>" +
-      (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма (сверху вниз)") + '"' +
-        (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">⇅</button>" : "") +
-      '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">📷</button>' +
-      (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") +
-      (myPos() !== "design" && myPos() !== "acc" ? '<button class="chat-taskbtn" id="chatTask" title="Поставить задачу по конвейеру или сотруднику по этому диалогу"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Задача по конвейеру</span></button>' : "") +
-      '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Заказчик, создание заказчика и КП">Заказчик · КП</button>' +
+      '<span class="hacts"><button class="hbtn hdone' + (t.done ? " on" : "") + '" id="chatDone" title="' + (t.done ? "Отработано — снять отметку" : "Отметить отработанным") + '">' + IC.done + "</button>" + (t.channel === "mail" ? '<button class="hbtn" id="chatFlip" title="' + (flipOn() ? "Показать письма в обычном порядке" : "Перевернуть порядок частей письма") + '"' +
+        (flipOn() ? ' style="border-color:var(--blue);color:var(--blue)"' : "") + ">" + IC.flip + "</button>" : "") +
+      '<button class="hbtn" id="chatAv" title="Загрузить фото собеседника">' + IC.camera + "</button>" +
+      (t.avatar_ts ? '<button class="hbtn" id="chatAvDel" title="Убрать фото">✕</button>' : "") + "</span>" +
+      '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Клиент, создание клиента и КП">Клиент · КП</button>' +
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>';
     document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
-    var tb = document.getElementById("chatTask");
-    if (tb) tb.onclick = function () {
-      if (window.DS && DS.newTask) DS.newTask({ step: "a2", thread_id: t.id, thread_title: t.title || t.peer });
-      else setErr("Раздел задач ещё не загрузился — обновите страницу");
-    };
+    document.getElementById("chatDone").onclick = function () { toggleDone(t.id); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
     renderAssign();
@@ -420,46 +417,53 @@
       if (flip && m.direction === "in") {
         // «перевёрнутое» письмо: подпись/ссылки сверху, затем текст, тема внизу
         return '<div class="cm in">' + esc(flipBlocks(m.text)) + filesHtml(m.files) + subj +
-          '<div class="mt">' + fmtFull(m.ts) + "</div></div>";
+          '<div class="mt">' + fmtFull(m.ts) + delBtn(m) + "</div></div>";
       }
       return '<div class="cm ' + (m.direction === "out" ? "out" : "in") + '">' +
         subj + esc(m.text) + filesHtml(m.files) +
-        '<div class="mt">' + fmtFull(m.ts) + "</div></div>";
+        '<div class="mt">' + fmtFull(m.ts) + (m.direction === "out" ? ' <span class="sent" title="Отправлено">' + IC.sent + "</span>" : "") + delBtn(m) + "</div></div>";
+    }).join("") + (st.pending[t.id] || []).map(function (p, i) {
+      return '<div class="cm out pend ' + p.state + '">' + esc(p.text) + (p.files ? '<div class="pf">' + esc(p.files) + "</div>" : "") +
+        '<div class="mt">' + (p.state === "failed"
+          ? '<span class="fail">' + IC.warn + " Не отправлено" + (p.err ? ": " + esc(p.err) : "") + '</span> <button type="button" class="pdel" data-pi="' + i + '">Убрать</button>'
+          : '<span class="wait">' + IC.clock + " Отправляется…</span>") + "</div></div>";
     }).join("");
-    loadThumbs();
+    Array.prototype.forEach.call(el.msgs.querySelectorAll(".pdel"), function (b) {
+      b.onclick = function () { (st.pending[t.id] || []).splice(+b.getAttribute("data-pi"), 1); renderThread(true); };
+    });
     if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
   }
 
-  /* ---------- правая панель: заказчик, связанные дела, быстрые действия (как в макете) ---------- */
+  /* ---------- правая панель: клиент, связанные дела, быстрые действия (как в макете) ---------- */
   function ic2(n) { return window.icon ? window.icon(n) : ""; }
   var infoKey = "";
   function renderInfo(t) {
     if (!el.info) return;
     if (!t) { el.info.innerHTML = '<div class="chat-empty">Выберите диалог слева</div>'; return; }
     var ci = chInfo(t.channel), av = avUrl(t), ini = (t.title || "?").trim().charAt(0).toUpperCase(), name = t.title || t.peer;
-    if (window.MPBD && MPBD.render) {                              // боковая панель с вкладками: заказчик / создать заказчика / КП
-      var plane = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>';
+    if (window.MPBD && MPBD.render) {                              // боковая панель с вкладками: клиент / создать клиента / КП
       el.info.innerHTML = '<button class="cp-close" id="cpClose">← К диалогу</button><div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
-        (myPos() !== "design" ? '<button type="button" class="chat-handbtn" id="chatHand2">' + plane + "Передать специалисту</button>" : "") +
-        '<div id="chatPanel"></div>';
+        (crmOn() ? '<button class="x-btn ghost cp-w" id="qaAssign">' + ic2("send") + 'Передать сотруднику</button>' : "") + '<div id="chatPanel"></div>';
       document.getElementById("cpClose").onclick = function () { el.wrap.classList.remove("show-info"); };
-      var h2 = document.getElementById("chatHand2"); if (h2) h2.onclick = function () { handoffDialog(t); };
+      var qa0 = document.getElementById("qaAssign"); if (qa0) qa0.onclick = function () { assignDialog(t); };
       MPBD.render(document.getElementById("chatPanel"), t, name);
       return;
     }
     el.info.innerHTML = '<div class="who"><div class="hava big" style="' + avStyle(ci, av) + '">' + (av ? "" : esc(ini)) + "</div><b>" + esc(name) + '</b><div class="sub">' + esc(t.peer) + '</div><span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span></div>" +
-      '<div><h6>Заказчик</h6><div id="chatCl"><div class="chat-empty" style="padding:8px">Ищу в задачах и заявках…</div></div></div>' +
+      '<div><h6>Клиент</h6><div id="chatCl"><div class="chat-empty" style="padding:8px">Ищу в задачах и заявках…</div></div></div>' +
       '<div><h6>Быстрые действия</h6>' +
       '<a class="linkcard" id="qaKp">' + ic2("file") + "<span><b>Создать КП</b><small>по шаблону или с нуля</small></span></a>" +
-      '<a class="linkcard" id="qaNew">' + ic2("plus") + "<span><b>Создать заказчика</b><small>заявка в реестре КП</small></span></a>" +
+      '<a class="linkcard" id="qaNew">' + ic2("plus") + "<span><b>Создать клиента</b><small>заявка в реестре КП</small></span></a>" +
+      (crmOn() ? '<a class="linkcard" id="qaAssign">' + ic2("send") + "<span><b>Передать сотруднику</b><small>письмо или диалог целиком</small></span></a>" : "") +
       "</div>";
-    var open = function (fn) { return function () { if (window.MPBK && MPBK[fn]) MPBK[fn](name, t.peer, t.id); else alert("Раздел «Заказчикы» не загружен — обновите страницу"); }; };
+    var open = function (fn) { return function () { if (window.MPBK && MPBK[fn]) MPBK[fn](name, t.peer, t.id); else alert("Раздел «Клиенты» не загружен — обновите страницу"); }; };
     document.getElementById("qaKp").onclick = open("forThread");
     document.getElementById("qaNew").onclick = open("createClient");
+    var qa = document.getElementById("qaAssign"); if (qa) qa.onclick = function () { assignDialog(t); };
     var key = t.id; infoKey = key;
     if (window.MPBK && MPBK.summary) MPBK.summary(name, t.peer).then(function (r) {
       var box = document.getElementById("chatCl"); if (!box || infoKey !== key) return;
-      if (!r) { box.innerHTML = '<div class="chat-empty" style="padding:10px 4px;text-align:left">Заказчик не найден в задачах и заявках. Нажмите «Создать заказчика», и его карточка появится в разделе «Заказчикы».</div>'; return; }
+      if (!r) { box.innerHTML = '<div class="chat-empty" style="padding:10px 4px;text-align:left">Клиент не найден в задачах и заявках. Нажмите «Создать клиента», и его карточка появится в разделе «Клиенты».</div>'; return; }
       var c = r.c, h = '<a class="linkcard" data-go="#/clients/' + encodeURIComponent(c.key) + '"><span class="cl-mini">' + esc((c.name || "?").charAt(0)) + "</span><span><b>" + esc(c.name) + "</b><small>" + c.open.length + " в работе · заявок: " + c.live.length + "</small></span></a>";
       c.open.slice(0, 3).forEach(function (x) { h += '<a class="linkcard" data-go="#/task/' + x.row + '">' + ic2("tasks") + "<span><b>" + esc(x.workType || "Работа") + "</b><small>" + esc(x.stage || "") + (x.deadline ? " · срок " + esc(String(x.deadline).split("-").reverse().join(".")) : "") + "</small></span></a>"; });
       c.live.slice(0, 2).forEach(function (x) { h += '<a class="linkcard" data-go="#/kpreg/lead/' + x.row + '">' + ic2("list") + "<span><b>" + esc(x.object || "Заявка") + "</b><small>" + esc(x.status || "") + (+x.amount ? " · " + Math.round(+x.amount).toLocaleString("ru-RU") + " ₽" : "") + "</small></span></a>"; });
@@ -483,7 +487,7 @@
     st.threads.forEach(function (t) {
       if (!t.avatar_ts || avCache[avKey(t)]) return;
       var k = avKey(t); avCache[k] = "pending"; any = true;
-      fetch(c.url + "/api/threads/" + encodeURIComponent(t.id) + "/avatar", { headers: { "X-Api-Key": c.key, "X-Session": sess() } }).then(function (r) {
+      fetch(c.url + "/api/threads/" + encodeURIComponent(t.id) + "/avatar", { headers: { "X-Api-Key": c.key } }).then(function (r) {
         if (!r.ok) throw 0; return r.blob();
       }).then(function (b) {
         avCache[k] = URL.createObjectURL(b);
@@ -503,7 +507,7 @@
       cv.toBlob(function (blob) {
         var c = cfg();
         fetch(c.url + "/api/threads/" + encodeURIComponent(tid) + "/avatar", {
-          method: "POST", headers: { "X-Api-Key": c.key, "X-Session": sess(), "Content-Type": "image/jpeg" }, body: blob
+          method: "POST", headers: { "X-Api-Key": c.key, "Content-Type": "image/jpeg" }, body: blob
         }).then(function (r) { return r.ok ? r.json() : r.json().then(function (j) { throw j.detail || "Ошибка " + r.status; }); })
           .then(function (j) {
             for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === tid) st.threads[i].avatar_ts = j.avatar_ts;
@@ -551,11 +555,7 @@
       if (perm !== "granted") return;
       var reg;
       return navigator.serviceWorker.ready.then(function (r) { reg = r; return api("/api/push/vapid-key"); })
-        .then(function (j) {
-          return reg.pushManager.getSubscription().then(function (old) { return old ? old.unsubscribe() : null; }).then(function () {
-            return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(j.key) });
-          });
-        })
+        .then(function (j) { return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(j.key) }); })
         .then(function (sub) { return api("/api/push/subscribe", { method: "POST", body: sub.toJSON() }); })
         .then(function () { setErr(""); refreshPushBtn(); })
         .then(null, function (e) { setErr(typeof e === "string" ? e : "Не удалось включить уведомления"); refreshPushBtn(); });
@@ -579,36 +579,15 @@
     if (n < 1048576) return Math.round(n / 1024) + " КБ";
     return (n / 1048576).toFixed(1) + " МБ";
   }
-  var EXT_COLOR = { pdf: "#d64545", doc: "#2b6cd4", docx: "#2b6cd4", rtf: "#2b6cd4", odt: "#2b6cd4", xls: "#1e9e5a", xlsx: "#1e9e5a", csv: "#1e9e5a", ods: "#1e9e5a",
-    ppt: "#d9822b", pptx: "#d9822b", zip: "#8a6d3b", rar: "#8a6d3b", "7z": "#8a6d3b", dwg: "#0d8a9c", dxf: "#0d8a9c", txt: "#6b7785",
-    jpg: "#7a55a8", jpeg: "#7a55a8", png: "#7a55a8", gif: "#7a55a8", webp: "#7a55a8", mp4: "#c2417d", mov: "#c2417d", ogg: "#c2417d", mp3: "#c2417d" };
-  function fileExt(name) { var m = /\.([A-Za-z0-9]{1,5})$/.exec(name || ""); return m ? m[1].toLowerCase() : ""; }
-  function tileIcon(name, mime) {
-    var ext = fileExt(name) || (mime === "application/pdf" ? "pdf" : /^image\//.test(mime) ? "img" : "файл");
-    var c = EXT_COLOR[ext] || "#6b7785";
-    return '<svg viewBox="0 0 56 64" width="56" height="64" aria-hidden="true"><path d="M8 2h28l14 14v46H8z" fill="#fff" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>' +
-      '<path d="M36 2v14h14" fill="none" stroke="' + c + '" stroke-width="2.5" stroke-linejoin="round"/>' +
-      '<path d="M16 28h24M16 36h24M16 44h16" stroke="' + c + '" stroke-width="2.5" stroke-linecap="round" opacity=".45"/>' +
-      '<rect x="4" y="46" width="34" height="14" rx="4" fill="' + c + '"/><text x="21" y="57" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" font-family="system-ui,sans-serif">' + esc(ext.toUpperCase().slice(0, 4)) + "</text></svg>";
+  function fileIcon(mime) {
+    return mime === "application/pdf" ? "📄" : /^image\//.test(mime) ? "🖼" : "📎";
   }
   function filesHtml(files) {
     if (!files || !files.length) return "";
     return '<div class="fl">' + files.map(function (f) {
-      var img = /^image\/(png|jpe?g|gif|webp)$/.test(f.mime || "");
-      return '<button type="button" class="cf tile' + (img ? " img" : "") + '" data-fid="' + f.id + '" data-name="' + esc(f.name) + '" data-mime="' + esc(f.mime) + '" title="Открыть / скачать: ' + esc(f.name) + '">' +
-        '<span class="ti">' + tileIcon(f.name, f.mime) + "</span>" +
-        '<span class="tn">' + esc(f.name) + '</span><span class="sz">' + fmtSize(f.size) + " · скачать</span></button>";
+      return '<button type="button" class="cf" data-fid="' + f.id + '" data-name="' + esc(f.name) + '" data-mime="' + esc(f.mime) + '">' +
+        fileIcon(f.mime) + " <span>" + esc(f.name) + '</span><span class="sz">' + fmtSize(f.size) + "</span></button>";
     }).join("") + "</div>";
-  }
-  var thumbs = {};
-  function loadThumbs() {                       // миниатюры картинок: ссылка с моста, подставляется вместо значка
-    Array.prototype.forEach.call(el.msgs.querySelectorAll(".cf.img"), function (b, i) {
-      var fid = b.getAttribute("data-fid"), ti = b.querySelector(".ti");
-      var put = function (u) { if (u && ti) ti.innerHTML = '<img src="' + u + '" alt="">'; };
-      if (thumbs[fid]) return put(thumbs[fid]);
-      if (i > 11) return;
-      api("/api/files/" + fid + "/link", { method: "POST" }).then(function (j) { thumbs[fid] = cfg().url + j.path; put(thumbs[fid]); }, function () {});
-    });
   }
   function openFile(fid, name, mime) {
     // PDF и картинки — в новой вкладке (окно открываем сразу, иначе его заблокирует браузер), остальное — скачивание.
@@ -640,7 +619,7 @@
   window.__chatBadge = function () { applyBadge(); };
   function applyBadge() {
     var un = totalUnread();      // счётчик и в заголовке вкладки браузера
-    document.title = (un ? "(" + un + ") " : "") + "Проекты DS — CRM";
+    document.title = (un ? "(" + un + ") " : "") + "МПБ — Рабочие инструменты";
     var n = totalUnread();
     document.querySelectorAll('#topnav button[data-goto="#/chat"], #bottomnav button[data-goto="#/chat"]').forEach(function (b) {
       var old = b.querySelector(".chat-badge"); if (old) old.remove();
@@ -650,9 +629,10 @@
 
   function loadThreads() {
     return api("/api/threads").then(function (list) {
-      var before = totalUnread(), known = st.threads.length > 0;
+      var uq = 0; list.forEach(function (x) { uq += x.unread || 0; });
+      if (st.unreadSum != null && uq > st.unreadSum) MPBSound.play();      // появились новые входящие
+      st.unreadSum = uq;
       st.threads = list; setErr("");
-      if (known && window.DSSound && totalUnread() > before) DSSound.play();      // новое входящее сообщение
       st.synced = new Date(); showSync();
       if (st.built) renderThreads();
       applyBadge();
@@ -671,8 +651,86 @@
     }, function (e) { setErr(String(e)); });
   }
 
+  /* ---------- новое сообщение тому, кого ещё нет в переписке ---------- */
+  function newDialog() {
+    var U = window.MPBT && MPBT.util;
+    if (!U || !U.xmodal) { alert("Окно не загрузилось — обновите страницу"); return; }
+    var files = [];
+    U.xmodal('<h3>Новое сообщение</h3><p class="x-sub">Напишите человеку, которого ещё нет в списке диалогов</p>' +
+      '<div class="x-field"><label>Куда</label><select id="ndCh"><option value="mail">Почта (e-mail)</option><option value="tg">Telegram</option></select></div>' +
+      '<div class="x-field"><label id="ndToL">Адрес почты</label><input id="ndTo" type="text" placeholder="name@company.ru" autocomplete="off"></div>' +
+      '<div class="x-field"><label>Имя или компания <small>(необязательно)</small></label><input id="ndName" type="text" maxlength="120" placeholder="Например: ООО «Фирма»"></div>' +
+      '<div class="x-field" id="ndSubjW"><label>Тема письма</label><input id="ndSubj" type="text" maxlength="200" placeholder="Коммерческое предложение"></div>' +
+      '<div class="x-field"><label>Сообщение</label><textarea id="ndText" rows="5" placeholder="Текст сообщения"></textarea></div>' +
+      '<div class="x-field"><button type="button" class="x-btn ghost" id="ndAttach">' + IC.clip + 'Прикрепить файлы</button><input type="file" id="ndFile" multiple hidden><div id="ndFiles" class="nd-files"></div></div>' +
+      '<div class="x-err" id="ndErr"></div>' +
+      '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="ndGo">Отправить</button></div>');
+    var g = function (i) { return document.getElementById(i); };
+    function paint() {
+      g("ndFiles").innerHTML = files.map(function (f, i) { return '<span class="chat-fchip"><span class="fn">' + esc(f.name) + '</span> <small>' + Math.max(1, Math.round(f.size / 1024)) + ' КБ</small><button type="button" data-x="' + i + '">✕</button></span>'; }).join("");
+      Array.prototype.forEach.call(g("ndFiles").querySelectorAll("[data-x]"), function (b) { b.onclick = function () { files.splice(+b.getAttribute("data-x"), 1); paint(); }; });
+    }
+    g("ndCh").onchange = function () {
+      var mail = g("ndCh").value === "mail";
+      g("ndToL").textContent = mail ? "Адрес почты" : "Telegram: @username или номер +7…";
+      g("ndTo").placeholder = mail ? "name@company.ru" : "@username или +79991234567";
+      g("ndSubjW").style.display = mail ? "" : "none";
+    };
+    g("ndAttach").onclick = function () { g("ndFile").click(); };
+    g("ndFile").onchange = function () {
+      Array.prototype.forEach.call(this.files, function (f) {
+        if (!f.size || f.size > MAX_ONE) g("ndErr").textContent = "Файл «" + f.name + "» пустой или больше 10 МБ";
+        else if (files.length < MAX_FILES) files.push(f);
+      });
+      this.value = ""; paint();
+    };
+    g("ndGo").onclick = function () {
+      var to = g("ndTo").value.trim(), text = g("ndText").value.trim();
+      if (!to) { g("ndErr").textContent = "Укажите, кому писать"; return; }
+      if (!text && !files.length) { g("ndErr").textContent = "Напишите текст или приложите файл"; return; }
+      g("ndGo").disabled = true; g("ndGo").textContent = "Отправка…"; g("ndErr").textContent = "";
+      Promise.all(files.map(readB64)).then(function (d) {
+        return api("/api/threads/new", { method: "POST", body: {
+          channel: g("ndCh").value, to: to, name: g("ndName").value.trim(), subject: g("ndSubj").value.trim(), text: text,
+          files: files.map(function (f, i) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[i] }; }) } });
+      }).then(function (r) {
+        MPBT.closeModal();
+        return loadThreads().then(function () { if (r && r.id) openThread(r.id); });
+      }).then(null, function (e) { g("ndErr").textContent = String(e); g("ndGo").disabled = false; g("ndGo").textContent = "Отправить"; });
+    };
+    setTimeout(function () { g("ndTo").focus(); }, 50);
+  }
+
+  function toggleDone(id) {
+    var t = null; for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) t = st.threads[i];
+    if (!t) return;
+    var want = !t.done;
+    t.done = want ? 1 : 0; if (want) t.unread = 0;
+    st.unreadSum = null; renderThreads(); if (st.sel === id) renderThread(true); applyBadge();
+    api("/api/threads/" + encodeURIComponent(id) + "/done", { method: "POST", body: { done: want } }).then(null, function (e) {
+      t.done = want ? 0 : 1; renderThreads(); if (st.sel === id) renderThread(true); setErr(String(e));
+    });
+  }
+
+  function toggleUnread(id) {
+    var t = null; for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) t = st.threads[i];
+    if (!t) return;
+    if (!t.unread) { markUnread(id); return; }
+    t.unread = 0; st.unreadSum = null; renderThreads(); applyBadge();
+    api("/api/threads/" + encodeURIComponent(id) + "/read", { method: "POST" }).then(null, function (e) { setErr(String(e)); });
+  }
+
+  function markUnread(id) {
+    api("/api/threads/" + encodeURIComponent(id) + "/unread", { method: "POST" }).then(function () {
+      for (var i = 0; i < st.threads.length; i++) if (st.threads[i].id === id) st.threads[i].unread = Math.max(1, st.threads[i].unread || 0);
+      st.unreadSum = null;                                  // свой же счётчик не должен «пикать»
+      st.sel = null; renderThreads(); renderThread(); applyBadge();
+    }, function (e) { setErr(String(e)); });
+  }
+
   function openThread(id) {
     st.sel = id; st.msgs = [];
+    if (st.files && st.files.length) { st.files = []; showFileBar(); }     // вложения не должны уйти другому клиенту
     renderThreads(); renderThread();
     loadMessages(false).then(function () { el.text.focus(); });
     var t = curThread();
@@ -682,12 +740,38 @@
     }
   }
 
+  st.files = [];
+  st.pending = {};
+  var MAX_FILES = 10, MAX_ONE = 10 * 1024 * 1024, MAX_ALL = 25 * 1024 * 1024;
+  function addFiles(list) {
+    if (!curThread()) { setErr("Сначала выберите переписку"); return; }
+    var msg = "";
+    Array.prototype.forEach.call(list || [], function (f) {
+      var sum = st.files.reduce(function (a, x) { return a + x.size; }, 0);
+      if (!f.size) msg = "Файл «" + f.name + "» пустой";
+      else if (f.size > MAX_ONE) msg = "Файл «" + f.name + "» больше 10 МБ";
+      else if (st.files.length >= MAX_FILES) msg = "Не больше 10 файлов за раз";
+      else if (sum + f.size > MAX_ALL) msg = "Файлы вместе больше 25 МБ";
+      else st.files.push(f);
+    });
+    setErr(msg); showFileBar();
+  }
+  function delBtn(m) {
+    return m.id ? ' <button type="button" class="mdel" data-mid="' + m.id + '" title="Убрать сообщение из CRM" aria-label="Удалить">' + IC.trash + "</button>" : "";
+  }
+  function growText() {
+    if (!el.text) return;
+    el.text.style.height = "auto";
+    el.text.style.height = Math.min(el.text.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px";
+  }
   function showFileBar() {
     if (!el.fileBar) return;
-    var f = st.file;
-    el.fileBar.hidden = !f;
-    el.fileBar.innerHTML = f ? '📄 ' + esc(f.name) + ' · ' + Math.max(1, Math.round(f.size / 1024)) + ' КБ <button type="button" data-x="1" title="Убрать">✕</button>' : "";
+    el.fileBar.hidden = !st.files.length;
+    el.fileBar.innerHTML = st.files.map(function (f, i) {
+      return '<span class="chat-fchip">📄 <span class="fn">' + esc(f.name) + "</span> <small>" + (f.size >= 1048576 ? (f.size / 1048576).toFixed(1) + " МБ" : Math.max(1, Math.round(f.size / 1024)) + " КБ") + '</small><button type="button" data-x="' + i + '" title="Убрать">✕</button></span>';
+    }).join("");
   }
+  function sendBtnLabel() { return st.files.length ? "Отправить (" + st.files.length + ")" : "Отправить"; }
   function readB64(f) {
     return new Promise(function (ok, bad) {
       var r = new FileReader();
@@ -698,36 +782,31 @@
   }
 
   function sendMsg() {
-    var t = curThread(), text = el.text.value.trim(), f = st.file;
-    if (!t || (!text && !f) || st.sending) return;
+    var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
+    if (!t || (!text && !fs.length) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
-    var job = f
-      ? readB64(f).then(function (data) {
-          return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: { text: text, filename: f.name, mime: f.type || "application/octet-stream", data: data } });
+    var pend = { text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" };
+    (st.pending[t.id] = st.pending[t.id] || []).push(pend);
+    renderThread(false);
+    var job = fs.length
+      ? Promise.all(fs.map(readB64)).then(function (d) {
+          var body = { text: text, filename: fs[0].name, mime: fs[0].type || "application/octet-stream", data: d[0], more: [] };
+          for (var i = 1; i < fs.length; i++) body.more.push({ filename: fs[i].name, mime: fs[i].type || "application/octet-stream", data: d[i] });
+          return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: body });
         })
       : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
     job.then(function (r) {
-      el.text.value = ""; setErr(""); st.file = null; showFileBar();
-      if (st.draftKp) {                              // КП ушло заказчику: статус «КП отправлено» и дата общения
-        var kid = st.draftKp; st.draftKp = 0;
-        api("/api/ds/kp/" + kid + "/status", { method: "POST", body: { status: "КП отправлено" } }).then(null, function () {});
-      }
+      el.text.value = ""; growText(); setErr(""); st.files = []; showFileBar();
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
+      var arr = st.pending[t.id] || []; arr.splice(arr.indexOf(pend), 1);
       return Promise.all([loadMessages(false), loadThreads()]);
-    }).then(null, function (e) { setErr(String(e)); }).then(function () {
+    }).then(null, function (e) {
+      pend.state = "failed"; pend.err = String(e); setErr(String(e));
+      if (st.sel === t.id) renderThread(true);
+    }).then(function () {
       st.sending = false; el.send.textContent = "Отправить"; el.send.disabled = !curThread();
     });
   }
-
-  /* КП из панели диалога: текст (и PDF файлом) подставляется в окно ответа — отправляет менеджер сам */
-  window.__chatDraft = function (text, file, kpId) {
-    if (!el.text) return;
-    el.text.value = text || "";
-    st.file = file || null; showFileBar();
-    st.draftKp = kpId || 0;
-    el.text.focus();
-    try { el.text.scrollTop = 0; } catch (e) {}
-  };
 
   /* для «Конструктора КП»: отправить готовое предложение в диалог */
   window.__chatThreads = function () { return st.threads.slice(); };
