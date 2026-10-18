@@ -212,6 +212,7 @@
     if (window.innerWidth <= 760) el.text.placeholder = "Сообщение…";
     el.send = document.getElementById("chatSend");
     el.q = document.getElementById("chatQ");
+    if (window.innerWidth <= 760) { var h1 = root.querySelector('header.top h1'); if (h1) h1.textContent = "Переписка"; }
     el.chips = document.getElementById("chatChips");
     el.q.oninput = function () { st.q = el.q.value.trim().toLowerCase(); renderThreads(); };
     el.send.onclick = sendMsg;

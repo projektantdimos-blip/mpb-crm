@@ -70,7 +70,7 @@
     if (!gate(el, "Команда", sub, renderTeam)) { stopTimer(); return; }
     var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
     el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
-      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="hd"><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("plus") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
+      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs"></div><div class="hd"><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("plus") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
     $("tNew").onclick = newTaskRoom;
     $("tUrgChip").onclick = function () { var r = S.rooms.filter(function (x) { return x.urgent_open > 0; })[0]; if (r) openRoom(r.id); };
     loadRooms().then(function () { if (!S.rooms.some(function (r) { return r.id === S.cur; })) S.cur = "general"; openRoom(S.cur, true); }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
@@ -95,15 +95,20 @@
   }
   function roomItem(r) {
     var hasU = r.urgent_open > 0, last = r.last;
-    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '"><span class="x-rm ' + (r.kind === "task" ? "task" : "") + '">' + ic(r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")) + '</span><div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
+    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '"><span data-i="' + E((r.name || "?").trim().charAt(0).toUpperCase()) + '" class="x-rm ' + (r.kind === "task" ? "task" : "") + '">' + ic(r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")) + '</span><div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
   }
   function paintRooms() {
     var el = $("tRooms"); if (!el) return;
     var urg = S.rooms.filter(function (r) { return r.urgent_open > 0; }), n = urg.reduce(function (a, r) { return a + r.urgent_open; }, 0);
     if ($("tUrgN")) $("tUrgN").textContent = n;
-    el.innerHTML = (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")
-      + '<div class="x-grp">Каналы</div>' + S.rooms.filter(function (r) { return r.kind === "chan"; }).map(roomItem).join("")
-      + '<div class="x-grp">Диалоги по задачам</div>' + (S.rooms.filter(function (r) { return r.kind === "task"; }).map(roomItem).join("") || '<p class="x-empty" style="padding:14px">Пока нет. Нажмите «Диалог по задаче» или «Обсуждение» в карточке задачи</p>');
+    el.innerHTML = (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span data-i="!" class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")
+      + (S.tab === "task" ? "" : '<div class="x-grp">Каналы</div>' + S.rooms.filter(function (r) { return r.kind === "chan"; }).map(roomItem).join(""))
+      + (S.tab === "chan" ? "" : '<div class="x-grp">Диалоги по задачам</div>' + (S.rooms.filter(function (r) { return r.kind === "task"; }).map(roomItem).join("") || '<p class="x-empty" style="padding:14px">Пока нет. Нажмите «Диалог по задаче» или «Обсуждение» в карточке задачи</p>'));
+    var tb = $("tTabs");
+    if (tb) {
+      tb.innerHTML = [["all", "Все"], ["chan", "Каналы"], ["task", "Задачи"]].map(function (t) { return '<button type="button" data-t="' + t[0] + '" class="' + ((S.tab || "all") === t[0] ? "on" : "") + '">' + t[1] + "</button>"; }).join("");
+      tb.querySelectorAll("button").forEach(function (b) { b.onclick = function () { S.tab = b.dataset.t; paintRooms(); }; });
+    }
     el.querySelectorAll(".x-dlg").forEach(function (d) { d.onclick = function () { openRoom(d.dataset.r); }; });
     if (C.sync) { /* бейдж меню обновится при следующем опросе */ }
   }
