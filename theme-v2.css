@@ -1360,3 +1360,9 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   .bottomnav .chat-badge{right:10px}
 }
 @media(max-width:760px){html:has(body.shell){overflow:hidden;height:100%;overscroll-behavior:none}body.shell *{overscroll-behavior:contain}}
+
+/* ленты и списки тянутся сами (резинка внутри), страница закреплена */
+@media(max-width:760px){
+  body.shell #chatMsgs,body.shell #chatThreads,body.shell #team-app .x-msgs,body.shell #team-app .x-dlgs .sc{overflow-y:scroll!important;-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto!important}
+  body.shell #chat-app,body.shell #team-app{overscroll-behavior:none}
+}
