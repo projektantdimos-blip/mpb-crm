@@ -1324,3 +1324,38 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   #team-app .x-attach{border:0!important;background:none!important}
   #team-app .x-comp textarea#tIn{border:0!important;background:var(--surface-2)!important;border-radius:22px!important}
 }
+/* =====================================================================
+   ТЕЛЕФОН: «Переписка» и «Команда» как приложение — экран не прокручивается,
+   шапка и нижнее меню на месте, прокручивается только список
+   ===================================================================== */
+@media(max-width:760px){
+  html,body{overscroll-behavior:none}
+  body.shell{overflow:hidden!important;height:100dvh;position:fixed;inset:0;width:100%}
+  body.shell #chat-app,body.shell #team-app{position:fixed;top:0;left:0;right:0;bottom:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:84px!important;background:var(--bg)}
+  body.shell #chat-app[hidden],body.shell #team-app[hidden]{display:none}
+
+  /* Переписка */
+  body.shell #chat-app>*{flex:none}
+  body.shell #chat-app>#chatBanner{flex:none}
+  body.shell #chat-app .chat-wrap{flex:1 1 auto!important;min-height:0!important;height:auto!important}
+  body.shell #chat-app .chat-list{height:100%;min-height:0;display:flex;flex-direction:column}
+  body.shell #chat-app .chat-tools{flex:none}
+  body.shell #chat-app #chatThreads{flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:24px!important;-webkit-overflow-scrolling:touch}
+  body.shell #chat-app .chat-wrap.has-sel{position:fixed!important;inset:0!important;z-index:60;height:100dvh!important}
+
+  /* Команда */
+  body.shell #team-app>*{flex:none}
+  body.shell #team-app>.wrap{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+  body.shell #team-app .x-chat:not(.room-open){flex:1 1 auto;min-height:0;display:flex!important;flex-direction:column;height:auto!important;margin:0!important;overflow:hidden}
+  body.shell #team-app .x-chat:not(.room-open)>.x-dlgs{flex:1 1 auto;min-height:0;display:flex!important;flex-direction:column}
+  body.shell #team-app .x-dlgs .x-tabs{flex:none}
+  body.shell #team-app .x-dlgs .hd{flex:none;height:0;overflow:visible}
+  body.shell #team-app .x-dlgs .sc{flex:1 1 auto;min-height:0;overflow-y:auto!important;padding-bottom:24px;-webkit-overflow-scrolling:touch}
+  body.shell #team-app .x-chat.room-open{position:fixed;inset:0;z-index:60;height:100dvh}
+
+  /* нижнее меню: пять пунктов, ровно и компактно */
+  .bottomnav{left:8px!important;right:8px!important;border-radius:20px!important;padding:5px!important}
+  .bottomnav button{padding:7px 2px!important;gap:2px!important;font-size:.62rem!important;min-width:0}
+  .bottomnav button svg{width:22px;height:22px}
+  .bottomnav .chat-badge{right:10px}
+}
