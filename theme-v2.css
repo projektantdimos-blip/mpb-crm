@@ -1366,3 +1366,27 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   body.shell #chatMsgs,body.shell #chatThreads,body.shell #team-app .x-msgs,body.shell #team-app .x-dlgs .sc{overflow-y:scroll!important;-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto!important}
   body.shell #chat-app,body.shell #team-app{overscroll-behavior:none}
 }
+/* ===== потянуть вниз — обновить (индикатор) и надёжная высота «приложения» ===== */
+.ptr-ind{position:fixed;left:50%;margin-left:-16px;width:32px;height:32px;border-radius:50%;background:var(--card);border:1px solid var(--line);box-shadow:0 4px 12px rgba(0,0,0,.25);display:grid;place-items:center;opacity:0;pointer-events:none;z-index:80;color:var(--blue)}
+.ptr-ind span{width:14px;height:14px;border:2.4px solid currentColor;border-right-color:transparent;border-radius:50%;display:block}
+.ptr-ind.on{background:var(--blue);color:#fff}
+.ptr-ind.spin span{animation:ptrspin .7s linear infinite;transform:none!important}
+@keyframes ptrspin{to{transform:rotate(360deg)}}
+@media(max-width:760px){
+  body.shell #chat-app,body.shell #team-app{height:auto!important;bottom:0}
+  body.shell #chatThreads,body.shell #team-app .x-dlgs .sc{will-change:transform}
+}
+/* список диалогов должен быть ограничен по высоте — иначе он вытягивается за экран и не прокручивается */
+@media(max-width:760px){
+  body.shell #chat-app .chat-wrap{display:grid!important;grid-template-rows:minmax(0,1fr)!important;overflow:hidden}
+  body.shell #chat-app .chat-wrap>.chat-list{min-height:0;height:100%;overflow:hidden}
+  body.shell #chat-app .chat-wrap:not(.has-sel)>.chat-thread{display:none!important}
+}
+/* корневые блоки «приложения» — колонка во всю высоту (инлайн-display страницы перекрываем, скрытые не трогаем) */
+@media(max-width:760px){
+  body.shell #chat-app:not([style*="none"]),body.shell #team-app:not([style*="none"]){display:flex!important;flex-direction:column}
+}
+@media(max-width:760px){
+  body.shell #chat-app .chat-tools,body.shell #team-app .x-tabs{background:var(--bg);position:relative;z-index:2}
+  body.shell #chat-app #chatThreads,body.shell #team-app .x-dlgs .sc{padding-bottom:96px!important}
+}

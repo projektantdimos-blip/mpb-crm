@@ -99,6 +99,7 @@
   }
   function paintRooms() {
     var el = $("tRooms"); if (!el) return;
+    el.setAttribute("data-ptr", "team"); window.__ptr = window.__ptr || {}; window.__ptr.team = function () { return loadRooms(); };
     var urg = S.rooms.filter(function (r) { return r.urgent_open > 0; }), n = urg.reduce(function (a, r) { return a + r.urgent_open; }, 0);
     if ($("tUrgN")) $("tUrgN").textContent = n;
     el.innerHTML = (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span data-i="!" class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")

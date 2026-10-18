@@ -43,6 +43,60 @@
     navigator.serviceWorker.addEventListener("message", function (e) { if (e.data && e.data.type === "push") MPBSound.play(); });
   }
 
+  /* ---------- «приложение» на телефоне: страница закреплена, списки тянутся сами; потянуть вниз — обновить ---------- */
+  window.__ptr = window.__ptr || {};
+  (function () {
+    var startY = 0, ptr = null, ind = null;
+    function scrollable(el) {
+      while (el && el !== document.body && el !== document.documentElement) {
+        var cs = window.getComputedStyle(el), oy = cs.overflowY;
+        if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight + 1) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    function indicator() {
+      if (!ind) { ind = document.createElement("div"); ind.className = "ptr-ind"; ind.innerHTML = '<span></span>'; document.body.appendChild(ind); }
+      return ind;
+    }
+    function reset(el, spin) {
+      el.style.transition = "transform .25s ease"; el.style.transform = "";
+      var i = indicator(); i.classList.remove("on", "spin"); i.style.opacity = 0;
+    }
+    document.addEventListener("touchstart", function (e) {
+      startY = e.touches[0].clientY; ptr = null;
+      if (!document.body.classList.contains("shell") || e.touches.length !== 1) return;
+      var el = e.target.closest ? e.target.closest("[data-ptr]") : null;
+      if (el && el.scrollTop <= 0) ptr = { el: el, top: el.getBoundingClientRect().top, active: false, dy: 0 };
+    }, { passive: true });
+    document.addEventListener("touchmove", function (e) {
+      if (!document.body.classList.contains("shell") || e.touches.length !== 1) return;
+      var dy = e.touches[0].clientY - startY;
+      if (ptr && dy > 0 && ptr.el.scrollTop <= 0) {                    // потянули вниз от верха списка: двигаем сам список
+        ptr.active = true; ptr.dy = Math.min(dy * 0.5, 96);
+        if (e.cancelable) e.preventDefault();
+        ptr.el.style.transition = "none"; ptr.el.style.transform = "translateY(" + ptr.dy + "px)";
+        var i = indicator(); i.style.top = (ptr.top + 6) + "px"; i.style.opacity = Math.min(1, ptr.dy / 55);
+        i.classList.toggle("on", ptr.dy >= 55); i.firstChild.style.transform = "rotate(" + Math.round(ptr.dy * 4) + "deg)";
+        return;
+      }
+      if (ptr && ptr.active) { ptr.active = false; reset(ptr.el); }
+      if (!scrollable(e.target) && e.cancelable) e.preventDefault();   // под пальцем нечего прокручивать — страница не едет
+    }, { passive: false });
+    function finish() {
+      if (!ptr || !ptr.active) { ptr = null; return; }
+      var el = ptr.el, ok = ptr.dy >= 55, fn = window.__ptr[el.getAttribute("data-ptr")]; ptr = null;
+      if (ok && fn) {
+        var i = indicator(); i.classList.add("spin"); i.style.opacity = 1;
+        el.style.transition = "transform .2s ease"; el.style.transform = "translateY(46px)";
+        var done = function () { reset(el); };
+        try { Promise.resolve(fn()).then(done, done); } catch (er) { done(); }
+        setTimeout(done, 8000);
+      } else reset(el);
+    }
+    document.addEventListener("touchend", finish, { passive: true });
+    document.addEventListener("touchcancel", finish, { passive: true });
+  })();
   var root = document.getElementById("chat-app");
   if (!root) return;
 
@@ -204,6 +258,7 @@
     el.banner = document.getElementById("chatBanner");
     el.wrap = document.getElementById("chatWrap");
     el.threads = document.getElementById("chatThreads");
+    el.threads.setAttribute("data-ptr", "chat");
     el.head = document.getElementById("chatHead");
     el.assign = document.getElementById("chatAssign");
     el.info = document.getElementById("chatInfoPane");
@@ -848,6 +903,7 @@
   document.addEventListener("visibilitychange", function () { if (!document.hidden && inChat()) refreshNow(); });
   window.addEventListener("focus", function () { if (inChat()) refreshNow(); });
   window.addEventListener("online", function () { if (inChat()) refreshNow(); });
+  window.__ptr.chat = function () { return refreshNow(); };
 
   window.addEventListener("hashchange", function () { setTimeout(applyBadge, 0); });
   window.__subRouters = window.__subRouters || {};
