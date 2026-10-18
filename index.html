@@ -734,6 +734,7 @@ function sectionForHash(h){
 }
 function renderTopNav(){
   var cur = sectionForHash(location.hash);
+  document.body.classList.toggle("shell", cur === "chat" || cur === "team");
   var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1 };
   var pa = own[cur] ? cur : "commerce";
   var b = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
@@ -746,7 +747,7 @@ function renderTopNav(){
     + '<div class="nav-label">Система</div>' + b("#/auto","zap","Автоматизация",pa==="auto") + b("#/stages","layers","Этапы и сроки",pa==="stages") + b("#/log","history","Журнал изменений",pa==="log") + b("#/me","user","Личный кабинет",pa==="me");
   var bn = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+t+'</button>'; };
   document.getElementById("bottomnav").innerHTML =
-    bn("#/","tasks","Задачи",pa==="tasks") + bn("#/my","bell","Мои",pa==="my") + bn("#/kpreg/","briefcase","Коммерция",pa==="commerce") + bn("#/team","team","Команда",pa==="team")
+    bn("#/","tasks","Задачи",pa==="tasks") + bn("#/my","bell","Мои",pa==="my") + bn("#/team","team","Команда",pa==="team") + bn("#/chat","chat","Переписка",pa==="chat")
     + '<button data-more="1">'+icon("menu")+'Ещё</button>';
   document.getElementById("subnavM").innerHTML = pa==="commerce"
     ? [["#/kpreg/","Реестр КП","kpreg"],["#/kpc","Конструктор КП","kpc"],["#/price","Прайс","price"],["#/contracts","Договоры","contracts"]].map(function(x){ return '<button data-goto="'+x[0]+'" class="tab '+(cur===x[2]?"active":"")+'">'+x[1]+'</button>'; }).join("")
