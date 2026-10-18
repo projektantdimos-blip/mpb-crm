@@ -1359,3 +1359,4 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   .bottomnav button svg{width:22px;height:22px}
   .bottomnav .chat-badge{right:10px}
 }
+@media(max-width:760px){html:has(body.shell){overflow:hidden;height:100%;overscroll-behavior:none}body.shell *{overscroll-behavior:contain}}
