@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261020b";</script>
+<script>window.MPB_VERSION="20261021a";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261020b">
+<link rel="stylesheet" href="theme-v2.css?v=20261021a">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -1648,10 +1648,10 @@ function kpAssets() {                                    // QR, подпись �
       const c = document.createElement('canvas'); c.width = sw; c.height = sh;
       const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, sw, sh);
       g.drawImage(footer, sx, sy, sw, sh, 0, 0, sw, sh);
-      if (mask) { g.fillStyle = '#fff'; g.fillRect(mask[0], mask[1], mask[2], mask[3]); }
+      if (mask) { g.fillStyle = '#fff'; (Array.isArray(mask[0]) ? mask : [mask]).forEach(m => g.fillRect(m[0], m[1], m[2], m[3])); }
       return c;
     };
-    return { banner, qr1: crop(308, 22, 240, 236), qr2: crop(966, 22, 240, 236), sign: crop(590, 395, 899, 316, [0, 140, 14, 45]) };
+    return { banner, qr1: crop(308, 22, 240, 236), qr2: crop(966, 22, 240, 236), sign: crop(590, 395, 899, 316, [[0, 145, 30, 40], [378, 116, 32, 24]]) };
   });
   return kpAssetsP;
 }
@@ -1855,7 +1855,7 @@ function buildHeaderCard() {
     h('h2', null, h('span', { class: 'step' }, '1'), 'Реквизиты предложения'),
     h('div', { class: 'row2' },
       textField('№ предложения', 'num', () => state.num, v => { state.num = v; },
-        { inputmode: 'numeric', ph: 'например, 212', hint: 'Следующий по порядку. Сам номер конструктор не подставляет.' }),
+        { inputmode: 'numeric', ph: 'подставится сам', hint: 'Подставляется автоматически: следующий после последнего КП в реестре и в версиях. Можно изменить вручную.' }),
       textField('Дата', 'date', () => state.date, v => { state.date = v; }, { type: 'date' })),
     textField('Наименование объекта (заказчика)', 'object', () => state.object, v => { state.object = v; },
       { ph: 'ООО «Название»', hint: 'Кавычки " " автоматически станут « ». Проверяется, что они парные.' }),
@@ -2035,7 +2035,7 @@ function buildDeadlineCard() {
 function html(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function markHtml(s) { return html(s).split(MARK).join('<span class="miss">не заполнено</span>'); }
 
-let summaryEl, previewEl, dlBtn, pdfBtn, leftEl;
+let summaryEl, previewEl, dlBtn, pdfBtn, regBtn, leftEl;
 function refresh() {
   const res = validate(state);
   
@@ -2121,15 +2121,54 @@ function renderPreview() {
     alert('Не удалось собрать файл: ' + e.message);
   } finally { dlBtn.disabled = pdfBtn.disabled = false; }
 }
-// КП скачано (PDF или Word) — оно попадает в реестр КП: заявка получает статус «КП отправлено» (повтор с тем же номером не дублирует)
-function registerDownloaded() {
+// КП внесено в реестр КП: заявка получает статус «КП отправлено» (повтор с тем же номером не дублирует).
+// Вызывается автоматически после скачивания PDF/Word и кнопкой «Сохранить в реестр».
+function registerDownloaded(explicit) {
+  const toast = (m) => { try { MPBT.util.toast(m); } catch (e) { if (explicit) alert(m); } };
+  if (!window.MPBK || !MPBK.registerKp) { if (explicit) alert('Модуль реестра не загружен — обновите страницу'); return Promise.resolve(false); }
+  if (!state.object || !state.num) { if (explicit) alert('Чтобы внести КП в реестр, укажите номер и наименование объекта (заказчика).'); return Promise.resolve(false); }
+  const info = { name: state.object, address: state.address || '', total: window.__kpc.total(), num: state.num, phone: '', owner: (window.MPBC && MPBC.me && MPBC.me.name) || '', source: 'конструктора КП' };
+  return MPBK.registerKp(info).then(r => {
+    toast(r.created ? 'КП № ' + state.num + ' внесено в реестр: создана заявка' : 'КП № ' + state.num + ' в реестре: заявка обновлена');
+    if (regBtn) regBtn.textContent = 'В реестре ✓ (обновить)';
+    return true;
+  }, e => { toast('Не удалось внести КП в реестр: ' + e); return false; });
+}
+async function saveToRegistry() {
+  showAll = true;
+  const res = refresh();
+  if (!res.ok) {
+    const first = document.querySelector('.err:not(:empty)');
+    if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  regBtn.disabled = true;
+  try { await registerDownloaded(true); } finally { regBtn.disabled = false; }
+}
+// Следующий номер КП: максимум среди КП в реестре («КП № …» в сути заявки) и в сохранённых версиях, плюс один
+let autoNumBusy = false;
+async function autoNumber(force) {
+  if (autoNumBusy || (state.num && !force)) return;
+  autoNumBusy = true;
   try {
-    if (!window.MPBK || !MPBK.registerKp || !state.object || !state.num) return;
-    const info = { name: state.object, address: state.address || '', total: window.__kpc.total(), num: state.num, phone: '', owner: (window.MPBC && MPBC.me && MPBC.me.name) || '', source: 'конструктора КП' };
-    const toast = (m) => { try { MPBT.util.toast(m); } catch (e) {} };
-    MPBK.registerKp(info).then(r => toast(r.created ? 'КП внесено в реестр: создана заявка' : 'КП в реестре: заявка обновлена, статус «КП отправлено»'),
-      e => toast('Не удалось внести КП в реестр: ' + e));
-  } catch (e) {}
+    let max = 0;
+    const eat = (v) => { const n = parseInt(v, 10); if (n > max && n < 100000) max = n; };
+    try {
+      const list = await callServer('api_kpregList');
+      (list && list.leads ? list.leads : (Array.isArray(list) ? list : [])).forEach(l => {
+        const re = /КП\s*№\s*(\d+)/g; let m; const t = String(l.essence || '') + ' ' + String(l.comment || '');
+        while ((m = re.exec(t))) eat(m[1]);
+      });
+    } catch (e) { /* реестр недоступен — берём то, что есть */ }
+    try {
+      if (window.MPBC && MPBC.loggedIn && MPBC.loggedIn()) (await MPBC.call('/kp/versions?limit=500')).forEach(x => eat(x.num));
+    } catch (e) { /* версии недоступны */ }
+    if (max && (!state.num || force)) {
+      state.num = String(max + 1);
+      const inp = document.querySelector('input[data-field="num"]'); if (inp) inp.value = state.num;
+      refresh();
+    }
+  } finally { autoNumBusy = false; }
 }
 function resetAll() {
   if (!confirm('Очистить все поля и начать новое КП?')) return;
@@ -2182,12 +2221,13 @@ function init() {
   previewEl = h('div', { class: 'paper' });
   dlBtn = h('button', { type: 'button', class: 'primary', onclick: () => download('docx') }, 'Скачать КП (.docx)');
   pdfBtn = h('button', { type: 'button', class: 'primary', onclick: () => download('pdf') }, 'Скачать КП (.pdf)');
+  regBtn = h('button', { type: 'button', class: 'primary', onclick: saveToRegistry, title: 'Внести КП в реестр КП, чтобы о нём не забыли' }, 'Сохранить в реестр');
   const left = h('div', { class: 'left' }, buildHeaderCard(), buildServicesCard(), buildDeadlineCard());
   leftEl = left;
   const right = h('aside', { class: 'right' },
     h('section', { class: 'card sticky' },
       h('h2', null, 'Проверка'), summaryEl,
-      h('div', { class: 'actions' }, dlBtn, pdfBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП'),
+      h('div', { class: 'actions' }, dlBtn, pdfBtn, regBtn, h('button', { type: 'button', class: 'ghost', onclick: resetAll }, 'Новое КП'),
         h('button', { type: 'button', class: 'primary', onclick: () => window.MPBP ? MPBP.sendToChat() : alert('Модуль КП не загружен') }, 'Отправить в чат'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.templates() : alert('Модуль шаблонов не загружен') }, 'Шаблоны КП'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.saveVersion() : alert('Модуль версий не загружен') }, 'Сохранить версию'),
@@ -2208,6 +2248,9 @@ function init() {
       h('nav', null, btnA, btnB)),
     tabConstructor, tabMemo);
   refresh();
+  setTimeout(() => autoNumber(false), 400);                       // номер КП подставляется сам (после загрузки модулей и входа)
+  setTimeout(() => autoNumber(false), 3000);
+  if (window.MPBC && MPBC.on) MPBC.on('login', () => autoNumber(false));
   /* доступ для kpv.js: прайс и версии КП */
   window.__kpc = {
     state, CATALOG, refresh, parseIntStrict, fmtPrice,
@@ -2278,7 +2321,7 @@ document.addEventListener('DOMContentLoaded', init);
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261020b"></script>
+<script src="chat.js?v=20261021a"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2309,14 +2352,14 @@ document.addEventListener('DOMContentLoaded', init);
   if (!apiCfg().key) openApiSettings();
 })();
 </script>
-<script src="crm.js?v=20261020b"></script>
-<script src="extras.js?v=20261020b"></script>
-<script src="team.js?v=20261020b"></script>
-<script src="auto.js?v=20261020b"></script>
-<script src="stages.js?v=20261020b"></script>
-<script src="clients.js?v=20261020b"></script>
-<script src="kpv.js?v=20261020b"></script>
-<script src="chatpanel.js?v=20261020b"></script>
+<script src="crm.js?v=20261021a"></script>
+<script src="extras.js?v=20261021a"></script>
+<script src="team.js?v=20261021a"></script>
+<script src="auto.js?v=20261021a"></script>
+<script src="stages.js?v=20261021a"></script>
+<script src="clients.js?v=20261021a"></script>
+<script src="kpv.js?v=20261021a"></script>
+<script src="chatpanel.js?v=20261021a"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";
