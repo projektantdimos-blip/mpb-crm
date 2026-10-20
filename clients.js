@@ -435,19 +435,30 @@
     }).catch(function (e) { U.toast("Не удалось загрузить данные: " + E(e)); });
   };
   K.invalidate = function () { S.at = 0; };
-  /* КП ушло клиенту: заявка в реестре получает статус «КП отправлено» (или создаётся новая) */
+  /* КП ушло клиенту или скачано из конструктора: заявка в реестре получает статус «КП отправлено».
+     Сначала ищем заявку с этим номером КП (повтор не плодит дубли), затем открытую заявку клиента, иначе создаём новую. */
+  function kpRe(num) { return new RegExp("КП\\s*№\\s*" + String(num).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?!\\d)"); }
   K.registerKp = function (info) {
     var d = new Date(), today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+    var num = String(info.num || "").trim(), src = info.source || "переписки";
     return load(true).then(function () {
-      var c = S.by[norm(info.name)], closed = ["Выиграно", "Отказ", "Отложено"];
-      var lead = c ? c.leads.filter(function (l) { return closed.indexOf(l.status) < 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0] : null;
+      var closed = ["Выиграно", "Отказ", "Отложено"], later = ["Переговоры", "Согласование условий", "Выиграно", "Отказ", "Отложено"];
+      var byNum = null;
+      if (num) {
+        var re = kpRe(num);
+        S.list.forEach(function (c) { c.leads.forEach(function (l) { if (!byNum && re.test(String(l.essence || ""))) byNum = l; }); });
+      }
+      var c = S.by[norm(info.name)];
+      var lead = byNum || (c ? c.leads.filter(function (l) { return closed.indexOf(l.status) < 0; }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })[0] : null);
       if (lead) {
         var data = {}; LEAD_KEYS.forEach(function (k) { if (lead[k] !== undefined) data[k] = lead[k]; });
-        data.status = "КП отправлено"; data.amount = info.total; data.lastContact = today;
-        data.essence = (data.essence ? data.essence + " · " : "") + "КП № " + info.num;
+        if (later.indexOf(data.status) < 0) data.status = "КП отправлено";      // уже в работе дальше — статус не откатываем
+        if (+info.total > 0) data.amount = info.total;
+        data.lastContact = today;
+        if (num && !kpRe(num).test(String(data.essence || ""))) data.essence = (data.essence ? data.essence + " · " : "") + "КП № " + num;
         return callServer("api_kpregSave", lead.row, data).then(function () { S.at = 0; return { created: false, row: lead.row }; });
       }
-      var n = { date: today, customer: info.name, funnel: (window.FUNNEL_SOURCES && FUNNEL_SOURCES[0]) || "Переписка", contact: "", phoneEmail: info.phone || "", object: info.address || "", essence: "КП № " + info.num, amount: info.total, status: "КП отправлено", owner: info.owner || "", lastContact: today, comment: "Создано при отправке КП из переписки" };
+      var n = { date: today, customer: info.name, funnel: (window.FUNNEL_SOURCES && FUNNEL_SOURCES[0]) || "Переписка", contact: "", phoneEmail: info.phone || "", object: info.address || "", essence: "КП № " + num, amount: info.total, status: "КП отправлено", owner: info.owner || "", lastContact: today, comment: "Создано при формировании КП из " + src };
       return callServer("api_kpregCreate", n).then(function () { S.at = 0; return { created: true }; });
     });
   };  K.render = render;

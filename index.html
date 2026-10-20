@@ -2116,9 +2116,20 @@ function renderPreview() {
     const a = h('a', { href: url, download: pdf ? pdfFileName(state) : docxFileName(state) });
     document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+    registerDownloaded();
   } catch (e) {
     alert('Не удалось собрать файл: ' + e.message);
   } finally { dlBtn.disabled = pdfBtn.disabled = false; }
+}
+// КП скачано (PDF или Word) — оно попадает в реестр КП: заявка получает статус «КП отправлено» (повтор с тем же номером не дублирует)
+function registerDownloaded() {
+  try {
+    if (!window.MPBK || !MPBK.registerKp || !state.object || !state.num) return;
+    const info = { name: state.object, address: state.address || '', total: window.__kpc.total(), num: state.num, phone: '', owner: (window.MPBC && MPBC.me && MPBC.me.name) || '', source: 'конструктора КП' };
+    const toast = (m) => { try { MPBT.util.toast(m); } catch (e) {} };
+    MPBK.registerKp(info).then(r => toast(r.created ? 'КП внесено в реестр: создана заявка' : 'КП в реестре: заявка обновлена, статус «КП отправлено»'),
+      e => toast('Не удалось внести КП в реестр: ' + e));
+  } catch (e) {}
 }
 function resetAll() {
   if (!confirm('Очистить все поля и начать новое КП?')) return;
