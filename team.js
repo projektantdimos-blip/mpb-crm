@@ -87,15 +87,42 @@
       C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId).then(function (ms) {
         if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; paintThread(true); C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/read", { body: {} }).then(function () { return loadRooms(); }); }
         else if (S.tick % 4 === 0) loadRooms();
+        return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/reactions");
+      }).then(function (rx) {
+        if (!rx) return;
+        var changed = false;
+        S.msgs.forEach(function (m) { var n = rx[String(m.id)] || [], a = JSON.stringify(m.reactions || []), b = JSON.stringify(n); if (a !== b) { m.reactions = n; changed = true; } });
+        if (changed) paintThread(true);
       }).catch(function () {});
     }, 4000);
   }
   function loadRooms() {
     return C.call("/team/rooms").then(function (rs) { S.rooms = rs; paintRooms(); });
   }
+  /* ---------- картинки чатов: значок + цвет или своё фото ---------- */
+  var ICON_SET = ["hash", "team", "wallet", "calc", "file", "briefcase", "tasks", "flame", "chat", "wrench", "zap", "layers"];
+  var COLORS = ["#378ADD", "#1D9E75", "#7F77DD", "#BA7517", "#D4537E", "#D85A30", "#0F6E56", "#5F5E5A"];
+  var DEF_COLOR = { general: "#378ADD", buy: "#BA7517", calc: "#D4537E", kp: "#7F77DD", accounting: "#1D9E75" };
+  S.photos = {};
+  function roomIcon(r) { return r.icon || (r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")); }
+  function roomColor(r) { return r.color || (r.kind === "task" ? "#7F77DD" : (DEF_COLOR[r.id] || "#378ADD")); }
+  function photoUrl(r) {
+    if (!r.photo_ts) return "";
+    var k = r.id + "@" + r.photo_ts, u = S.photos[k];
+    if (u && u !== "pending") return u;
+    if (!u) {
+      S.photos[k] = "pending";
+      C.blob("/team/rooms/" + encodeURIComponent(r.id) + "/photo").then(function (b) { S.photos[k] = URL.createObjectURL(b); paintRooms(); if (S.cur === r.id) paintThread(true); }).catch(function () { delete S.photos[k]; });
+    }
+    return "";
+  }
+  function roomAv(r, cls) {
+    var url = photoUrl(r);
+    return '<span class="x-rm ' + (cls || "") + (url ? " ph" : "") + '" style="background-color:' + roomColor(r) + (url ? ";background-image:url(" + url + ")" : "") + '">' + (url ? "" : ic(roomIcon(r))) + "</span>";
+  }
   function roomItem(r) {
     var hasU = r.urgent_open > 0, last = r.last;
-    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '"><span data-i="' + E((r.name || "?").trim().charAt(0).toUpperCase()) + '" class="x-rm ' + (r.kind === "task" ? "task" : "") + '">' + ic(r.kind === "task" ? "tasks" : (ROOM_IC[r.id] || "hash")) + '</span><div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
+    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '">' + roomAv(r, r.kind === "task" ? "task" : "") + '<div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
   }
   function paintRooms() {
     var el = $("tRooms"); if (!el) return;
@@ -114,7 +141,7 @@
     if (C.sync) { /* бейдж меню обновится при следующем опросе */ }
   }
   function openRoom(id, first) {
-    S.cur = id; S.msgs = []; S.lastId = 0; S.urg = false;
+    S.cur = id; S.msgs = []; S.lastId = 0; S.urg = false; S.reply = null; closePop();
     var chatBox = document.querySelector(".x-chat");
     if (chatBox) { if (first && !S.deep) chatBox.classList.remove("room-open"); else chatBox.classList.add("room-open"); }
     if (!first) { try { history.replaceState(null, "", "#/team?room=" + encodeURIComponent(id)); } catch (e) {} }
@@ -154,12 +181,125 @@
       r.readAsDataURL(f);
     });
   }
+  /* ---------- окно «Картинка чата» (руководитель) ---------- */
+  function styleDialog(room) {
+    var sel = { icon: roomIcon(room), color: roomColor(room), photo: null, drop: false };
+    var v = xmodal('<h3>Картинка чата</h3><p class="x-sub">' + E(room.name) + '</p><div class="x-stprev" id="stPrev"></div>'
+      + '<div class="x-field"><label>Значок</label><div class="x-stgrid" id="stIcons"></div></div>'
+      + '<div class="x-field"><label>Цвет</label><div class="x-stcols" id="stCols"></div></div>'
+      + '<div class="x-field"><label>Или своё фото</label><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="x-btn ghost" id="stPick">Загрузить фото</button><button type="button" class="x-btn ghost" id="stDrop">Убрать фото</button><input type="file" id="stFile" accept="image/*" hidden></div></div>'
+      + '<div class="x-err" id="stErr"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="stSave">Сохранить</button></div>');
+    function paint() {
+      var photo = sel.photo ? 'background-image:url(' + sel.photo.url + ')' : (!sel.drop && room.photo_ts && photoUrl(room) ? 'background-image:url(' + photoUrl(room) + ')' : "");
+      $("stPrev").innerHTML = '<span class="x-rm big' + (photo ? " ph" : "") + '" style="background-color:' + sel.color + ';' + photo + '">' + (photo ? "" : ic(sel.icon)) + "</span>";
+      $("stIcons").innerHTML = ICON_SET.map(function (n) { return '<button type="button" class="' + (n === sel.icon && !photo ? "on" : "") + '" data-i="' + n + '">' + ic(n) + "</button>"; }).join("");
+      $("stCols").innerHTML = COLORS.map(function (c) { return '<button type="button" class="' + (c === sel.color ? "on" : "") + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join("");
+      $("stIcons").querySelectorAll("button").forEach(function (b) { b.onclick = function () { sel.icon = b.dataset.i; sel.photo = null; sel.drop = true; paint(); }; });
+      $("stCols").querySelectorAll("button").forEach(function (b) { b.onclick = function () { sel.color = b.dataset.c; paint(); }; });
+    }
+    paint();
+    $("stPick").onclick = function () { $("stFile").click(); };
+    $("stDrop").onclick = function () { sel.photo = null; sel.drop = true; paint(); };
+    $("stFile").onchange = function () {
+      var f = this.files[0]; if (!f) return;
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onload = function () {
+        var s = Math.min(img.width, img.height), cv = document.createElement("canvas"); cv.width = cv.height = 192;
+        cv.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 192, 192);
+        URL.revokeObjectURL(url);
+        cv.toBlob(function (blob) { sel.photo = { blob: blob, url: URL.createObjectURL(blob) }; sel.drop = false; paint(); }, "image/jpeg", 0.85);
+      };
+      img.onerror = function () { $("stErr").textContent = "Не удалось прочитать картинку"; };
+      img.src = url;
+    };
+    $("stSave").onclick = function () {
+      $("stSave").disabled = true;
+      var steps = C.call("/team/rooms/" + encodeURIComponent(room.id) + "/style", { body: { icon: sel.icon, color: sel.color } });
+      steps = steps.then(function () {
+        if (sel.photo) return b64Blob(sel.photo.blob).then(function (d) { return C.call("/team/rooms/" + encodeURIComponent(room.id) + "/photo", { body: { data: d } }); });
+        if (sel.drop && room.photo_ts) return C.call("/team/rooms/" + encodeURIComponent(room.id) + "/photo/delete", { body: {} });
+      });
+      steps.then(function () { T.closeModal(); return loadRooms(); }).then(function () { paintThread(true); }).catch(function (e) { $("stErr").textContent = E(e); $("stSave").disabled = false; });
+    };
+  }
+  function b64Blob(blob) {
+    return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = bad; r.readAsDataURL(blob); });
+  }
+
   function msgHtml(m) {
-    var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0;
-    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small>' + ((me || (C.me && C.me.role === "admin")) && m.user_id ? '<button type="button" class="x-del" data-del="' + m.id + '" title="Удалить сообщение" aria-label="Удалить">' + ic("trash") + "</button>" : "") + '</div><div class="tx">'
-      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((m.files && m.files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
-      + ((m.files && m.files.length) ? '<div class="x-files">' + m.files.map(function (f) { return '<button type="button" class="x-file" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="fi">' + ic("file") + '</span><span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + "</small></button>"; }).join("") + "</div>" : "") + "</div>"
+    var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0, files = m.files || [];
+    var rx = (m.reactions || []).map(function (x) {
+      var on = C.me && x.users.indexOf(C.me.name) >= 0;
+      return '<button type="button" class="x-rxc' + (on ? " on" : "") + '" data-rx="' + E(x.e) + '" data-m="' + m.id + '" title="' + E(x.users.join(", ")) + '">' + x.e + " <b>" + x.n + "</b></button>";
+    }).join("");
+    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '" data-mid="' + m.id + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small>'
+      + '<button type="button" class="x-act" data-pop="' + m.id + '" title="Реакция или ответ" aria-label="Реакция или ответ">' + ic("smile") + "</button>"
+      + ((me || (C.me && C.me.role === "admin")) && m.user_id ? '<button type="button" class="x-del" data-del="' + m.id + '" title="Удалить сообщение" aria-label="Удалить">' + ic("trash") + "</button>" : "") + '</div>'
+      + (m.reply ? '<div class="x-quote" data-go="' + m.reply.id + '"><b>' + E(m.reply.user) + "</b><span>" + E(m.reply.text) + "</span></div>" : "")
+      + '<div class="tx" data-pop="' + m.id + '">'
+      + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
+      + (files.length ? '<div class="x-files">' + files.map(function (f) { return '<button type="button" class="x-file" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="fi">' + ic("file") + '</span><span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + "</small></button>"; }).join("") + "</div>" : "") + "</div>"
+      + (rx ? '<div class="x-rx">' + rx + "</div>" : "")
       + (m.urgent ? '<div class="x-ack">' + ic("check") + (m.acks.length ? "Прочитали: " + E(m.acks.join(", ")) : "Пока никто не подтвердил") + (!me && !mine ? '<button data-ack="' + m.id + '">Прочитал(а)</button>' : "") + "</div>" : "") + "</div></div>";
+  }
+
+  /* ---------- ответ на сообщение, реакции, меню сообщения ---------- */
+  S.pool = ["👍", "❤️", "🔥", "😂", "👀", "✅", "🙏"];
+  S.reply = null;
+  function findMsg(id) { for (var i = 0; i < S.msgs.length; i++) if (S.msgs[i].id === id) return S.msgs[i]; return null; }
+  function paintReply() {
+    var b = $("tReply"); if (!b) return;
+    b.hidden = !S.reply;
+    b.innerHTML = S.reply ? '<div class="x-quote"><b>Ответ: ' + E(S.reply.user) + "</b><span>" + E(S.reply.text) + '</span></div><button type="button" class="x-rpx" id="tReplyX" aria-label="Отменить ответ">×</button>' : "";
+    if ($("tReplyX")) $("tReplyX").onclick = function () { S.reply = null; paintReply(); };
+  }
+  function react(mid, emoji) {
+    C.call("/team/messages/" + mid + "/react", { body: { emoji: emoji } }).then(function (r) {
+      var m = findMsg(mid); if (m) { m.reactions = r.reactions; paintThread(true); }
+    }).catch(function (e) { toast(E(e)); });
+  }
+  function closePop() { var p = $("tPop"); if (p) p.remove(); document.removeEventListener("keydown", popKey); }
+  function popKey(e) { if (e.key === "Escape") closePop(); }
+  function openPop(mid, anchor) {
+    closePop();
+    var m = findMsg(mid); if (!m) return;
+    var canDel = C.me && (m.user === C.me.name || C.me.role === "admin") && m.user_id;
+    var p = document.createElement("div"); p.id = "tPop"; p.className = "x-pop2";
+    p.innerHTML = '<div class="bar">' + S.pool.map(function (e) { return '<button type="button" data-e="' + e + '">' + e + "</button>"; }).join("") + '</div>'
+      + '<div class="menu"><button type="button" data-a="reply">' + ic("reply") + 'Ответить</button><button type="button" data-a="copy">' + ic("file") + 'Копировать текст</button>' + (canDel ? '<button type="button" class="red" data-a="del">' + ic("trash") + "Удалить</button>" : "") + "</div>";
+    document.body.appendChild(p);
+    var r = anchor.getBoundingClientRect(), pw = p.offsetWidth, ph = p.offsetHeight;
+    var left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left)), top = r.bottom + 6;
+    if (top + ph > window.innerHeight - 8) top = Math.max(8, r.top - ph - 6);
+    p.style.left = left + "px"; p.style.top = top + "px";
+    p.querySelectorAll("[data-e]").forEach(function (b) { b.onclick = function () { closePop(); react(mid, b.dataset.e); }; });
+    p.querySelectorAll("[data-a]").forEach(function (b) {
+      b.onclick = function () {
+        closePop();
+        if (b.dataset.a === "reply") { S.reply = { id: m.id, user: m.user, text: m.text.slice(0, 160) }; paintReply(); if ($("tIn")) $("tIn").focus(); }
+        else if (b.dataset.a === "copy") { try { navigator.clipboard.writeText(m.text); toast("Текст скопирован"); } catch (e) {} }
+        else if (b.dataset.a === "del") { var d = document.querySelector('[data-del="' + m.id + '"]'); if (d) d.click(); }
+      };
+    });
+    setTimeout(function () {
+      document.addEventListener("click", function off(ev) { if (!p.contains(ev.target)) { closePop(); document.removeEventListener("click", off, true); } }, true);
+      document.addEventListener("keydown", popKey);
+    }, 0);
+  }
+  function wireMessages(el) {
+    el.querySelectorAll("[data-pop]").forEach(function (b) {
+      b.onclick = function (e) {
+        if (e.target.closest("button.x-file, a, [data-ack], [data-tf]")) return;
+        e.stopPropagation(); openPop(+b.dataset.pop, b);
+      };
+    });
+    el.querySelectorAll("[data-rx]").forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); react(+b.dataset.m, b.dataset.rx); }; });
+    el.querySelectorAll(".x-quote[data-go]").forEach(function (q) {
+      q.onclick = function () {
+        var t = el.querySelector('.x-msg[data-mid="' + q.dataset.go + '"]');
+        if (t) { t.scrollIntoView({ behavior: "smooth", block: "center" }); t.classList.add("flash"); setTimeout(function () { t.classList.remove("flash"); }, 1600); }
+      };
+    });
   }
   function paintThread(keep) {
     var el = $("tThread"); if (!el) return;
@@ -168,13 +308,15 @@
     var prevDay = "", body = S.msgs.map(function (m) { var d = dayLabel(m.ts), h = (d !== prevDay ? '<span class="x-day">' + d + "</span>" : "") + msgHtml(m); prevDay = d; return h; }).join("");
     var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
     if (old && keep) wasBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 80;
-    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button><span class="x-rm ' + (room.kind === "task" ? "task" : "") + '">' + ic(room.kind === "task" ? "tasks" : (ROOM_IC[room.id] || "hash")) + "</span><div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div></div>"
+    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (C.me && C.me.role === "admin" ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (window.innerWidth <= 760 ? "Сообщение…" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+      + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (window.innerWidth <= 760 ? "Сообщение…" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
+    paintReply(); wireMessages(el);
+    if ($("tStyle")) $("tStyle").onclick = function () { styleDialog(room); };
     $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
     $("tAttach").onclick = function () { $("tFile").click(); };
     $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
@@ -249,9 +391,9 @@
     var i = $("tIn"), text = i.value.trim(), fs = S.files.slice(); if (!text && !fs.length) return;
     var urgent = S.urg; i.disabled = true;
     Promise.all(fs.map(readB64)).then(function (d) {
-      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
+      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent, reply_to: S.reply ? S.reply.id : 0, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
     }).then(function () {
-      S.urg = false; i.value = ""; i.style.height = "auto"; S.files = [];
+      S.urg = false; i.value = ""; i.style.height = "auto"; S.files = []; S.reply = null;
       return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId);
     }).then(function (ms) { if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; } paintThread(); loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
       .catch(function (e) { i.disabled = false; toast(E(e)); });
