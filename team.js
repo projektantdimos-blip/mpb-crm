@@ -70,8 +70,9 @@
     if (!gate(el, "Команда", sub, renderTeam)) { stopTimer(); return; }
     var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
     el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
-      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs"></div><div class="hd"><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("plus") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
+      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs"></div><div class="hd"><button class="x-btn primary" id="tTopic" style="justify-content:center">' + ic("plus") + 'Новый чат</button><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("tasks") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
     $("tNew").onclick = newTaskRoom;
+    $("tTopic").onclick = topicDialog;
     $("tUrgChip").onclick = function () { var r = S.rooms.filter(function (x) { return x.urgent_open > 0; })[0]; if (r) openRoom(r.id); };
     loadRooms().then(function () { if (!S.rooms.some(function (r) { return r.id === S.cur; })) S.cur = "general"; openRoom(S.cur, true); }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
     C.call("/auth/users", { auth: false }).then(function (n) { S.users = n; paintInfo(); }).catch(function () {});
@@ -85,7 +86,7 @@
       if (document.hidden || !C.loggedIn()) return;
       S.tick++;
       C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId).then(function (ms) {
-        if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; paintThread(true); C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/read", { body: {} }).then(function () { return loadRooms(); }); }
+        if (ms.length) { mergeMsgs(ms); paintThread(true); C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/read", { body: {} }).then(function () { return loadRooms(); }); }
         else if (S.tick % 4 === 0) loadRooms();
         return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/reactions");
       }).then(function (rx) {
@@ -181,6 +182,34 @@
       r.readAsDataURL(f);
     });
   }
+  /* ---------- новый чат на свободную тему ---------- */
+  function topicDialog() {
+    var sel = { icon: "chat", color: COLORS[0] };
+    xmodal('<h3>Новый чат</h3><p class="x-sub">Чат на любую тему: его увидят все сотрудники</p>'
+      + '<div class="x-stprev" id="tpPrev"></div>'
+      + '<div class="x-field"><label>Название</label><input type="text" id="tpName" maxlength="80" placeholder="Например: Охрана труда"></div>'
+      + '<div class="x-field"><label>Описание <small>(необязательно)</small></label><input type="text" id="tpDescr" maxlength="200" placeholder="О чём этот чат"></div>'
+      + '<div class="x-field"><label>Значок</label><div class="x-stgrid" id="stIcons"></div></div>'
+      + '<div class="x-field"><label>Цвет</label><div class="x-stcols" id="stCols"></div></div>'
+      + '<div class="x-err" id="tpErr"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="tpGo">Создать</button></div>');
+    function paint() {
+      $("tpPrev").innerHTML = '<span class="x-rm big" style="background-color:' + sel.color + '">' + ic(sel.icon) + "</span>";
+      $("stIcons").innerHTML = ICON_SET.map(function (n) { return '<button type="button" class="' + (n === sel.icon ? "on" : "") + '" data-i="' + n + '">' + ic(n) + "</button>"; }).join("");
+      $("stCols").innerHTML = COLORS.map(function (c) { return '<button type="button" class="' + (c === sel.color ? "on" : "") + '" data-c="' + c + '" style="background:' + c + '"></button>'; }).join("");
+      $("stIcons").querySelectorAll("button").forEach(function (b) { b.onclick = function () { sel.icon = b.dataset.i; paint(); }; });
+      $("stCols").querySelectorAll("button").forEach(function (b) { b.onclick = function () { sel.color = b.dataset.c; paint(); }; });
+    }
+    paint();
+    $("tpName").focus();
+    $("tpGo").onclick = function () {
+      var name = $("tpName").value.trim(); if (!name) { $("tpErr").textContent = "Введите название чата"; return; }
+      $("tpGo").disabled = true;
+      C.call("/team/rooms/topic", { body: { name: name, descr: $("tpDescr").value.trim(), icon: sel.icon, color: sel.color } }).then(function (r) {
+        T.closeModal(); S.tab = "all"; return loadRooms().then(function () { openRoom(r.id); });
+      }).catch(function (e) { $("tpErr").textContent = E(e); $("tpGo").disabled = false; });
+    };
+  }
+
   /* ---------- окно «Картинка чата» (руководитель) ---------- */
   function styleDialog(room) {
     var sel = { icon: roomIcon(room), color: roomColor(room), photo: null, drop: false };
@@ -188,7 +217,11 @@
       + '<div class="x-field"><label>Значок</label><div class="x-stgrid" id="stIcons"></div></div>'
       + '<div class="x-field"><label>Цвет</label><div class="x-stcols" id="stCols"></div></div>'
       + '<div class="x-field"><label>Или своё фото</label><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="x-btn ghost" id="stPick">Загрузить фото</button><button type="button" class="x-btn ghost" id="stDrop">Убрать фото</button><input type="file" id="stFile" accept="image/*" hidden></div></div>'
-      + '<div class="x-err" id="stErr"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="stSave">Сохранить</button></div>');
+      + '<div class="x-err" id="stErr"></div><div class="x-row">' + (room.id.indexOf("c_") === 0 ? '<button class="x-btn ghost" id="stDel" style="margin-right:auto;color:var(--bad)">Удалить чат</button>' : "") + '<button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="stSave">Сохранить</button></div>');
+    if ($("stDel")) $("stDel").onclick = function () {
+      if (!confirm("Удалить чат «" + room.name + "» вместе со всей перепиской и файлами? Это нельзя отменить.")) return;
+      C.call("/team/rooms/" + encodeURIComponent(room.id) + "/delete", { body: {} }).then(function () { T.closeModal(); S.cur = "general"; return loadRooms(); }).then(function () { openRoom("general"); }).catch(function (e) { $("stErr").textContent = E(e); });
+    };
     function paint() {
       var photo = sel.photo ? 'background-image:url(' + sel.photo.url + ')' : (!sel.drop && room.photo_ts && photoUrl(room) ? 'background-image:url(' + photoUrl(room) + ')' : "");
       $("stPrev").innerHTML = '<span class="x-rm big' + (photo ? " ph" : "") + '" style="background-color:' + sel.color + ';' + photo + '">' + (photo ? "" : ic(sel.icon)) + "</span>";
@@ -226,6 +259,37 @@
     return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = bad; r.readAsDataURL(blob); });
   }
 
+  /* ---------- вложения: фото показываем целиком, документы — с типом, именем и размером ---------- */
+  var DOC_KIND = { pdf: ["PDF", "#d64545"], doc: ["DOC", "#2b6cb0"], docx: ["DOC", "#2b6cb0"], xls: ["XLS", "#1d8a4e"], xlsx: ["XLS", "#1d8a4e"], csv: ["CSV", "#1d8a4e"], ppt: ["PPT", "#d9822b"], pptx: ["PPT", "#d9822b"], zip: ["ZIP", "#7f77dd"], rar: ["RAR", "#7f77dd"], "7z": ["7Z", "#7f77dd"], txt: ["TXT", "#5f5e5a"], dwg: ["DWG", "#0f6e56"], dxf: ["DXF", "#0f6e56"] };
+  function fileExt(n) { var m = /\.([A-Za-z0-9]{1,5})$/.exec(n || ""); return m ? m[1].toLowerCase() : ""; }
+  function fileHtml(f) {
+    if (/^image\/(png|jpe?g|gif|webp)$/i.test(f.mime || "")) {
+      return '<button type="button" class="x-img" data-timg="' + f.id + '" data-name="' + E(f.name) + '" title="' + E(f.name) + '"><img alt="' + E(f.name) + '"><span class="ld">Загрузка фото…</span></button>';
+    }
+    var k = DOC_KIND[fileExt(f.name)] || [(fileExt(f.name) || "ФАЙЛ").toUpperCase().slice(0, 4), "#5f5e5a"];
+    return '<button type="button" class="x-file doc" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="dk" style="background:' + k[1] + '">' + E(k[0]) + '</span><span class="dn"><b>' + E(f.name) + "</b><small>" + k[0] + " · " + fsize(f.size) + "</small></span></button>";
+  }
+  S.imgc = {};
+  function loadImages(el) {
+    el.querySelectorAll("[data-timg]").forEach(function (b) {
+      var id = b.dataset.timg, img = b.querySelector("img");
+      function put(url) { img.src = url; b.classList.add("ok"); }
+      if (S.imgc[id] && S.imgc[id] !== "pending") { put(S.imgc[id]); return; }
+      if (S.imgc[id] === "pending") return;
+      S.imgc[id] = "pending";
+      C.blob("/team/files/" + id).then(function (bl) { S.imgc[id] = URL.createObjectURL(bl); var cur = document.querySelector('[data-timg="' + id + '"]'); if (cur) { var im = cur.querySelector("img"); im.src = S.imgc[id]; cur.classList.add("ok"); } })
+        .catch(function () { delete S.imgc[id]; b.querySelector(".ld").textContent = "Фото не загрузилось"; });
+      b.onclick = function () { };
+    });
+    el.querySelectorAll("[data-timg]").forEach(function (b) { b.onclick = function () { var u = S.imgc[b.dataset.timg]; if (u && u !== "pending") lightbox(u, b.dataset.name); }; });
+  }
+  function lightbox(url, name) {
+    var v = document.createElement("div"); v.className = "x-lbox";
+    v.innerHTML = '<div class="bar"><span>' + E(name || "") + '</span><a href="' + url + '" download="' + E(name || "photo") + '">Скачать</a><button type="button" aria-label="Закрыть">×</button></div><img src="' + url + '" alt="">';
+    v.onclick = function (e) { if (e.target === v || e.target.tagName === "BUTTON") v.remove(); };
+    document.body.appendChild(v);
+  }
+
   function msgHtml(m) {
     var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0, files = m.files || [];
     var rx = (m.reactions || []).map(function (x) {
@@ -238,7 +302,7 @@
       + (m.reply ? '<div class="x-quote" data-go="' + m.reply.id + '"><b>' + E(m.reply.user) + "</b><span>" + E(m.reply.text) + "</span></div>" : "")
       + '<div class="tx" data-pop="' + m.id + '">'
       + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
-      + (files.length ? '<div class="x-files">' + files.map(function (f) { return '<button type="button" class="x-file" data-tf="' + f.id + '" data-name="' + E(f.name) + '"><span class="fi">' + ic("file") + '</span><span class="fn">' + E(f.name) + "</span><small>" + fsize(f.size) + "</small></button>"; }).join("") + "</div>" : "") + "</div>"
+      + (files.length ? '<div class="x-files">' + files.map(fileHtml).join("") + "</div>" : "") + "</div>"
       + (rx ? '<div class="x-rx">' + rx + "</div>" : "")
       + (m.urgent ? '<div class="x-ack">' + ic("check") + (m.acks.length ? "Прочитали: " + E(m.acks.join(", ")) : "Пока никто не подтвердил") + (!me && !mine ? '<button data-ack="' + m.id + '">Прочитал(а)</button>' : "") + "</div>" : "") + "</div></div>";
   }
@@ -289,7 +353,7 @@
   function wireMessages(el) {
     el.querySelectorAll("[data-pop]").forEach(function (b) {
       b.onclick = function (e) {
-        if (e.target.closest("button.x-file, a, [data-ack], [data-tf]")) return;
+        if (e.target.closest("button.x-file, a, [data-ack], [data-tf], [data-timg]")) return;
         e.stopPropagation(); openPop(+b.dataset.pop, b);
       };
     });
@@ -315,7 +379,7 @@
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
-    paintReply(); wireMessages(el);
+    paintReply(); wireMessages(el); loadImages(el);
     if ($("tStyle")) $("tStyle").onclick = function () { styleDialog(room); };
     $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
     $("tAttach").onclick = function () { $("tFile").click(); };
@@ -387,18 +451,29 @@
       else if (e.key === "Escape") close();
     }, true);
   }
-  function send() {
-    var i = $("tIn"), text = i.value.trim(), fs = S.files.slice(); if (!text && !fs.length) return;
-    var urgent = S.urg; i.disabled = true;
-    Promise.all(fs.map(readB64)).then(function (d) {
-      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/send", { body: { text: text, urgent: urgent, reply_to: S.reply ? S.reply.id : 0, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
-    }).then(function () {
-      S.urg = false; i.value = ""; i.style.height = "auto"; S.files = []; S.reply = null;
-      return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId);
-    }).then(function (ms) { if (ms.length) { S.msgs = S.msgs.concat(ms); S.lastId = ms[ms.length - 1].id; } paintThread(); loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
-      .catch(function (e) { i.disabled = false; toast(E(e)); });
+  function mergeMsgs(ms) {                           // не добавляем уже показанные сообщения (опрос и отправка могут принести одно и то же)
+    var have = {}; S.msgs.forEach(function (m) { have[m.id] = 1; });
+    ms.forEach(function (m) { if (!have[m.id]) { S.msgs.push(m); have[m.id] = 1; } });
+    if (S.msgs.length) S.lastId = Math.max(S.lastId, S.msgs[S.msgs.length - 1].id);
   }
-  function paintInfo() {
+  function send() {
+    var i = $("tIn"), text = i.value.trim(), fs = S.files.slice(), reply = S.reply; if (!text && !fs.length) return;
+    if (S.sending) return;
+    var urgent = S.urg, rid = S.cur;
+    S.sending = true;
+    i.value = ""; i.style.height = "auto"; S.files = []; S.reply = null; S.urg = false; paintFiles(); paintReply();   // сообщение сразу уходит из поля, как в мессенджере
+    var tu = $("tUrg"); if (tu) tu.classList.remove("on");
+    Promise.all(fs.map(readB64)).then(function (d) {
+      return C.call("/team/rooms/" + encodeURIComponent(rid) + "/send", { body: { text: text, urgent: urgent, reply_to: reply ? reply.id : 0, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
+    }).then(function () {
+      return C.call("/team/rooms/" + encodeURIComponent(rid) + "/messages?after=" + S.lastId);
+    }).then(function (ms) { if (S.cur === rid) { mergeMsgs(ms); paintThread(); } loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
+      .catch(function (e) {                                                         // не ушло — возвращаем текст в поле
+        var j = $("tIn"); if (j && !j.value) { j.value = text; j.dispatchEvent(new Event("input")); }
+        S.files = fs; S.reply = reply; S.urg = urgent; paintFiles(); paintReply(); toast("Не отправлено: " + E(e));
+      })
+      .then(function () { S.sending = false; });
+  }  function paintInfo() {
     var el = $("tInfo"); if (!el) return;
     var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0], urgs = S.msgs.filter(function (m) { return m.urgent; });
     el.innerHTML = (room && room.kind === "task" ? '<div><h6>Задача</h6><a class="x-linkcard" href="#/task/' + room.task_row + '"><span class="x-rm task">' + ic("tasks") + "</span><span><b>" + E(room.name) + "</b><small>Открыть карточку задачи</small></span></a></div>" : '<div><h6>О канале</h6><p style="font-size:.86rem;color:var(--muted);margin:0">' + E(room ? room.descr : "") + "</p></div>")

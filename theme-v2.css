@@ -1444,3 +1444,38 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
   #team-app .x-replybar{padding:6px 10px 0}
   #team-app .x-hbtn{border:0;background:none}
 }
+/* ===== вложения: фото целиком, документы с типом; новый чат; лайтбокс ===== */
+.x-img{display:block;padding:0;border:0;background:var(--surface-2);border-radius:12px;overflow:hidden;cursor:zoom-in;max-width:min(100%,360px);position:relative;min-height:60px}
+.x-img img{display:none;width:100%;height:auto;max-height:420px;object-fit:contain;background:#000}
+.x-img.ok img{display:block}
+.x-img.ok .ld{display:none}
+.x-img .ld{display:block;padding:22px 18px;color:var(--muted);font-size:.84rem}
+.x-file.doc{display:flex;gap:10px;align-items:center;padding:8px 12px 8px 8px;min-width:200px;max-width:100%}
+.x-file.doc .dk{flex:none;width:42px;height:42px;border-radius:10px;color:#fff;font-weight:800;font-size:.72rem;display:grid;place-items:center;letter-spacing:.3px}
+.x-file.doc .dn{min-width:0;display:block}
+.x-file.doc .dn b{display:block;color:var(--ink);font-weight:600;font-size:.88rem;overflow-wrap:anywhere;white-space:normal;text-align:left}
+.x-file.doc .dn small{display:block;color:var(--muted);margin:2px 0 0}
+.x-lbox{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:56px 12px 12px}
+.x-lbox img{max-width:100%;max-height:100%;object-fit:contain}
+.x-lbox .bar{position:absolute;top:0;left:0;right:0;display:flex;gap:14px;align-items:center;padding:12px 16px;color:#fff}
+.x-lbox .bar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x-lbox .bar a{color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:10px;padding:6px 12px;text-decoration:none;font-size:.88rem}
+.x-lbox .bar button{background:none;border:0;color:#fff;font-size:1.8rem;line-height:1;cursor:pointer}
+.x-dlgs .hd{display:flex;flex-direction:column;gap:8px}
+@media(max-width:760px){
+  #team-app #tNew{display:none!important}
+  #team-app #tTopic{position:fixed;right:16px;bottom:104px;width:56px;height:56px;padding:0!important;border-radius:50%!important;font-size:0!important;z-index:45;display:grid;place-items:center;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+  #team-app #tTopic svg{width:24px;height:24px}
+  .x-img{max-width:100%}
+}
+/* ===== Переписка: фото целиком и документы с типом ===== */
+#chat-app .cm .cimg{display:block;padding:0!important;border:0!important;background:var(--surface-2)!important;border-radius:12px;overflow:hidden;cursor:zoom-in;max-width:min(100%,340px);min-height:60px;position:relative}
+#chat-app .cm .cimg img{display:none;width:100%;height:auto;max-height:420px;object-fit:contain;background:#000}
+#chat-app .cm .cimg.ok img{display:block}
+#chat-app .cm .cimg.ok .ld{display:none}
+#chat-app .cm .cimg .ld{display:block;padding:22px 18px;color:var(--muted);font-size:.84rem}
+#chat-app .cm .cdoc{display:flex!important;gap:10px;align-items:center;padding:8px 12px 8px 8px!important;min-width:200px;max-width:100%}
+#chat-app .cm .cdoc .dk{flex:none;width:42px;height:42px;border-radius:10px;color:#fff;font-weight:800;font-size:.72rem;display:grid;place-items:center;letter-spacing:.3px}
+#chat-app .cm .cdoc .dn{min-width:0;display:block;text-align:left}
+#chat-app .cm .cdoc .dn b{display:block;font-weight:600;font-size:.9rem;overflow-wrap:anywhere;white-space:normal}
+#chat-app .cm .cdoc .dn small{display:block;opacity:.7;margin:2px 0 0}

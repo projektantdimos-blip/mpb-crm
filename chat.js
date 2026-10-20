@@ -318,6 +318,7 @@
         return;
       }
       var b = e.target.closest ? e.target.closest(".cf") : null;
+      if (b && b.classList.contains("cimg") && imgCache[b.getAttribute("data-fid")] && imgCache[b.getAttribute("data-fid")] !== "pending") { lightbox(imgCache[b.getAttribute("data-fid")], b.getAttribute("data-name")); return; }
       if (b) openFile(b.getAttribute("data-fid"), b.getAttribute("data-name"), b.getAttribute("data-mime"));
     };
     el.text.addEventListener("input", growText);
@@ -478,15 +479,18 @@
       return '<div class="cm ' + (m.direction === "out" ? "out" : "in") + '">' +
         subj + esc(m.text) + filesHtml(m.files) +
         '<div class="mt">' + fmtFull(m.ts) + (m.direction === "out" ? ' <span class="sent" title="Отправлено">' + IC.sent + "</span>" : "") + delBtn(m) + "</div></div>";
-    }).join("") + (st.pending[t.id] || []).map(function (p, i) {
+    }).join("") + (st.pending[t.id] || []).filter(function (p) {
+      return !(p.state === "sending" && st.msgs.some(function (m) { return m.direction === "out" && m.text === p.text && m.ts >= p.t0 - 5; }));
+    }).map(function (p, i) {
       return '<div class="cm out pend ' + p.state + '">' + esc(p.text) + (p.files ? '<div class="pf">' + esc(p.files) + "</div>" : "") +
         '<div class="mt">' + (p.state === "failed"
-          ? '<span class="fail">' + IC.warn + " Не отправлено" + (p.err ? ": " + esc(p.err) : "") + '</span> <button type="button" class="pdel" data-pi="' + i + '">Убрать</button>'
+          ? '<span class="fail">' + IC.warn + " Не отправлено" + (p.err ? ": " + esc(p.err) : "") + '</span> <button type="button" class="pdel" data-pi="' + (st.pending[t.id] || []).indexOf(p) + '">Убрать</button>'
           : '<span class="wait">' + IC.clock + " Отправляется…</span>") + "</div></div>";
     }).join("");
     Array.prototype.forEach.call(el.msgs.querySelectorAll(".pdel"), function (b) {
       b.onclick = function () { (st.pending[t.id] || []).splice(+b.getAttribute("data-pi"), 1); renderThread(true); };
     });
+    loadChatImages();
     if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
   }
 
@@ -638,14 +642,39 @@
   function fileIcon(mime) {
     return mime === "application/pdf" ? "📄" : /^image\//.test(mime) ? "🖼" : "📎";
   }
+  var DOC_KIND = { pdf: ["PDF", "#d64545"], doc: ["DOC", "#2b6cb0"], docx: ["DOC", "#2b6cb0"], xls: ["XLS", "#1d8a4e"], xlsx: ["XLS", "#1d8a4e"], csv: ["CSV", "#1d8a4e"], ppt: ["PPT", "#d9822b"], pptx: ["PPT", "#d9822b"], zip: ["ZIP", "#7f77dd"], rar: ["RAR", "#7f77dd"], "7z": ["7Z", "#7f77dd"], txt: ["TXT", "#5f5e5a"], dwg: ["DWG", "#0f6e56"], dxf: ["DXF", "#0f6e56"] };
+  var imgCache = {};
+  function fileExt(n) { var m = /\.([A-Za-z0-9]{1,5})$/.exec(n || ""); return m ? m[1].toLowerCase() : ""; }
   function filesHtml(files) {
     if (!files || !files.length) return "";
     return '<div class="fl">' + files.map(function (f) {
-      return '<button type="button" class="cf" data-fid="' + f.id + '" data-name="' + esc(f.name) + '" data-mime="' + esc(f.mime) + '">' +
-        fileIcon(f.mime) + " <span>" + esc(f.name) + '</span><span class="sz">' + fmtSize(f.size) + "</span></button>";
+      if (/^image\/(png|jpe?g|gif|webp)$/i.test(f.mime || "")) {
+        return '<button type="button" class="cf cimg" data-fid="' + f.id + '" data-name="' + esc(f.name) + '" data-mime="' + esc(f.mime) + '" title="' + esc(f.name) + '"><img alt="' + esc(f.name) + '"><span class="ld">Загрузка фото…</span></button>';
+      }
+      var k = DOC_KIND[fileExt(f.name)] || [(fileExt(f.name) || "ФАЙЛ").toUpperCase().slice(0, 4), "#5f5e5a"];
+      return '<button type="button" class="cf cdoc" data-fid="' + f.id + '" data-name="' + esc(f.name) + '" data-mime="' + esc(f.mime) + '"><span class="dk" style="background:' + k[1] + '">' + esc(k[0]) + '</span><span class="dn"><b>' + esc(f.name) + "</b><small>" + k[0] + " · " + fmtSize(f.size) + "</small></span></button>";
     }).join("") + "</div>";
   }
-  function openFile(fid, name, mime) {
+  function loadChatImages() {
+    Array.prototype.forEach.call(el.msgs.querySelectorAll(".cimg"), function (b) {
+      var id = b.getAttribute("data-fid"), im = b.querySelector("img");
+      if (imgCache[id] && imgCache[id] !== "pending") { im.src = imgCache[id]; b.classList.add("ok"); return; }
+      if (imgCache[id] === "pending") return;
+      imgCache[id] = "pending";
+      api("/api/files/" + id + "/link", { method: "POST" }).then(function (j) { return fetch(cfg().url + j.path); })
+        .then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+        .then(function (bl) {
+          imgCache[id] = URL.createObjectURL(bl);
+          Array.prototype.forEach.call(document.querySelectorAll('.cimg[data-fid="' + id + '"]'), function (x) { x.querySelector("img").src = imgCache[id]; x.classList.add("ok"); });
+        }).then(null, function () { delete imgCache[id]; var l = b.querySelector(".ld"); if (l) l.textContent = "Фото не загрузилось — нажмите, чтобы открыть"; b.classList.add("fail"); });
+    });
+  }
+  function lightbox(url, name) {
+    var v = document.createElement("div"); v.className = "x-lbox";
+    v.innerHTML = '<div class="bar"><span>' + esc(name || "") + '</span><a href="' + url + '" download="' + esc(name || "photo") + '">Скачать</a><button type="button" aria-label="Закрыть">×</button></div><img src="' + url + '" alt="">';
+    v.onclick = function (e) { if (e.target === v || e.target.tagName === "BUTTON") v.remove(); };
+    document.body.appendChild(v);
+  }  function openFile(fid, name, mime) {
     // PDF и картинки — в новой вкладке (окно открываем сразу, иначе его заблокирует браузер), остальное — скачивание.
     // Мост выдаёт короткоживущую ссылку, файл грузится обычным переходом, без хранения в памяти страницы.
     var inline = INLINE_RE.test(mime);
@@ -841,8 +870,9 @@
     var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
     if (!t || (!text && !fs.length) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
-    var pend = { text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" };
+    var pend = { t0: Date.now() / 1000, text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" };
     (st.pending[t.id] = st.pending[t.id] || []).push(pend);
+    el.text.value = ""; growText(); st.files = []; showFileBar();            // сообщение сразу уходит из поля, как в мессенджере
     renderThread(false);
     var job = fs.length
       ? Promise.all(fs.map(readB64)).then(function (d) {
@@ -852,12 +882,14 @@
         })
       : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
     job.then(function (r) {
-      el.text.value = ""; growText(); setErr(""); st.files = []; showFileBar();
+      setErr("");
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
       var arr = st.pending[t.id] || []; arr.splice(arr.indexOf(pend), 1);
       return Promise.all([loadMessages(false), loadThreads()]);
     }).then(null, function (e) {
       pend.state = "failed"; pend.err = String(e); setErr(String(e));
+      if (!el.text.value) { el.text.value = text; growText(); }                // не ушло — возвращаем текст в поле
+      if (!st.files.length) { st.files = fs; showFileBar(); }
       if (st.sel === t.id) renderThread(true);
     }).then(function () {
       st.sending = false; el.send.textContent = "Отправить"; el.send.disabled = !curThread();
