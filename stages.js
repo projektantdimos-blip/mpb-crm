@@ -194,7 +194,7 @@
       apply({ version: r.version, default: r.default, pools: r.pools });
       G.draft = null; G.dirty = false; G.ver = -1; U.toast("Этапы сохранены — у всех обновятся в течение минуты");
       T.closeModal(); render();
-    }).catch(function (e) { U.toast(E(e)); });
+    }).catch(function (e) { U.toast(String(e)); });
   }
   function orphans(r) {
     var v = U.xmodal('<h3>На этих этапах стоят задачи</h3><p class="x-sub">После сохранения для ' + r.orphans_total + " " + nz(r.orphans_total, "задачи", "задач", "задач") + " этап пропадёт из набора. В таблице название останется прежним, но в CRM у такой задачи не будет отметок пройденных этапов, пока вы не выберете этап заново.</p>"

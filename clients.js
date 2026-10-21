@@ -278,7 +278,7 @@
     $("clInnSave").onclick = function () {
       var v = $("clInn").value.replace(/\D/g, "");
       if (v && v.length !== 10 && v.length !== 12) { U.toast("ИНН — 10 цифр (организация) или 12 (ИП)"); return; }
-      metaSave(c, v).then(function (where) { S.at = 0; U.toast(v ? (where === "sheet" ? "ИНН сохранён в таблице (лист «КЛИЕНТЫ»)" : "ИНН сохранён на мосте (лист «КЛИЕНТЫ» в таблице не подключён)") : "ИНН очищен"); return load(true); }).then(function () { location.hash = "#/clients/" + encodeURIComponent(c.key); paint(); }).catch(function (e) { U.toast(E(e)); });
+      metaSave(c, v).then(function (where) { S.at = 0; U.toast(v ? (where === "sheet" ? "ИНН сохранён в таблице (лист «КЛИЕНТЫ»)" : "ИНН сохранён на мосте (лист «КЛИЕНТЫ» в таблице не подключён)") : "ИНН очищен"); return load(true); }).then(function () { location.hash = "#/clients/" + encodeURIComponent(c.key); paint(); }).catch(function (e) { U.toast(String(e)); });
     };    card.querySelectorAll("[data-go]").forEach(function (r) { r.onclick = function () { location.hash = r.dataset.go; }; });
     $("clMsg").onclick = function () {
       var th = threadFor(c);
@@ -399,7 +399,7 @@
   K.createClient = function (title, peer, tid) {
     if (tid) S.thread = { id: tid, title: title };
     var d = new Date(), today = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
-    var funnels = (window.FUNNEL_SOURCES && FUNNEL_SOURCES.length) ? FUNNEL_SOURCES : ["Переписка"];
+    var funnels = ["Переписка"].concat((window.FUNNEL_SOURCES || []).filter(function (f) { return f !== "Переписка"; }));   // из диалога — по умолчанию «Переписка»
     var me = (window.MPBC && MPBC.me && MPBC.me.name) || "";
     var isMail = /@/.test(peer || ""), phone = (peer || "");
     var v = U.xmodal('<h3>Создать клиента</h3><p class="x-sub">В реестре КП появится новая заявка со статусом «Новое обращение»; клиент сразу будет виден в разделе «Клиенты»</p>'
@@ -432,7 +432,7 @@
         $("clFound").innerHTML = res.map(function (c) { return '<div class="cl-row" data-k="' + E(c.key) + '" style="padding:9px 0"><div class="cl-main"><b>' + E(c.name) + "</b><small>" + c.open.length + " задач в работе · " + c.live.length + " активных заявок</small></div></div>"; }).join("") || (q.length >= 2 ? '<div class="x-empty">Не найдено</div>' : "");
         $("clFound").querySelectorAll(".cl-row").forEach(function (r) { r.onclick = function () { showInfo(S.by[r.dataset.k], "вручную"); }; });
       };
-    }).catch(function (e) { U.toast("Не удалось загрузить данные: " + E(e)); });
+    }).catch(function (e) { U.toast("Не удалось загрузить данные: " + e); });
   };
   K.invalidate = function () { S.at = 0; };
   /* КП ушло клиенту или скачано из конструктора: заявка в реестре получает статус «КП отправлено».
@@ -458,7 +458,7 @@
         if (num && !kpRe(num).test(String(data.essence || ""))) data.essence = (data.essence ? data.essence + " · " : "") + "КП № " + num;
         return callServer("api_kpregSave", lead.row, data).then(function () { S.at = 0; return { created: false, row: lead.row }; });
       }
-      var n = { date: today, customer: info.name, funnel: (window.FUNNEL_SOURCES && FUNNEL_SOURCES[0]) || "Переписка", contact: "", phoneEmail: info.phone || "", object: info.address || "", essence: "КП № " + num, amount: info.total, status: "КП отправлено", owner: info.owner || "", lastContact: today, comment: "Создано при формировании КП из " + src };
+      var n = { date: today, customer: info.name, funnel: "Переписка", contact: "", phoneEmail: info.phone || "", object: info.address || "", essence: "КП № " + num, amount: info.total, status: "КП отправлено", owner: info.owner || "", lastContact: today, comment: "Создано при формировании КП из " + src };
       return callServer("api_kpregCreate", n).then(function () { S.at = 0; return { created: true }; });
     });
   };  K.render = render;

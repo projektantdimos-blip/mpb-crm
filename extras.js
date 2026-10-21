@@ -317,7 +317,7 @@
   function banners() { var b = $("xBanners"); if (!b) { b = document.createElement("div"); b.id = "xBanners"; b.className = "x-banners"; document.body.appendChild(b); } return b; }
   function toast(msg, undo) {
     var t = $("xToast"); if (!t) { t = document.createElement("div"); t.id = "xToast"; t.className = "x-toast"; document.body.appendChild(t); }
-    t.innerHTML = "<span>" + msg + "</span>" + (undo ? '<button id="xUndo">Отменить</button>' : ""); t.className = "x-toast on";
+    t.innerHTML = "<span></span>" + (undo ? '<button id="xUndo">Отменить</button>' : ""); t.firstChild.textContent = String(msg == null ? "" : msg); t.className = "x-toast on";
     if (undo) $("xUndo").onclick = function () { undo(); t.className = "x-toast"; };
     clearTimeout(toast.h); toast.h = setTimeout(function () { t.className = "x-toast"; }, undo ? 7000 : 3200);
   }
@@ -349,7 +349,7 @@
     systemNotify(x); paintMyIfOpen();
   }
   function snooze(x) {
-    if (x.server) { MPBC.call("/reminders/" + x.id + "/snooze", { body: { minutes: 10 } }).then(function () { return myLoad(); }).then(function () { paintMyIfOpen(); toast("Напомню через 10 минут"); }).catch(function (e) { toast(E(e)); }); return; }
+    if (x.server) { MPBC.call("/reminders/" + x.id + "/snooze", { body: { minutes: 10 } }).then(function () { return myLoad(); }).then(function () { paintMyIfOpen(); toast("Напомню через 10 минут"); }).catch(function (e) { toast(String(e)); }); return; }
     x.fired = false; x.snoozeTo = Date.now() + 10 * 60000; mySave(); paintMyIfOpen(); toast("Напомню через 10 минут");
   }
   function tick() {
@@ -364,7 +364,7 @@
   }
   function setDone(x, done) {
     if (x.server) {
-      MPBC.call("/reminders/" + x.id + "/done", { body: { done: done } }).then(function () { return myLoad(); }).then(function () { X.badge(); paintMyIfOpen(); }).catch(function (e) { toast(E(e)); });
+      MPBC.call("/reminders/" + x.id + "/done", { body: { done: done } }).then(function () { return myLoad(); }).then(function () { X.badge(); paintMyIfOpen(); }).catch(function (e) { toast(String(e)); });
       return;
     }
     x.done = done;
@@ -451,7 +451,7 @@
         $("myAdd").disabled = true;
         MPBC.call("/reminders", { body: { title: it.t, d: it.d, tm: it.tm, before: it.b, fire_ts: f / 1000, rep: it.rep, task_row: it.task, task_label: it.tl } })
           .then(function () { mySel = null; return myLoad(); }).then(function () { $("myText").value = ""; paintMy(); X.badge(); toast("Напоминание создано" + (soon ? " — сработает сразу" : "")); tick(); })
-          .catch(function (e) { $("myAdd").disabled = false; toast(E(e)); });
+          .catch(function (e) { $("myAdd").disabled = false; toast(String(e)); });
         return;
       }
       myList().push(it); mySave(); mySel = null; $("myText").value = ""; paintMy();
@@ -468,7 +468,7 @@
       r.querySelector('[data-a="del"]').onclick = function () {
         if (x.server) {
           var back = { title: x.t, d: x.d, tm: x.tm, before: x.b, fire_ts: x.fireTs / 1000, rep: x.rep, task_row: x.task || 0, task_label: x.tl || "" };
-          MPBC.call("/reminders/" + x.id + "/delete", { body: {} }).then(function () { return myLoad(); }).then(function () { paintMy(); X.badge(); toast("Напоминание удалено", function () { MPBC.call("/reminders", { body: back }).then(myLoad).then(function () { paintMy(); X.badge(); }); }); }).catch(function (e) { toast(E(e)); });
+          MPBC.call("/reminders/" + x.id + "/delete", { body: {} }).then(function () { return myLoad(); }).then(function () { paintMy(); X.badge(); toast("Напоминание удалено", function () { MPBC.call("/reminders", { body: back }).then(myLoad).then(function () { paintMy(); X.badge(); }); }); }).catch(function (e) { toast(String(e)); });
           return;
         }
         var ix = MY.indexOf(x); MY.splice(ix, 1); mySave(); paintMy(); toast("Напоминание удалено", function () { MY.splice(ix, 0, x); mySave(); paintMy(); });
@@ -489,7 +489,7 @@
   X.more = function () {
     var L = [["#/dash", "chart", "Сводка"], ["#/", "tasks", "Задачи"], ["#/cal", "cal", "Календарь"], ["#/my", "bell", "Мои задачи"], ["#/clients", "users", "Клиенты"], ["#/kpreg/", "list", "Реестр КП"], ["#/kpc", "calc", "Конструктор КП"], ["#/contracts", "file", "Договоры"], ["#/to", "wrench", "ТО МПБ"], ["#/team", "team", "Команда"], ["#/chat", "chat", "Переписка"], ["#/auto", "zap", "Автоматизация"], ["#/stages", "layers", "Этапы и сроки"], ["#/log", "history", "Журнал"], ["#/me", "user", "Кабинет"]];
     var v = document.createElement("div"); v.className = "x-veil on";
-    v.innerHTML = '<div class="x-sheet"><h3>Все разделы</h3><div class="grid">' + L.map(function (x) { return '<button data-g="' + x[0] + '">' + ic(x[1]) + x[2] + "</button>"; }).join("") + "</div></div>";
+    v.innerHTML = '<div class="x-sheet"><h3>Все разделы <small style="font-weight:400;color:var(--muted);font-size:.7rem;margin-left:6px">версия ' + (window.MPB_VERSION || "?") + '</small></h3><div class="grid">' + L.map(function (x) { return '<button data-g="' + x[0] + '">' + ic(x[1]) + x[2] + "</button>"; }).join("") + "</div></div>";
     v.onclick = function (e) { if (e.target === v) v.remove(); };
     v.querySelectorAll("[data-g]").forEach(function (b) { b.onclick = function () { v.remove(); go(b.dataset.g); }; });
     document.body.appendChild(v);

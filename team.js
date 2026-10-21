@@ -25,7 +25,7 @@
   function head(title, sub, extra) { return '<header class="top"><div class="brand"><div><h1>' + title + "</h1><p>" + sub + "</p></div></div>" + (extra || "") + "</header>"; }
   function toast(msg, undo) {
     var t = $("xToast"); if (!t) { t = document.createElement("div"); t.id = "xToast"; t.className = "x-toast"; document.body.appendChild(t); }
-    t.innerHTML = "<span>" + msg + "</span>"; t.className = "x-toast on"; clearTimeout(toast.h); toast.h = setTimeout(function () { t.className = "x-toast"; }, 3200);
+    t.innerHTML = "<span></span>"; t.firstChild.textContent = String(msg == null ? "" : msg); t.className = "x-toast on"; clearTimeout(toast.h); toast.h = setTimeout(function () { t.className = "x-toast"; }, 3200);
   }
   function when(ts) {
     var d = new Date(ts * 1000), n = new Date();
@@ -320,7 +320,7 @@
   function react(mid, emoji) {
     C.call("/team/messages/" + mid + "/react", { body: { emoji: emoji } }).then(function (r) {
       var m = findMsg(mid); if (m) { m.reactions = r.reactions; paintThread(true); }
-    }).catch(function (e) { toast(E(e)); });
+    }).catch(function (e) { toast(String(e)); });
   }
   function closePop() { var p = $("tPop"); if (p) p.remove(); document.removeEventListener("keydown", popKey); }
   function popKey(e) { if (e.key === "Escape") closePop(); }
@@ -395,7 +395,7 @@
         C.blob("/team/files/" + b.dataset.tf).then(function (bl) {
           var a = document.createElement("a"); a.href = URL.createObjectURL(bl); a.download = b.dataset.name || "file";
           document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-        }).catch(function (e) { toast(E(e)); });
+        }).catch(function (e) { toast(String(e)); });
       };
     });
     mentionBox($("tIn"));
@@ -410,7 +410,7 @@
         if (!confirm("Удалить это сообщение у всех?")) return;
         C.call("/team/messages/" + b.dataset.del + "/delete", { body: {} }).then(function () {
           S.msgs = S.msgs.filter(function (m) { return String(m.id) !== b.dataset.del; }); paintThread(true); loadRooms();
-        }).catch(function (e) { toast(E(e)); });
+        }).catch(function (e) { toast(String(e)); });
       };
     });
     $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
@@ -470,7 +470,7 @@
     }).then(function (ms) { if (S.cur === rid) { mergeMsgs(ms); paintThread(); } loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
       .catch(function (e) {                                                         // не ушло — возвращаем текст в поле
         var j = $("tIn"); if (j && !j.value) { j.value = text; j.dispatchEvent(new Event("input")); }
-        S.files = fs; S.reply = reply; S.urg = urgent; paintFiles(); paintReply(); toast("Не отправлено: " + E(e));
+        S.files = fs; S.reply = reply; S.urg = urgent; paintFiles(); paintReply(); toast("Не отправлено: " + e);
       })
       .then(function () { S.sending = false; });
   }  function paintInfo() {
@@ -494,7 +494,7 @@
   T.openTaskRoom = function (row, customer) {
     C.requireLogin().then(function () { return C.call("/team/rooms", { body: { task_row: row, name: customer } }); }).then(function (r) {
       if (cur() === "team") { S.cur = r.id; renderTeam(); try { history.replaceState(null, "", "#/team?room=" + r.id); } catch (e) {} } else location.hash = "#/team?room=" + r.id;
-    }).catch(function (e) { if (e !== "cancel") toast(E(e)); });
+    }).catch(function (e) { if (e !== "cancel") toast(String(e)); });
   };
 
   /* ================================================================
@@ -522,7 +522,7 @@
     $("lgOut").querySelectorAll("[data-u]").forEach(function (b) {
       b.onclick = function () {
         var e = LG.items.filter(function (x) { return x.id === +b.dataset.u; })[0]; b.disabled = true;
-        C.undoEntry(e).then(function () { e.undone = 1; paintLog(); toast("Изменение отменено"); }).catch(function (er) { b.disabled = false; toast(E(er)); });
+        C.undoEntry(e).then(function () { e.undone = 1; paintLog(); toast("Изменение отменено"); }).catch(function (er) { b.disabled = false; toast(String(er)); });
       };
     });
   }
@@ -561,12 +561,12 @@
       + '<div class="x-qrow"><div><b>С</b></div><input type="time" id="qFrom" value="' + pr.quiet.from + '"><div style="margin-left:14px"><b>До</b></div><input type="time" id="qTo" value="' + pr.quiet.to + '"></div>'
       + '<div class="x-qrow"><div><b>«Срочное» пробивает тишину</b><small>Срочные сообщения придут всегда</small></div><button class="x-sw ' + (pr.quiet.urgent_through ? "on" : "") + '" id="qUrg"></button></div></div>'
       + '</div><div class="x-sticky"><div class="x-panel pad"><h3>Проверка</h3><p class="x-sub">Отправим тестовое уведомление по вашим настройкам</p><button class="x-btn primary" id="meTest" style="width:100%;justify-content:center">' + ic("bell") + 'Отправить тест</button><div class="x-hint" id="meTestOut"></div></div></div></div>';
-    $("mePush").onclick = function () { var p = pushOn ? C.disablePush() : C.enablePush(); p.then(function () { toast(pushOn ? "Push отключён" : "Push включён на этом устройстве"); paintNotif(); }).catch(function (e) { toast(E(e)); }); };
+    $("mePush").onclick = function () { var p = pushOn ? C.disablePush() : C.enablePush(); p.then(function () { toast(pushOn ? "Push отключён" : "Push включён на этом устройстве"); paintNotif(); }).catch(function (e) { toast(String(e)); }); };
     var tgb = $("meTg"); if (tgb) tgb.onclick = function () {
       if (tg) C.call("/me/tg/unlink", { body: {} }).then(function () { C.me.tg = false; renderMe(); });
-      else C.call("/me/tg/code", { body: {} }).then(function (r) { $("meTgCode").innerHTML = '<p class="x-sub" style="margin:8px 0 0">Откройте вашего бота в Telegram и отправьте: <b>/start ' + r.code + "</b><br>Код действует " + r.minutes + " минут. После привязки обновите страницу.</p>"; }).catch(function (e) { toast(E(e)); });
+      else C.call("/me/tg/code", { body: {} }).then(function (r) { $("meTgCode").innerHTML = '<p class="x-sub" style="margin:8px 0 0">Откройте вашего бота в Telegram и отправьте: <b>/start ' + r.code + "</b><br>Код действует " + r.minutes + " минут. После привязки обновите страницу.</p>"; }).catch(function (e) { toast(String(e)); });
     };
-    body.querySelectorAll(".x-cb").forEach(function (b) { b.onclick = function () { var e = b.dataset.e, c = b.dataset.c, v = !pr.events[e][c], patch = { events: {} }; patch.events[e] = {}; patch.events[e][c] = v; savePrefs(patch).then(function () { b.classList.toggle("on", v); }).catch(function (er) { toast(E(er)); }); }; });
+    body.querySelectorAll(".x-cb").forEach(function (b) { b.onclick = function () { var e = b.dataset.e, c = b.dataset.c, v = !pr.events[e][c], patch = { events: {} }; patch.events[e] = {}; patch.events[e][c] = v; savePrefs(patch).then(function () { b.classList.toggle("on", v); }).catch(function (er) { toast(String(er)); }); }; });
     $("qOn").onclick = function () { var v = !pr.quiet.on; savePrefs({ quiet: { on: v } }).then(function () { $("qOn").classList.toggle("on", v); }); };
     $("qUrg").onclick = function () { var v = !pr.quiet.urgent_through; savePrefs({ quiet: { urgent_through: v } }).then(function () { $("qUrg").classList.toggle("on", v); }); };
     $("qFrom").onchange = function () { savePrefs({ quiet: { from: this.value } }); };
@@ -626,8 +626,8 @@
       body.innerHTML = '<div class="x-two"><div class="x-panel" id="stList">' + us.map(function (u) { return '<div class="x-urow">' + ava(u.name) + "<div><b>" + E(u.name) + "</b><small>" + (u.role === "admin" ? "руководитель" : "сотрудник") + (u.tg ? " · Telegram" : "") + (u.active ? "" : " · отключён") + '</small></div><div class="acts"><button class="x-btn ghost" style="padding:7px 12px" data-pin="' + u.id + '">Сбросить PIN</button><button class="x-btn ghost" style="padding:7px 12px" data-role="' + u.id + '" data-r="' + u.role + '">' + (u.role === "admin" ? "Сделать сотрудником" : "Сделать руководителем") + '</button><button class="x-sw ' + (u.active ? "on" : "") + '" data-act="' + u.id + '" title="Доступ"></button></div></div>'; }).join("") + "</div>"
         + '<div class="x-sticky"><div class="x-panel pad"><h3>Новый сотрудник</h3><p class="x-sub">PIN сообщите сотруднику лично</p><div class="x-field"><label>Имя</label><input type="text" id="nName"></div><div class="x-field"><label>PIN (4–8 цифр)</label><input type="password" id="nPin" inputmode="numeric" maxlength="8"></div><div class="x-err" id="nErr"></div><button class="x-btn primary" id="nAdd">' + ic("plus") + "Добавить</button></div></div></div>";
       $("nAdd").onclick = function () { C.call("/admin/users", { body: { name: $("nName").value, pin: $("nPin").value, role: "user" } }).then(function () { toast("Сотрудник добавлен"); paintStaff(); }).catch(function (e) { $("nErr").textContent = String(e); }); };
-      body.querySelectorAll("[data-act]").forEach(function (b) { b.onclick = function () { var on = !b.classList.contains("on"); C.call("/admin/users/" + b.dataset.act + "/active", { body: { active: on } }).then(paintStaff).catch(function (e) { toast(E(e)); }); }; });
-      body.querySelectorAll("[data-role]").forEach(function (b) { b.onclick = function () { C.call("/admin/users/" + b.dataset.role + "/role", { body: { role: b.dataset.r === "admin" ? "user" : "admin" } }).then(paintStaff).catch(function (e) { toast(E(e)); }); }; });
+      body.querySelectorAll("[data-act]").forEach(function (b) { b.onclick = function () { var on = !b.classList.contains("on"); C.call("/admin/users/" + b.dataset.act + "/active", { body: { active: on } }).then(paintStaff).catch(function (e) { toast(String(e)); }); }; });
+      body.querySelectorAll("[data-role]").forEach(function (b) { b.onclick = function () { C.call("/admin/users/" + b.dataset.role + "/role", { body: { role: b.dataset.r === "admin" ? "user" : "admin" } }).then(paintStaff).catch(function (e) { toast(String(e)); }); }; });
       body.querySelectorAll("[data-pin]").forEach(function (b) {
         b.onclick = function () {
           xmodal('<h3>Сбросить PIN</h3><p class="x-sub">Новый PIN сотрудника (4–8 цифр). Он будет разлогинен на всех устройствах.</p><div class="x-field"><input type="password" id="rPin" class="x-pin" inputmode="numeric" maxlength="8"></div><div class="x-err" id="rErr"></div><div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button><button class="x-btn primary" id="rGo">Сохранить</button></div>');

@@ -63,9 +63,9 @@
         + '<div class="fl"><span class="node t">' + ic("clock") + E(trigText(r)) + '</span><span class="arr">' + ic("arrow") + "</span>" + actNodes(r) + '</div><span class="runs"><b>' + r.runs + "</b> срабат.<br>" + agoText(r.last_ts) + "</span></div>";
     }).join("") || '<div class="x-empty">Правил пока нет</div>') + "</div>"
       + '<div class="x-panel pad"><h3>Последние срабатывания</h3><p class="x-sub">Что система сделала сама</p>' + (S.log.slice(0, 12).map(function (l) { return '<div class="cmd"><span class="x-pill">' + U.when(l.ts) + '</span><div style="font-size:.84rem"><b>' + E(l.rule) + '</b><div style="color:var(--muted)">' + E(l.summary.replace(l.rule + ": ", "")) + "</div></div></div>"; }).join("") || '<div class="x-empty">Пока ничего не срабатывало</div>') + "</div></div>";
-    b.querySelectorAll("[data-sw]").forEach(function (s) { s.onclick = function (e) { e.stopPropagation(); var on = !s.classList.contains("on"); C.call("/automation/rules/" + s.dataset.sw + "/enabled", { body: { enabled: on } }).then(load).catch(function (er) { U.toast(E(er)); }); }; });
+    b.querySelectorAll("[data-sw]").forEach(function (s) { s.onclick = function (e) { e.stopPropagation(); var on = !s.classList.contains("on"); C.call("/automation/rules/" + s.dataset.sw + "/enabled", { body: { enabled: on } }).then(load).catch(function (er) { U.toast(String(er)); }); }; });
     if (isAdmin()) b.querySelectorAll(".auto").forEach(function (row) { row.onclick = function () { editor(S.rules.filter(function (r) { return r.id === +row.dataset.id; })[0]); }; });
-    var run = $("auRun"); if (run) run.onclick = function () { run.disabled = true; C.call("/automation/run", { body: {} }).then(function (r) { U.toast(r.ok ? "Сверка выполнена: сработало " + r.fired.length : E(r.error || "Ошибка")); load(); }).catch(function (e) { run.disabled = false; U.toast(E(e)); }); };
+    var run = $("auRun"); if (run) run.onclick = function () { run.disabled = true; C.call("/automation/run", { body: {} }).then(function (r) { U.toast(r.ok ? "Сверка выполнена: сработало " + r.fired.length : String(r.error || "Ошибка")); load(); }).catch(function (e) { run.disabled = false; U.toast(String(e)); }); };
   }
   function paintBot(b) {
     var st = S.status, linked = C.me && C.me.tg;

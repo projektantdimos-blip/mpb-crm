@@ -69,7 +69,7 @@
   }
 
   function tabNew(body, t, name, s, box) {
-    var me = (window.MPBC && MPBC.me && MPBC.me.name) || "", mail = /@/.test(t.peer || ""), funnels = (window.FUNNEL_SOURCES && FUNNEL_SOURCES.length) ? FUNNEL_SOURCES : ["Переписка"];
+    var me = (window.MPBC && MPBC.me && MPBC.me.name) || "", mail = /@/.test(t.peer || ""), funnels = ["Переписка"].concat((window.FUNNEL_SOURCES || []).filter(function (f) { return f !== "Переписка"; }));
     body.innerHTML = '<div class="cp-f"><label>Заказчик</label><input id="ncCust" value="' + E(name) + '"></div><div class="cp-f"><label>Контактное лицо</label><input id="ncContact" value="' + E(mail ? "" : name) + '"></div>'
       + '<div class="cp-f"><label>Телефон / почта</label><input id="ncPhone" value="' + E(t.peer || "") + '"></div><div class="cp-f"><label>Объект / что нужно</label><input id="ncObj" placeholder="адрес или кратко: что хочет клиент"></div>'
       + '<div class="cp-f"><label>Откуда клиент</label><select id="ncFun">' + funnels.map(function (f) { return "<option>" + E(f) + "</option>"; }).join("") + '</select></div>'
@@ -166,9 +166,9 @@
         var jobs = [];
         if (window.MPBK && MPBK.registerKp) jobs.push(MPBK.registerKp(info).then(function (r) { U.toast(r.created ? "Заявка создана в реестре КП" : "Заявка в реестре: статус «КП отправлено»"); }));
         if (crm() && info.num) jobs.push(MPBC.call("/kp/versions", { body: { num: String(info.num), object: info.name || "", total: info.total, state: saved, note: "Отправлено в чат: " + (t.title || t.peer), status: "sent" } }));
-        return Promise.all(jobs.map(function (j) { return j.catch(function (e) { U.toast("Не удалось записать в реестр: " + E(e)); }); }));
+        return Promise.all(jobs.map(function (j) { return j.catch(function (e) { U.toast("Не удалось записать в реестр: " + e); }); }));
       })
-      .catch(function (e) { U.toast("Не отправлено: " + E(e)); })
+      .catch(function (e) { U.toast("Не отправлено: " + e); })
       .then(function () { s.busy = false; redraw(); });
   }
 })();

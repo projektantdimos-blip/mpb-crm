@@ -77,7 +77,7 @@
     });
     btn.onclick = function () {
       var items = {}; Object.keys(G.draft).forEach(function (k) { var it = G.draft[k]; if (it.price || it.note) items[k] = it; });
-      C.call("/price", { body: { items: items } }).then(function (r) { doc = r; lsSet(r); U.toast("Прайс сохранён"); render(); }).catch(function (e) { U.toast(E(e)); });
+      C.call("/price", { body: { items: items } }).then(function (r) { doc = r; lsSet(r); U.toast("Прайс сохранён"); render(); }).catch(function (e) { U.toast(String(e)); });
     };
   }
   P.render = render;
@@ -139,7 +139,7 @@
       if (!confirm("Открыть КП № " + v.num + ", версию " + v.version + " в конструкторе? Текущее содержимое конструктора будет заменено.")) return;
       T.closeModal(); location.hash = "#/kpc";
       setTimeout(function () { K().load(v.state); U.toast("Открыта версия " + v.version + " — после правок сохраните новую версию"); }, 150);
-    }).catch(function (e) { U.toast(E(e)); });
+    }).catch(function (e) { U.toast(String(e)); });
   }
   function listHtml(rows) {
     return rows.map(function (r, i) {
@@ -155,11 +155,11 @@
       body.innerHTML = (back ? '<button class="x-btn ghost" id="kvBack" style="margin-bottom:10px;padding:6px 12px">← Все КП</button>' : "") + "<h3 style=\"margin:0 0 8px\">КП № " + E(num) + " · " + E(rows[0] ? rows[0].object : "") + "</h3>" + (listHtml(rows) || '<div class="x-empty">Версий нет</div>');
       var bk = $("kvBack"); if (bk) bk.onclick = function () { showAll(""); };
       body.querySelectorAll("[data-open]").forEach(function (b) { b.onclick = function () { openIn(b.dataset.open); }; });
-      body.querySelectorAll("[data-st]").forEach(function (s) { s.onchange = function () { C.call("/kp/versions/" + s.dataset.st + "/status", { body: { status: s.value } }).then(function () { U.toast("Статус обновлён"); }).catch(function (e) { U.toast(E(e)); }); }; });
+      body.querySelectorAll("[data-st]").forEach(function (s) { s.onchange = function () { C.call("/kp/versions/" + s.dataset.st + "/status", { body: { status: s.value } }).then(function () { U.toast("Статус обновлён"); }).catch(function (e) { U.toast(String(e)); }); }; });
       body.querySelectorAll("[data-cmp]").forEach(function (b) {
         b.onclick = function () {
           var i = +b.dataset.cmp;
-          Promise.all([C.call("/kp/versions/" + rows[i + 1].id), C.call("/kp/versions/" + rows[i].id)]).then(function (r) { compareDlg(r[0].state, r[1].state, "версия " + r[0].version, "версия " + r[1].version); }).catch(function (e) { U.toast(E(e)); });
+          Promise.all([C.call("/kp/versions/" + rows[i + 1].id), C.call("/kp/versions/" + rows[i].id)]).then(function (r) { compareDlg(r[0].state, r[1].state, "версия " + r[0].version, "версия " + r[1].version); }).catch(function (e) { U.toast(String(e)); });
         };
       });
       // сравнение с тем, что сейчас в конструкторе
@@ -205,7 +205,7 @@
       T.closeModal(); U.toast("КП отправлено в диалог «" + (th.title || th.id) + "»");
       var s = K().state, num = String(s.num || "").trim();
       if (num && C.loggedIn && C.loggedIn()) C.call("/kp/versions", { body: { num: num, object: s.object || "", total: K().total(), state: snapshot(), note: "Отправлено в чат: " + (th.title || th.id), status: "sent" } }).then(function (r) { U.toast("Версия " + r.version + " сохранена со статусом «Отправлено»"); }).catch(function () {});
-    }).catch(function (e) { U.toast("Не отправлено: " + E(e)); });
+    }).catch(function (e) { U.toast("Не отправлено: " + e); });
   }
   P.sendToChat = function () {
     if (!window.__chatSend) { U.toast("Чат не загружен — обновите страницу"); return; }
@@ -264,7 +264,7 @@
     root.querySelectorAll("[data-del]").forEach(function (b) {
       b.onclick = function () {
         var t = TPL.kp[+b.dataset.del]; if (!confirm("Удалить шаблон «" + t.name + "»?")) return;
-        saveTpl({ kp: TPL.kp.filter(function (x) { return x !== t; }) }).then(function () { U.toast("Шаблон удалён"); render(); }).catch(function (e) { U.toast(E(e)); });
+        saveTpl({ kp: TPL.kp.filter(function (x) { return x !== t; }) }).then(function () { U.toast("Шаблон удалён"); render(); }).catch(function (e) { U.toast(String(e)); });
       };
     });
   }
@@ -283,9 +283,9 @@
         var st = { services: {}, deadline: cur.deadline };
         on.forEach(function (k) { st.services[k] = { on: true, fields: cur.services[k].fields }; });
         var kp = TPL.kp.concat([{ id: "", name: name, descr: "Сохранено из конструктора", state: st }]);
-        saveTpl({ kp: kp }).then(function () { U.toast("Шаблон «" + name + "» сохранён"); P.templates(); }).catch(function (e) { U.toast(E(e)); });
+        saveTpl({ kp: kp }).then(function () { U.toast("Шаблон «" + name + "» сохранён"); P.templates(); }).catch(function (e) { U.toast(String(e)); });
       };
-    }).catch(function (e) { U.toast(E(e)); });
+    }).catch(function (e) { U.toast(String(e)); });
   };
 
   /* ---------- договор по шаблону ---------- */
