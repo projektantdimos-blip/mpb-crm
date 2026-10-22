@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261022e";</script>
+<script>window.MPB_VERSION="20261022f";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261022e">
+<link rel="stylesheet" href="theme-v2.css?v=20261022f">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -314,7 +314,7 @@ textarea{resize:vertical;min-height:64px}
   </div>
   <iframe id="contracts-frame" title="Договоры" style="width:100%;height:calc(100vh - 160px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe>
 </div>
-<div id="to-app" style="display:none"><iframe id="to-frame" title="ТО МПБ" style="width:100%;height:calc(100vh - 110px);min-height:600px;border:0;display:block;background:var(--bg)"></iframe></div>
+<div id="to-app" style="display:none"><iframe id="to-frame" title="ТО МПБ" scrolling="no" style="width:100%;height:600px;border:0;display:block;background:transparent"></iframe></div>
 </div></div>
 <nav class="bottomnav" id="bottomnav"></nav>
 <script>
@@ -843,6 +843,23 @@ function contractsProbe(){
   })();
 }
 document.getElementById("contracts-retry").onclick = contractsProbe;
+// Окно «ТО МПБ» растягивается по содержимому — одна прокрутка у страницы, без вложенных
+function toFrameFit(tf){                                   // вызывает и сама вкладка ТО после каждой перерисовки
+  var d = tf.contentDocument, box = d.getElementById("to-mpb") || d.body;
+  for (var i = 0; i < 3; i++) {                            // выросли → у страницы появилась прокрутка → окно уже → вёрстка выше: подгоняем ещё раз
+    var w0 = tf.clientWidth;
+    tf.style.height = Math.max(Math.ceil(box.getBoundingClientRect().height), 560) + "px";
+    if (tf.clientWidth === w0) break;
+  }
+}
+window.toFrameFit = toFrameFit;
+function fitToFrame(tf){
+  try {
+    toFrameFit(tf);
+    var w = tf.contentWindow;
+    if (w.ResizeObserver) new w.ResizeObserver(function(){ toFrameFit(tf); }).observe(w.document.body);
+  } catch (e) { tf.style.height = "calc(100vh - 110px)"; tf.setAttribute("scrolling", "auto"); }   // не получилось — как раньше, со своей прокруткой
+}
 function globalRouter(){
   renderTopNav();
   var sec = sectionForHash(location.hash);
@@ -854,7 +871,7 @@ function globalRouter(){
   document.getElementById("contracts-app").style.display = (sec === "contracts") ? "block" : "none";
   if (sec === "contracts") { contractsProbe(); }
   document.getElementById("to-app").style.display = (sec === "to") ? "block" : "none";
-  if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) tf.setAttribute("src", "to-mpb.html?v=" + (window.MPB_VERSION || "")); }
+  if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) { tf.onload = function(){ fitToFrame(tf); }; tf.setAttribute("src", "to-mpb.html?v=" + (window.MPB_VERSION || "")); } }
   document.getElementById("dash-app").style.display = (sec === "dash") ? "block" : "none";
   document.getElementById("cal-app").style.display = (sec === "cal") ? "block" : "none";
   document.getElementById("my-app").style.display = (sec === "my") ? "block" : "none";
@@ -2411,7 +2428,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261022e"></script>
+<script src="chat.js?v=20261022f"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2443,14 +2460,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261022e"></script>
-<script src="extras.js?v=20261022e"></script>
-<script src="team.js?v=20261022e"></script>
-<script src="auto.js?v=20261022e"></script>
-<script src="stages.js?v=20261022e"></script>
-<script src="clients.js?v=20261022e"></script>
-<script src="kpv.js?v=20261022e"></script>
-<script src="chatpanel.js?v=20261022e"></script>
+<script src="crm.js?v=20261022f"></script>
+<script src="extras.js?v=20261022f"></script>
+<script src="team.js?v=20261022f"></script>
+<script src="auto.js?v=20261022f"></script>
+<script src="stages.js?v=20261022f"></script>
+<script src="clients.js?v=20261022f"></script>
+<script src="kpv.js?v=20261022f"></script>
+<script src="chatpanel.js?v=20261022f"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

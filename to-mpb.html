@@ -126,20 +126,33 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-to.css">
+<link rel="stylesheet" href="theme-to.css?v=20261022f">
 <script>
-(function(){function ap(){try{var t=localStorage.getItem("mpb_theme");if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme")}catch(e){}}
-ap();window.addEventListener("storage",function(e){if(e.key==="mpb_theme")ap()});})();
+(function(){function pt(){try{return window.parent!==window&&parent.document.documentElement.getAttribute("data-theme")}catch(e){return null}}
+function ap(){var t=pt();if(!t){try{t=localStorage.getItem("mpb_theme")}catch(e){}}if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme")}
+ap();window.addEventListener("storage",function(e){if(e.key==="mpb_theme")ap()});
+try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.documentElement,{attributes:true,attributeFilter:["data-theme"]})}catch(e){}   // переключили тему в CRM — сразу и здесь
+})();
 </script>
 </head>
 <body>
 <div class="wrap" id="to-mpb">
-  <h2 class="title">Контроль выполнения ТО — <span id="yearLbl"></span> г.</h2>
-  <p class="hint">Статус месяца выбирается из списка. Данные за месяц вносятся до 21 числа. Итоги считаются автоматически.</p>
+  <div class="tohead">
+    <h2 class="title">ТО МПБ · <span id="yearLbl"></span></h2>
+    <span id="sync" class="sync"></span>
+    <span class="spacer"></span>
+    <span id="me" class="me"></span>
+    <div class="more"><button class="ghost" id="moreBtn" title="Ещё">⋯</button>
+      <div class="menu" id="moreMenu" hidden>
+        <button id="exp">Экспорт JSON</button><button id="imp">Импорт JSON</button><button id="csv">Экспорт CSV</button><button id="logout">Выйти</button>
+      </div>
+    </div>
+  </div>
 
   <div class="toolbar">
     <div class="tabs" id="tabs">
-      <button class="tab active" data-v="control">Контроль ТО</button>
+      <button class="tab" data-v="month">Этот месяц</button>
+      <button class="tab" data-v="control">График на год</button>
       <button class="tab" data-v="acc">Бухгалтерия</button>
       <button class="tab" data-v="obj">Объекты</button>
       <button class="tab" data-v="spec">Специалисты</button>
@@ -147,13 +160,7 @@ ap();window.addEventListener("storage",function(e){if(e.key==="mpb_theme")ap()})
     <input type="search" id="q" placeholder="Поиск по заказчику или адресу…">
     <select id="specf"><option value="">Все специалисты</option></select>
     <select id="year"></select>
-    <button class="ghost" id="exp">Экспорт JSON</button>
-    <button class="ghost" id="imp">Импорт JSON</button>
-    <button class="ghost" id="csv">Экспорт CSV</button>
     <input type="file" id="file" accept=".json" hidden>
-    <span id="me" style="font-weight:600"></span>
-    <span id="sync" style="font-size:.82rem;color:var(--muted)"></span>
-    <button class="ghost" id="logout">Выйти</button>
   </div>
 
   <div id="view"></div>
@@ -213,12 +220,16 @@ var SEED={"objects": [{"name": "ООО \"Снабтех\"", "kind": "СПС.СО
 function emptyYear(){return {to:{},act:{},pay:{},deadline:"",reason:"",note:""}}
 function migrate(d){
   d.objects=d.objects||[];d.specialists=d.specialists||[];
-  d.objects.forEach(function(o){if(o.address==null)o.address="";if(!o.years)o.years={}});
+  d.objects.forEach(function(o){if(o.address==null)o.address="";if(!o.years)o.years={};
+    Object.keys(o.years).forEach(function(k){var y=o.years[k]||(o.years[k]={});y.to=y.to||{};y.act=y.act||{};y.pay=y.pay||{};["deadline","reason","note"].forEach(function(f){if(y[f]==null)y[f]=""})});   // год без актов/оплат не роняет «Бухгалтерию»
+  });
   return d;
 }
 var data={objects:[],specialists:[],nextId:1}, me=null, pins={}, accPin=false;
-var view="control", year=new Date().getFullYear();
-var TABS_BY_ROLE={admin:["control","acc","obj","spec"],spec:["control"],acc:["acc"]};
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
+var view=ls("mpb_to_view")||"month", year=new Date().getFullYear();
+var TABS_BY_ROLE={admin:["month","control","acc","obj","spec"],spec:["month","control"],acc:["acc"]};
+var fullYear=ls("mpb_to_full")==="1", selM=0;          // таблица: 3 месяца вокруг текущего или весь год; «Этот месяц»: выбранный месяц
 
 function Y(o){return o.years[year]||(o.years[year]=emptyYear())}
 
@@ -239,13 +250,23 @@ function flush(){
   });
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-function toast(t){var e=document.getElementById("toast");e.textContent=t;e.classList.add("show");setTimeout(function(){e.classList.remove("show")},1800)}
+function toast(t){try{if(window.parent!==window&&parent.MPBT&&parent.MPBT.util&&parent.MPBT.util.toast)return parent.MPBT.util.toast(t)}catch(x){}var e=document.getElementById("toast");e.textContent=t;e.classList.add("show");setTimeout(function(){e.classList.remove("show")},1800)}
 function money(n){return n?Number(n).toLocaleString("ru-RU")+" ₽":""}
 function $(id){return document.getElementById(id)}
 
 var now=new Date(), curM=now.getMonth()+1;
 function isCurYear(){return year===now.getFullYear()}
 
+function shownMonths(){
+  if(fullYear||!isCurYear())return [1,2,3,4,5,6,7,8,9,10,11,12];
+  var a=Math.min(Math.max(curM-1,1),10);return [a,a+1,a+2];   // прошлый, текущий, следующий
+}
+function winBar(){
+  if(!isCurYear())return "";
+  var ms=shownMonths();
+  return '<div class="winbar">'+(fullYear?"Весь год":"Месяцы: "+MFULL[ms[0]-1]+" — "+MFULL[ms[ms.length-1]-1]+". Незакрытое раньше — в «Не закрыто» и на вкладке «Этот месяц»")
+    +' <button class="ghost sm" id="winT">'+(fullYear?"Только 3 месяца":"Показать весь год")+'</button></div>';
+}
 function filtered(){
   var q=$("q").value.toLowerCase().trim(), sp=$("specf").value;
   return data.objects.filter(function(o){return (!q||(o.name+" "+o.address).toLowerCase().indexOf(q)>=0)&&(!sp||o.spec===sp)});
@@ -297,17 +318,19 @@ function rowLive(o){ // «Статус» и «Не закрыто» одной �
 }
 function renderControl(){
   var list=filtered();
-  var h='<div class="rules"><b>Правила:</b> с 15 по 20 число инженеры проводят ТО; с 20 по 21 — анализ и внесение данных по каждому объекту. Если ТО не проводилось — выберите «Нет», укажите срок «Провести до» и причину.</div>';
-  h+='<div class="chips" id="chips">'+controlChips(list)+'</div>';
-  h+='<div class="legend"><span class="pill ok">Да</span> проведено <span class="pill bad">Нет</span> не проведено <span class="pill grey">·</span> нет отметки <span class="pill grey" style="background:repeating-linear-gradient(45deg,#f1f3f6,#f1f3f6 4px,#dde2e8 4px,#dde2e8 8px)">штрих</span> не по графику</div>';
+  var h='<div class="chips mini" id="chips">'+controlChips(list)+'</div>';
+  h+='<details class="rules"><summary>Правила и обозначения</summary><p>С 15 по 20 число инженеры проводят ТО; с 20 по 21 — анализ и внесение данных по каждому объекту. Если ТО не проводилось — выберите «Нет», укажите срок «Провести до» и причину.</p>'
+   +'<div class="legend"><span class="pill ok">Да</span> проведено <span class="pill bad">Нет</span> не проведено <span class="pill grey">·</span> нет отметки <span class="pill grey" style="background:repeating-linear-gradient(45deg,#f1f3f6,#f1f3f6 4px,#dde2e8 4px,#dde2e8 8px)">штрих</span> не по графику</div></details>';
+  h+=winBar();
   if(!list.length)return h+'<div class="empty-msg">Нет объектов</div>';
   h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик / адрес</th><th>Вид ТО</th><th>Период</th><th>Специалист</th><th>Статус</th><th>Не закрыто</th>';
-  MONTHS.forEach(function(m,i){h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'</th>'});
+  shownMonths().forEach(function(mm){var i=mm-1,m=MONTHS[i];h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'</th>'});
   h+='<th>Провести до</th><th class="l">Причина</th></tr></thead><tbody>';
   list.forEach(function(o,i){
     var y=Y(o),lv=rowLive(o);
     h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</td><td>'+esc(o.kind)+'</td><td>'+esc(o.period)+'</td><td>'+esc(o.spec)+'</td><td class="lv-st">'+lv.st+'</td><td class="lv-un">'+lv.un+'</td>';
-    for(var m=1;m<=12;m++){
+    var MS=shownMonths();
+    for(var mi=0;mi<MS.length;mi++){var m=MS[mi];
       var pl=planned(o,m),s=y.to[m]||"";
       if(!pl&&!s){h+='<td class="offc" title="'+MFULL[m-1]+' — ТО не требуется" style="color:#9aa6b4">—</td>';continue}
       h+='<td class="'+(pl||s?"":"offc ")+(isCurYear()&&m===curM?"cur":"")+'">'+stSel('data-m="'+m+'" title="'+MFULL[m-1]+(pl?"":" — не по графику")+'"',TO_OPTS,s,TO_CLS)+'</td>';
@@ -315,6 +338,50 @@ function renderControl(){
     h+='<td><input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></td><td><input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Причина" style="min-width:200px"></td></tr>';
   });
   return h+'</tbody></table></div>';
+}
+
+/* ====== Этот месяц: что провести сейчас + «хвосты» прошлых месяцев ====== */
+function mSel(){return selM||(isCurYear()?curM:(year<now.getFullYear()?12:1))}
+function tcard(o,m,tail){
+  var y=Y(o),s=y.to[m]||"";
+  return '<div class="tcard '+(s==="yes"?"yes":s==="no"?"no":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
+   +'<div class="tc-top"><div><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div>'+(tail?'<span class="pill '+(s==="no"?"bad":"warn")+'">'+MFULL[m-1]+'</span>':'')+'</div>'
+   +'<div class="tc-meta">'+esc(o.spec||"без специалиста")+' · '+esc(o.period||"")+(o.kind?' · '+esc(o.kind):'')+'</div>'
+   +'<div class="tc-acts"><button class="tbtn yes'+(s==="yes"?" on":"")+'" data-set="yes">✓ Проведено</button><button class="tbtn no'+(s==="no"?" on":"")+'" data-set="no">✕ Не проведено</button>'
+   +(s?'<button class="tbtn clr" data-set="" title="Убрать отметку">Сбросить</button>':'')+'</div>'
+   +(s==="no"?'<div class="tc-no"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
+   +'</div>';
+}
+function tailCard(o,ms){
+  var y=Y(o),anyNo=ms.some(function(m){return y.to[m]==="no"});
+  return '<div class="tcard tail '+(anyNo?"no":"")+'" data-id="'+o.id+'">'
+   +'<div class="tc-top"><div><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div><span class="pill bad">'+ms.length+'</span></div>'
+   +'<div class="tc-meta">'+esc(o.spec||"без специалиста")+' · '+esc(o.period||"")+'</div>'
+   +ms.map(function(m){var st=y.to[m]||"";return '<div class="tl-row" data-tm="'+m+'"><span class="tl-m">'+MFULL[m-1]+'</span><span class="tl-st '+(st==="no"?"bad":"")+'">'+(st==="no"?"не проведено":"нет отметки")+'</span>'
+     +'<button class="tbtn sm yes" data-set="yes" title="Проведено">✓</button><button class="tbtn sm no'+(st==="no"?" on":"")+'" data-set="no" title="Не проведено">✕</button></div>'}).join("")
+   +(anyNo?'<div class="tc-no"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
+   +'</div>';
+}
+function renderMonth(){
+  var m=mSel(),list=filtered(),tails=[];
+  list.forEach(function(o){var y=Y(o);for(var k=1;k<m;k++)if(planned(o,k)&&y.to[k]!=="yes")tails.push({o:o,m:k})});
+  tails.sort(function(a,b){return a.m-b.m});
+  var due=list.filter(function(o){return planned(o,m)||Y(o).to[m]});
+  var todo=due.filter(function(o){return Y(o).to[m]!=="yes"}),done=due.filter(function(o){return Y(o).to[m]==="yes"});
+  todo.sort(function(a,b){return (Y(a).to[m]==="no")-(Y(b).to[m]==="no")});          // сначала без отметки
+  var nNo=todo.filter(function(o){return Y(o).to[m]==="no"}).length;
+  var h='<div class="mhead"><button class="ghost" data-mm="-1"'+(m<=1?" disabled":"")+'>‹</button><b>'+MFULL[m-1]+' '+year+'</b><button class="ghost" data-mm="1"'+(m>=12?" disabled":"")+'>›</button>'
+   +'<span class="mstat">По плану: '+due.length+' · проведено: '+done.length+' · не проведено: '+nNo+' · без отметки: '+(todo.length-nNo)+'</span></div>';
+  h+='<h3 class="sec">Нужно провести в '+MFULL[m-1].toLowerCase().replace(/ь$|й$/,"е").replace(/т$/,"те")+' ('+todo.length+')</h3>';
+  h+=todo.length?'<div class="cards">'+todo.map(function(o){return tcard(o,m,false)}).join("")+'</div>':'<div class="empty-msg">'+(due.length?"Все ТО этого месяца проведены ✓":"В этом месяце ТО по графику нет")+'</div>';
+  if(tails.length){                                                                  // хвосты — после текущего месяца, по объектам
+    var by={},order=[];
+    tails.forEach(function(t){if(!by[t.o.id]){by[t.o.id]={o:t.o,ms:[]};order.push(t.o.id)}by[t.o.id].ms.push(t.m)});
+    h+='<h3 class="sec bad">Хвосты — не закрыто в прошлых месяцах: '+tails.length+' по '+order.length+' объект'+(order.length%10===1&&order.length%100!==11?"у":"ам")+'</h3>'
+      +'<div class="cards">'+order.map(function(id){return tailCard(by[id].o,by[id].ms)}).join("")+'</div>';
+  }
+  if(done.length)h+='<details class="donebox"><summary>Проведено в этом месяце ('+done.length+')</summary><div class="cards">'+done.map(function(o){return tcard(o,m,false)}).join("")+'</div></details>';
+  return h;
 }
 
 /* ====== Бухгалтерия ====== */
@@ -326,15 +393,16 @@ function accChips(list){
 function renderAcc(){
   var list=filtered();
   var h='<p class="hint">Выберите «Акт» и «Оплата» по месяцам из списков и заполните «Примечание». Заказчик, договор, период и стоимость берутся из вкладки «Объекты».</p>';
-  h+='<div class="chips" id="chips">'+accChips(list)+'</div>';
+  h+='<div class="chips mini" id="chips">'+accChips(list)+'</div>'+winBar();
   if(!list.length)return h+'<div class="empty-msg">Нет объектов</div>';
   h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик</th><th>Договор</th><th>Период</th><th>Стоимость</th>';
-  MONTHS.forEach(function(m,i){h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'<br><small>акт / оплата</small></th>'});
+  shownMonths().forEach(function(mm){var i=mm-1,m=MONTHS[i];h+='<th'+(isCurYear()&&i+1===curM?' class="cur"':'')+'>'+m+'<br><small>акт / оплата</small></th>'});
   h+='<th class="l">Примечание</th></tr></thead><tbody>';
   list.forEach(function(o,i){
     var y=Y(o);
     h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name">'+esc(o.name)+'</td><td>'+esc(o.contract)+(o.signed?'<br><small>'+esc(o.signed)+'</small>':'')+'</td><td>'+esc(o.period)+'</td><td>'+money(o.cost)+'</td>';
-    for(var m=1;m<=12;m++){
+    var MS=shownMonths();
+    for(var mi=0;mi<MS.length;mi++){var m=MS[mi];
       if(!planned(o,m)&&!y.act[m]&&!y.pay[m]){h+='<td class="offc" title="'+MFULL[m-1]+' — ТО не требуется" style="color:#9aa6b4">—</td>';continue}
       h+='<td class="pair">'+stSel('data-k="act" data-m="'+m+'"',ACT_OPTS,y.act[m]||"",ACT_CLS)+' '+stSel('data-k="pay" data-m="'+m+'"',PAY_OPTS,y.pay[m]||"",PAY_CLS)+'</td>';
     }
@@ -382,10 +450,14 @@ function renderSpec(){
   return h+'</tbody></table></div>';
 }
 
+/* высота окна в CRM — по содержимому (одна прокрутка у страницы) */
+function fitParent(){try{if(window.frameElement&&parent.toFrameFit)parent.toFrameFit(window.frameElement)}catch(e){}}
+document.addEventListener("toggle",fitParent,true);window.addEventListener("resize",fitParent);window.addEventListener("load",fitParent);try{document.fonts.ready.then(fitParent)}catch(e){}
 function render(){
   fillYears();
-  $("view").innerHTML=view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
+  $("view").innerHTML=view==="month"?renderMonth():view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
   labelize();
+  fitParent();
 }
 /* подписи ячеек для карточек на телефоне */
 function labelize(){
@@ -395,7 +467,7 @@ function labelize(){
     [].forEach.call(t.querySelectorAll("tbody tr"),function(tr){
       [].forEach.call(tr.children,function(td,i){
         var l=hs[i]||"";if(l)td.setAttribute("data-l",l);
-        if(MONTHS.indexOf(l)>=0){td.classList.add("mc");if(l===MONTHS[0])td.classList.add("mc1")}
+        if(MONTHS.indexOf(l)>=0){td.classList.add("mc");if(l===MONTHS[shownMonths()[0]-1])td.classList.add("mc1")}
         else if(!td.classList.contains("name")&&!td.classList.contains("n")&&!td.querySelector("input,select,button"))td.classList.add("meta");
       });
     });
@@ -426,7 +498,7 @@ function loadData(silent){
   });
 }
 function showLogin(msg){
-  me=null;$("login").style.display="flex";$("loginErr").textContent=msg||"";$("pinIn").value="";$("pinIn").focus();
+  me=null;$("login").style.display="flex";fitParent();$("loginErr").textContent=msg||"";$("pinIn").value="";$("pinIn").focus();
 }
 function doLogin(){
   var p=$("pinIn").value.trim();if(!p)return;
@@ -442,10 +514,20 @@ setInterval(function(){ // подтягиваем изменения други�
 },60000);
 
 /* ====== События (без перерисовки таблицы при выборе статусов) ====== */
-function find(el){var tr=el.closest("tr");return tr&&data.objects.filter(function(o){return o.id==tr.dataset.id})[0]}
+function find(el){var tr=el.closest("[data-id]");return tr&&data.objects.filter(function(o){return o.id==tr.dataset.id})[0]}
 function uniqSpecName(){var n=1,nm;do{nm="Новый специалист"+(n>1?" "+n:"");n++}while(data.specialists.some(function(s){return s.name===nm}));return nm}
 $("view").addEventListener("click",function(e){
-  var t=e.target;
+  var t=e.target.closest("button")||e.target;
+  if(t.id==="winT"){fullYear=!fullYear;ls("mpb_to_full",fullYear?"1":"0");render();return}
+  if(t.dataset.mm){var nm=mSel()+(+t.dataset.mm);if(nm>=1&&nm<=12){selM=nm;render()}return}
+  if(t.dataset.set!==undefined&&t.closest(".tcard")){
+    var c=t.closest(".tcard"),oc=find(c),mm=+t.closest("[data-tm]").dataset.tm,v=t.dataset.set;
+    if(!oc)return;
+    Y(oc).to[mm]=v;op({k:"cell",id:oc.id,year:year,field:"to",m:mm,v:v});
+    render();
+    if(v==="no"){var nc=document.querySelector('.tcard[data-id="'+oc.id+'"] input[data-f="deadline"]');if(nc)nc.focus()}
+    return;
+  }
   if(t.id==="add"){
     var no={id:Date.now(),name:"Новый заказчик",address:"",kind:"СПС.СОУЭ",spec:"",client:"",code:"",ppkp:"",entry:"",journal:"",instr:"",note:"",contract:"",signed:"",period:"Месяц",first:1,cost:0,years:{}};
     data.objects.push(no);op({k:"objAdd",obj:no});render();return}
@@ -504,11 +586,14 @@ $("view").addEventListener("change",function(e){
 });
 $("tabs").addEventListener("click",function(e){
   var b=e.target.closest(".tab");if(!b)return;
-  view=b.dataset.v;[].forEach.call(this.children,function(c){c.classList.toggle("active",c===b)});render();
+  view=b.dataset.v;ls("mpb_to_view",view);[].forEach.call(this.children,function(c){c.classList.toggle("active",c===b)});render();
 });
 $("q").addEventListener("input",render);
 $("specf").addEventListener("change",render);
-$("year").addEventListener("change",function(){
+$("moreBtn").onclick=function(e){e.stopPropagation();$("moreMenu").hidden=!$("moreMenu").hidden};
+document.addEventListener("click",function(e){if(!e.target.closest(".more"))$("moreMenu").hidden=true});
+$("moreMenu").addEventListener("click",function(){this.hidden=true});
+$("year").addEventListener("change",function(){selM=0;
   if(this.value==="+"){var n=parseInt(prompt("Год:",year+1),10);if(n>2000&&n<2100)year=n}else year=parseInt(this.value,10);
   render();
 });
