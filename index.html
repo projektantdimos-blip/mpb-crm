@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261022b";</script>
+<script>window.MPB_VERSION="20261022e";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261022b">
+<link rel="stylesheet" href="theme-v2.css?v=20261022e">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -487,7 +487,11 @@ function tasksRouter(){
   if(h.indexOf("#/task/")===0){
     var row = +h.slice(7);
     renderDetailLoading(true);
-    callServer("api_getTask", row).then(function(t){ renderDetail(t, false); }).catch(showError);
+    callServer("api_getTask", row).then(function(t){
+      if (!t) { showError("Задача не найдена — возможно, её удалили"); return; }
+      renderDetail(t, false);
+      if (taskSavedFlash) { taskSavedFlash = false; flashTaskSaved(); }
+    }).catch(showError);
     return;
   }
   if(h==="#/new"){ renderDetail(null, true); return; }
@@ -624,6 +628,12 @@ function boardHtml(tasks){
   return '<div class="board">'+cols+'</div>';
 }
 
+var taskSavedFlash = false;                                 // показать «Сохранено» после перехода к только что созданной задаче
+function flashTaskSaved(){
+  var n = document.getElementById("notice"); if (!n) return;
+  n.innerHTML = '<div class="notice">✓ Сохранено</div>';
+  clearTimeout(flashTaskSaved.h); flashTaskSaved.h = setTimeout(function(){ if (n.isConnected) n.innerHTML = ""; }, 4000);
+}
 function renderDetail(task, isNew){
   var app = document.getElementById("tasks-app");
   var t = task || {row:null, customer:"", address:"", contractNo:"", workType:"", startDate:todayISO(), dueDate:"", stage:stagesFor("")[0].name, deadline:"", comment:"", siteContact:"", siteContactPhone:"", manager:"", closed:false};
@@ -725,7 +735,18 @@ function renderDetail(task, isNew){
     };
     setBusy(true, "Сохраняю…");
     var p = isNew ? callServer("api_createTask", data) : callServer("api_saveTask", t.row, data);
-    p.then(function(){ location.hash = "#/"; }).catch(function(msg){   // форму не трогаем — введённое остаётся, можно нажать ещё раз
+    p.then(function(res){                                    // остаёмся в задаче: новая — открывается, изменённая — перечитывается
+      var row = isNew ? (res && res.row) : t.row;
+      if (!row) { location.hash = "#/"; return; }             // таблица не вернула номер — как раньше, к списку
+      if (isNew) { taskSavedFlash = true; location.hash = "#/task/" + row; return; }
+      var y = window.scrollY;
+      return callServer("api_getTask", row).then(function(fresh){ return fresh; }, function(){ return null; })   // сохранилось; не перечиталось — покажем то, что ввели
+        .then(function(fresh){
+          renderDetail(fresh || Object.assign({}, t, data), false);
+          window.scrollTo(0, y);
+          flashTaskSaved();
+        });
+    }).catch(function(msg){   // форму не трогаем — введённое остаётся, можно нажать ещё раз
       setBusy(false, isNew?"Создать задачу":"Сохранить изменения");
       var n = document.getElementById("notice");
       var bad = /проверка данных/.test(String(msg)) && data.stage ? 'Таблица не принимает этап «' + data.stage + '». ' : '';
@@ -898,12 +919,13 @@ function router(){
     var row = +h.slice(13);
     renderDetailLoading(true);
     var found = cache.leads.find(function(x){ return x.row === row; });
-    if (found) { renderDetail(found, false); return; }
-    
+    if (found) { renderDetail(found, false); if (leadSavedFlash) { leadSavedFlash = false; flashLeadSaved(); } return; }
+
     callServer("api_kpregList").then(function(leads){
       cache.leads = leads;
       var l = leads.find(function(x){ return x.row === row; });
-      if (l) renderDetail(l, false); else { location.hash = "#/kpreg/"; }
+      if (l) { renderDetail(l, false); if (leadSavedFlash) { leadSavedFlash = false; flashLeadSaved(); } }
+      else { location.hash = "#/kpreg/"; }
     }).catch(showKpregError);
     return;
   }
@@ -914,6 +936,12 @@ function router(){
 window.__subRouters = window.__subRouters || {};
 window.__subRouters.kpreg = router;
 
+var leadSavedFlash = false;                                 // показать «Сохранено» после перехода к только что созданной заявке
+function flashLeadSaved(){
+  var n = document.getElementById("kp_notice"); if (!n) return;
+  n.innerHTML = '<div class="notice">✓ Сохранено</div>';
+  clearTimeout(flashLeadSaved.h); flashLeadSaved.h = setTimeout(function(){ if (n.isConnected) n.innerHTML = ""; }, 4000);
+}
 function showKpregError(msg){
   document.getElementById("kpreg-app").innerHTML = header(false)
     + '<div class="wrap2"><div class="err">Ошибка: ' + esc(msg) + '. Обновите страницу или попробуйте ещё раз.</div>'
@@ -1124,8 +1152,26 @@ function renderDetail(lead, isNew){
     var data = readForm();
     setBusy(true, "Сохраняю…");
     var p = isNew ? callServer("api_kpregCreate", data) : callServer("api_kpregSave", l.row, data);
-    p.then(function(){ location.hash = "#/kpreg/"; })
-     .catch(function(msg){ setBusy(false, isNew?"Создать заявку":"Сохранить изменения"); showKpregError(msg); });
+    p.then(function(res){                                    // остаёмся в заявке: новая — открывается, изменённая — перечитывается
+      var row = isNew ? (res && res.row) : l.row;
+      if (!row) { location.hash = "#/kpreg/"; return; }       // таблица не вернула номер — как раньше, к реестру
+      if (isNew) { leadSavedFlash = true; location.hash = "#/kpreg/lead/" + row; return; }
+      var y = window.scrollY;
+      return callServer("api_kpregList").then(function(leads){ return leads; }, function(){ return null; })   // сохранилось; не перечиталось — покажем введённое
+        .then(function(leads){
+        var mine = Object.assign({}, l, data);
+        if (leads) cache.leads = leads;                      // карточка открывается из кэша — обновляем его
+        else cache.leads = cache.leads.map(function(x){ return x.row === row ? mine : x; });
+        renderDetail((leads && leads.find(function(x){ return x.row === row; })) || mine, false);
+        window.scrollTo(0, y);
+        flashLeadSaved();
+      });
+    }).catch(function(msg){                                  // форму не трогаем — введённое остаётся, можно нажать ещё раз
+      setBusy(false, isNew?"Создать заявку":"Сохранить изменения");
+      var n = document.getElementById("kp_notice");
+      n.innerHTML = '<div class="err">Не сохранено. ' + esc(msg) + '. Данные в форме остались — исправьте и нажмите кнопку ещё раз.</div>';
+      n.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
   };
   if (!isNew) {
     document.getElementById("kpTouchBtn").onclick = function(){
@@ -2365,7 +2411,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261022b"></script>
+<script src="chat.js?v=20261022e"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2397,14 +2443,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261022b"></script>
-<script src="extras.js?v=20261022b"></script>
-<script src="team.js?v=20261022b"></script>
-<script src="auto.js?v=20261022b"></script>
-<script src="stages.js?v=20261022b"></script>
-<script src="clients.js?v=20261022b"></script>
-<script src="kpv.js?v=20261022b"></script>
-<script src="chatpanel.js?v=20261022b"></script>
+<script src="crm.js?v=20261022e"></script>
+<script src="extras.js?v=20261022e"></script>
+<script src="team.js?v=20261022e"></script>
+<script src="auto.js?v=20261022e"></script>
+<script src="stages.js?v=20261022e"></script>
+<script src="clients.js?v=20261022e"></script>
+<script src="kpv.js?v=20261022e"></script>
+<script src="chatpanel.js?v=20261022e"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

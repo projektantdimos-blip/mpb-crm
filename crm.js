@@ -130,9 +130,11 @@
   };
 
   /* окно входа; возвращает Promise, который выполняется после успешного входа */
+  var loginWait = null;                              // одно окно входа на все запросы, пришедшие до входа
   C.requireLogin = function () {
     if (C.loggedIn()) return Promise.resolve(C.me);
-    return new Promise(function (resolve, reject) {
+    if (loginWait) return loginWait;
+    loginWait = new Promise(function (resolve, reject) {
       var v = $("xLoginVeil");
       if (!v) { v = document.createElement("div"); v.id = "xLoginVeil"; v.className = "x-mveil"; document.body.appendChild(v); }
       v.className = "x-mveil on";
@@ -158,6 +160,8 @@
       }
       $("xLGo").onclick = go; $("xLPin").onkeydown = function (e) { if (e.key === "Enter") go(); };
     });
+    loginWait.then(function () { loginWait = null; }, function () { loginWait = null; });
+    return loginWait;
   };
 
   /* ---------- опрос состояния, срочные и уведомления ---------- */

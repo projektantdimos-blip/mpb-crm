@@ -648,26 +648,54 @@
           + '<div class="pf-pills"><span>Задач: ' + c.tasks + "</span><span>В архиве: " + c.archived + "</span><span>Заявок: " + c.leads + "</span><span>Клиентов с ИНН: " + c.clients + "</span><span>ТО: " + (st.to === "bridge" ? "в CRM" : "в таблице") + "</span></div>"
           + (m ? '<p class="x-sub" style="margin-top:10px">Перенесено ' + E(when(m.ts)) + " · " + E(m.by || "") + "</p>" : "")
         : '<p class="x-sub">Сейчас задачи, реестр КП и ТО хранятся <b>в Google-таблице</b>. Перенос забирает всё в CRM; таблица при этом не меняется и остаётся архивом на дату переноса.</p>';
-      var mig = moved ? "" : '<div class="x-panel pad" style="margin-top:12px"><h3>Перенести данные из таблицы</h3>'
-        + '<p class="x-sub">Перед переносом сервер сделает копию базы. Попросите сотрудников не вносить изменения несколько минут — после переноса у всех страница обновится сама.</p>'
-        + (st.to_pin_set ? "" : '<div class="x-field"><label>PIN руководителя вкладки «ТО МПБ» (чтобы перенести и график ТО)</label><input type="password" id="dToPin" class="x-pin" inputmode="numeric" maxlength="8" placeholder="можно оставить пустым — ТО останется в таблице"></div>')
-        + '<div class="x-err" id="dErr"></div><button class="x-btn primary" id="dGo">Перенести из таблицы</button></div>';
+      var pinField = function (id, ph) { return '<div class="x-field"><label>PIN руководителя вкладки «ТО МПБ»</label><input type="password" id="' + id + '" class="x-pin" inputmode="numeric" maxlength="8" placeholder="' + ph + '"></div>'; };
+      var again = !moved && m;                                 // работали в CRM, затем аварийно вернулись к таблице
+      var mig = moved ? "" : '<div class="x-panel pad" style="margin-top:12px"><h3>' + (again ? "Снова перейти в CRM" : "Перенести данные из таблицы") + "</h3>"
+        + (again
+          ? '<p class="x-sub">После возврата к таблице работали в ней. «Вернуться к данным CRM» — продолжить с тем, что было в CRM (правки в таблице после возврата не попадут). «Перенести заново» — взять задачи и реестр из таблицы (правки в CRM до возврата пропадут). ТО остаётся как есть.</p>'
+            + '<div class="x-err" id="dErr"></div><div class="x-row" style="justify-content:flex-start"><button class="x-btn primary" id="dResume">Вернуться к данным CRM</button><button class="x-btn ghost" id="dGo">Перенести заново из таблицы</button></div></div>'
+          : '<p class="x-sub">Перед переносом сервер сделает копию базы. Попросите сотрудников не вносить изменения несколько минут — после переноса у всех страница обновится сама.</p>'
+            + (st.to_pin_set || st.to === "bridge" ? "" : pinField("dToPin", "можно оставить пустым — ТО останется в таблице"))
+            + '<div class="x-err" id="dErr"></div><button class="x-btn primary" id="dGo">Перенести из таблицы</button></div>');
+      var toMig = moved && st.to !== "bridge" ? '<div class="x-panel pad" style="margin-top:12px"><h3>Перенести график ТО</h3><p class="x-sub">Задачи и реестр уже в CRM, а «ТО МПБ» пока в таблице. Задачи и реестр это не затронет.</p>'
+        + (st.to_pin_set ? "" : pinField("dTo2Pin", "PIN руководителя, не специалиста"))
+        + '<div class="x-err" id="dToErr"></div><button class="x-btn primary" id="dToGo">Перенести ТО</button></div>' : "";
+      var cut = moved && st.truncated ? '<div class="x-panel pad" style="margin-top:12px"><h3>Длинные тексты</h3><p class="x-sub">При переносе ' + st.truncated + ' комментариев/описаний длиннее 2000 символов могли обрезаться. Полный текст есть в старых листах таблицы — его можно дочитать (правки, сделанные в CRM, не затрагиваются).</p><div class="x-err" id="dCutErr"></div><button class="x-btn primary" id="dCut">Восстановить полный текст</button></div>' : "";
       var back = moved ? '<div class="x-panel pad" style="margin-top:12px"><h3>Аварийно</h3><p class="x-sub">Вернуть работу в Google-таблицу. Данные в CRM сохранятся, но изменения, сделанные после переноса, в таблице не появятся.</p><button class="x-btn ghost" id="dBack">Вернуться к таблице</button></div>' : "";
-      body.innerHTML = '<div class="x-two"><div><div class="x-panel pad"><h3>Где данные</h3>' + info + "</div>" + mig + back + "</div>"
+      body.innerHTML = '<div class="x-two"><div><div class="x-panel pad"><h3>Где данные</h3>' + info + "</div>" + mig + toMig + cut + back + "</div>"
         + '<div class="x-sticky"><div class="x-panel pad"><h3>Копии базы</h3><p class="x-sub">Сервер делает копию раз в сутки и хранит последние 14</p>'
         + (bk.length ? bk.slice(0, 6).map(function (b) { return '<div class="x-urow"><div><b>' + E(when(b.ts)) + "</b><small>" + E(b.name) + " · " + kb(b.size) + "</small></div></div>"; }).join("") : '<div class="x-empty">Копий пока нет</div>')
         + '<button class="x-btn ghost" id="dBk" style="margin-top:10px">Сделать копию сейчас</button></div></div></div>';
       $("dBk").onclick = function () { this.disabled = true; C.call("/admin/backups", { body: {} }).then(function () { toast("Копия базы сделана"); paintData(); }).catch(function (e) { toast(String(e)); paintData(); }); };
       if ($("dGo")) $("dGo").onclick = function () {
-        if (!confirm("Перенести задачи, реестр КП, клиентов" + (st.to_pin_set || ($("dToPin") && $("dToPin").value) ? " и ТО" : "") + " из Google-таблицы в CRM?\n\nПосле этого все работают только в CRM.")) return;
-        var go = $("dGo"); go.disabled = true; go.textContent = "Переношу… (до минуты)"; $("dErr").textContent = "";
-        C.call("/admin/migrate", { body: { to_pin: $("dToPin") ? $("dToPin").value.trim() : "" } }).then(function (res) {
+        var q = again ? "Перенести задачи и реестр из таблицы заново? Всё, что было изменено в CRM до возврата к таблице, будет заменено данными таблицы."
+          : "Перенести задачи, реестр КП, клиентов" + (st.to_pin_set || ($("dToPin") && $("dToPin").value) ? " и ТО" : "") + " из Google-таблицы в CRM?\n\nПосле этого все работают только в CRM.";
+        if (!confirm(q)) return;
+        var go = $("dGo"), label = go.textContent; go.disabled = true; go.textContent = "Переношу… (до минуты)"; $("dErr").textContent = "";
+        C.call("/admin/migrate", { body: { force: !!again, to_pin: $("dToPin") ? $("dToPin").value.trim() : "" } }).then(function (res) {
           var t = res.to || {};
           alert("Перенесено: задач " + res.tasks + ", заявок " + res.leads + ", клиентов " + res.clients
             + (t.moved ? ", объектов ТО " + t.objects + (t.pins === "kept" ? " (PIN вкладки ТО прежние)" : ". PIN специалистов и бухгалтера ТО задайте заново во вкладке «ТО МПБ → Специалисты»") : ". График ТО остался в таблице")
             + ".\nКопия базы до переноса: " + res.backup + "\n\nСтраница обновится.");
           location.reload();
-        }).catch(function (e) { go.disabled = false; go.textContent = "Перенести из таблицы"; $("dErr").textContent = String(e); });
+        }).catch(function (e) { go.disabled = false; go.textContent = label; $("dErr").textContent = String(e); });
+      };
+      if ($("dResume")) $("dResume").onclick = function () {
+        if (!confirm("Вернуться к данным CRM? Правки, сделанные в таблице после возврата, в CRM не попадут.")) return;
+        C.call("/admin/storage", { body: { mode: "bridge" } }).then(function () { location.reload(); }).catch(function (e) { $("dErr").textContent = String(e); });
+      };
+      if ($("dToGo")) $("dToGo").onclick = function () {
+        var b = this; b.disabled = true; $("dToErr").textContent = "";
+        C.call("/admin/migrate-to", { body: { to_pin: $("dTo2Pin") ? $("dTo2Pin").value.trim() : "" } }).then(function (res) {
+          var t = res.to || {};
+          alert("График ТО перенесён: объектов " + t.objects + (t.pins === "kept" ? " (PIN вкладки ТО прежние)" : ". PIN специалистов и бухгалтера задайте заново во вкладке «ТО МПБ → Специалисты»") + ".");
+          location.reload();
+        }).catch(function (e) { b.disabled = false; $("dToErr").textContent = String(e); });
+      };
+      if ($("dCut")) $("dCut").onclick = function () {
+        var b = this; b.disabled = true; b.textContent = "Восстанавливаю…"; $("dCutErr").textContent = "";
+        C.call("/admin/restore-text", { body: {} }).then(function (r) { toast("Восстановлено текстов: " + r.fixed); paintData(); })
+          .catch(function (e) { b.disabled = false; b.textContent = "Восстановить полный текст"; $("dCutErr").textContent = String(e); });
       };
       if ($("dBack")) $("dBack").onclick = function () {
         if (!confirm("Вернуть работу в Google-таблицу? Изменения, сделанные в CRM после переноса, в таблице НЕ появятся.")) return;
