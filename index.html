@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261021c";</script>
+<script>window.MPB_VERSION="20261022b";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261021c">
+<link rel="stylesheet" href="theme-v2.css?v=20261022b">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -435,6 +435,22 @@ function apiCfg(){
   try { var c = JSON.parse(localStorage.getItem("mpb_api") || "{}"); return { url: c.url || DEFAULT_API_URL, key: c.key || "" }; }
   catch(e){ return { url: DEFAULT_API_URL, key: "" }; }
 }
+// Ошибки Google-таблицы приходят по-английски; самую частую — «проверка данных» в колонке — переводим и объясняем
+function sheetError(msg){
+  var s = String(msg || "");
+  if (!/data validation|проверк\S* данных/i.test(s)) return s;
+  var cell = (/(?:cell|ячейк\S*)\s+([A-Z]{1,3}\d+)/i.exec(s) || [])[1] || "";
+  var allowed = (s.split(/following values:|следующих значений:/i)[1] || "").replace(/[.\s]+$/, "").trim();
+  return "Таблица Google не приняла значение" + (cell ? " в ячейке " + cell : "") + ": на колонке стоит проверка данных со старым списком"
+    + (allowed ? " (разрешено: " + allowed + ")" : "")
+    + ". Руководителю: в таблице выделите колонку → Данные → Проверка данных → «Если данные недействительны: показывать предупреждение»";
+}
+// Где данные — решает мост (MPBC.storage): до переноса — Google-таблица, после — база моста. Ждём, пока crm.js это узнает.
+function storageReady(){
+  if (window.MPBC && MPBC.ready) return MPBC.ready.then(function(){ return MPBC.storage; });
+  if (document.readyState === "loading") return new Promise(function(res){ document.addEventListener("DOMContentLoaded", function(){ res(storageReady()); }); });
+  return Promise.resolve("sheet");
+}
 function callServer(fn){
   var args = Array.prototype.slice.call(arguments, 1);
   if (window.google && google.script && google.script.run) {
@@ -445,9 +461,12 @@ function callServer(fn){
       runner[fn].apply(runner, args);
     });
   }
+  return storageReady().then(function(where){ return where === "bridge" ? MPBC.dataCall(fn, args) : sheetCall(fn, args); });
+}
+function sheetCall(fn, args){
   var cfg = apiCfg();
   if (!cfg.key) { setTimeout(function(){ if (window.openApiSettings) openApiSettings(); }, 0); return Promise.reject("Не задан ключ доступа — откройте ⚙ Настройки"); }
-  var readOnly = !/(Save|Create|Delete|Merge|Add|Remove|Update)/.test(fn);   // чтение можно безопасно повторить при сбое сети
+  var readOnly = !/(save|create|delete|merge|add|remove|update)/i.test(fn);   // чтение можно безопасно повторить при сбое сети, запись — нет
   var body = JSON.stringify({ key: cfg.key, fn: fn, args: args });
   function attempt(n) {
     return fetch(cfg.url, {
@@ -460,7 +479,7 @@ function callServer(fn){
     });
   }
   return attempt(0)
-    .then(function(j){ if (!j || !j.ok) throw (j && j.error) || "Ошибка сервера"; return j.data; });
+    .then(function(j){ if (!j || !j.ok) throw sheetError((j && j.error) || "Ошибка сервера"); return j.data; });
 }
 
 function tasksRouter(){
@@ -709,7 +728,8 @@ function renderDetail(task, isNew){
     p.then(function(){ location.hash = "#/"; }).catch(function(msg){   // форму не трогаем — введённое остаётся, можно нажать ещё раз
       setBusy(false, isNew?"Создать задачу":"Сохранить изменения");
       var n = document.getElementById("notice");
-      n.innerHTML = '<div class="err">Не сохранено: ' + esc(msg) + '. Данные в форме остались — проверьте связь и нажмите кнопку ещё раз.</div>';
+      var bad = /проверка данных/.test(String(msg)) && data.stage ? 'Таблица не принимает этап «' + data.stage + '». ' : '';
+      n.innerHTML = '<div class="err">Не сохранено. ' + esc(bad) + esc(msg) + '. Данные в форме остались — исправьте и нажмите кнопку ещё раз.</div>';
       n.scrollIntoView({ block: "center", behavior: "smooth" });
     });
   };
@@ -813,7 +833,7 @@ function globalRouter(){
   document.getElementById("contracts-app").style.display = (sec === "contracts") ? "block" : "none";
   if (sec === "contracts") { contractsProbe(); }
   document.getElementById("to-app").style.display = (sec === "to") ? "block" : "none";
-  if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) tf.setAttribute("src", "to-mpb.html"); }
+  if (sec === "to") { var tf = document.getElementById("to-frame"); if (!tf.getAttribute("src")) tf.setAttribute("src", "to-mpb.html?v=" + (window.MPB_VERSION || "")); }
   document.getElementById("dash-app").style.display = (sec === "dash") ? "block" : "none";
   document.getElementById("cal-app").style.display = (sec === "cal") ? "block" : "none";
   document.getElementById("my-app").style.display = (sec === "my") ? "block" : "none";
@@ -2345,7 +2365,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261021c"></script>
+<script src="chat.js?v=20261022b"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2373,17 +2393,18 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
       localStorage.setItem("mpb_bridge", JSON.stringify({ url: document.getElementById("brUrl").value.trim(), key: document.getElementById("brKey").value.trim() })); } catch(e){}
     location.reload();
   };
-  if (!apiCfg().key) openApiSettings();
+  var moved = false; try { moved = localStorage.getItem("mpb_storage") === "bridge"; } catch(e){}
+  if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261021c"></script>
-<script src="extras.js?v=20261021c"></script>
-<script src="team.js?v=20261021c"></script>
-<script src="auto.js?v=20261021c"></script>
-<script src="stages.js?v=20261021c"></script>
-<script src="clients.js?v=20261021c"></script>
-<script src="kpv.js?v=20261021c"></script>
-<script src="chatpanel.js?v=20261021c"></script>
+<script src="crm.js?v=20261022b"></script>
+<script src="extras.js?v=20261022b"></script>
+<script src="team.js?v=20261022b"></script>
+<script src="auto.js?v=20261022b"></script>
+<script src="stages.js?v=20261022b"></script>
+<script src="clients.js?v=20261022b"></script>
+<script src="kpv.js?v=20261022b"></script>
+<script src="chatpanel.js?v=20261022b"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

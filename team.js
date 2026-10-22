@@ -538,12 +538,12 @@
   function renderMe() {
     var el = $("me-app"), sub = "Настройки уведомлений, профиль и доступ сотрудников";
     if (!gate(el, "Личный кабинет", sub, renderMe)) return;
-    var u = C.me, tabs = [["notif", "bell", "Уведомления"], ["info", "user", "Профиль"]].concat(u.role === "admin" ? [["staff", "users", "Сотрудники"]] : []);
+    var u = C.me, tabs = [["notif", "bell", "Уведомления"], ["info", "user", "Профиль"]].concat(u.role === "admin" ? [["staff", "users", "Сотрудники"], ["data", "list", "Данные"]] : []);
     el.innerHTML = head("Личный кабинет", sub) + '<div class="wrap"><div class="prof2">' + ava(u.name, "xl") + "<div><h2>" + E(u.name) + "</h2><p>" + (u.title ? E(u.title) + " · " : "") + (u.role === "admin" ? "Руководитель" : "Сотрудник") + '</p><div class="pf-pills"><span>' + (u.tg ? "Telegram подключён" : "Telegram не подключён") + '</span><span>' + (C.pushOn && C.pushOn() ? "Push включён" : "Push выключен") + '</span></div></div>' + '<div class="pf-stats"><div><b>' + ((C.sync || {}).notif_unread || 0) + '</b><small>новых уведомлений</small></div><div><b>' + ((C.sync || {}).team_unread || 0) + '</b><small>непрочитано в «Команде»</small></div><div><b>' + (((C.sync || {}).urgent || []).length) + '</b><small>срочных</small></div></div><button class="x-btn ghost" id="meOut">Выйти</button></div>'
       + '<div class="x-bar"><div class="x-seg" id="meTabs">' + tabs.map(function (t) { return '<button data-t="' + t[0] + '" class="' + (P.tab === t[0] ? "on" : "") + '">' + ic(t[1]) + t[2] + "</button>"; }).join("") + '</div></div><div id="meBody"></div></div>';
     $("meOut").onclick = function () { C.logout().then(renderMe); };
     $("meTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { P.tab = b.dataset.t; renderMe(); }; });
-    if (P.tab === "notif") paintNotif(); else if (P.tab === "info") paintInfo2(); else paintStaff();
+    if (P.tab === "notif") paintNotif(); else if (P.tab === "info") paintInfo2(); else if (P.tab === "data") paintData(); else paintStaff();
   }
   function savePrefs(patch) { return C.call("/me/prefs", { body: patch }).then(function (p) { C.prefs = p; return p; }); }
   function paintNotif() {
@@ -634,6 +634,45 @@
           $("rGo").onclick = function () { C.call("/admin/users/" + b.dataset.pin + "/pin", { body: { pin: $("rPin").value } }).then(function () { T.closeModal(); toast("PIN обновлён"); }).catch(function (e) { $("rErr").textContent = String(e); }); };
         };
       });
+    }).catch(function (e) { body.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
+  }
+
+  /* ---------- «Данные» (руководитель): где хранятся задачи, реестр и ТО; перенос из Google-таблицы; копии базы ---------- */
+  function paintData() {
+    var body = $("meBody"); body.innerHTML = '<div class="x-panel"><div class="x-empty">Загрузка…</div></div>';
+    Promise.all([C.call("/admin/storage"), C.call("/admin/backups").catch(function () { return []; })]).then(function (r) {
+      var st = r[0], bk = r[1], c = st.counts || {}, m = st.migrated, moved = st.mode === "bridge";
+      var kb = function (n) { return Math.max(1, Math.round(n / 1024)).toLocaleString("ru-RU") + " КБ"; };
+      var info = moved
+        ? '<p class="x-sub">Задачи, реестр КП и клиенты хранятся <b>в CRM</b> (база на сервере). Google-таблица больше не используется для работы.</p>'
+          + '<div class="pf-pills"><span>Задач: ' + c.tasks + "</span><span>В архиве: " + c.archived + "</span><span>Заявок: " + c.leads + "</span><span>Клиентов с ИНН: " + c.clients + "</span><span>ТО: " + (st.to === "bridge" ? "в CRM" : "в таблице") + "</span></div>"
+          + (m ? '<p class="x-sub" style="margin-top:10px">Перенесено ' + E(when(m.ts)) + " · " + E(m.by || "") + "</p>" : "")
+        : '<p class="x-sub">Сейчас задачи, реестр КП и ТО хранятся <b>в Google-таблице</b>. Перенос забирает всё в CRM; таблица при этом не меняется и остаётся архивом на дату переноса.</p>';
+      var mig = moved ? "" : '<div class="x-panel pad" style="margin-top:12px"><h3>Перенести данные из таблицы</h3>'
+        + '<p class="x-sub">Перед переносом сервер сделает копию базы. Попросите сотрудников не вносить изменения несколько минут — после переноса у всех страница обновится сама.</p>'
+        + (st.to_pin_set ? "" : '<div class="x-field"><label>PIN руководителя вкладки «ТО МПБ» (чтобы перенести и график ТО)</label><input type="password" id="dToPin" class="x-pin" inputmode="numeric" maxlength="8" placeholder="можно оставить пустым — ТО останется в таблице"></div>')
+        + '<div class="x-err" id="dErr"></div><button class="x-btn primary" id="dGo">Перенести из таблицы</button></div>';
+      var back = moved ? '<div class="x-panel pad" style="margin-top:12px"><h3>Аварийно</h3><p class="x-sub">Вернуть работу в Google-таблицу. Данные в CRM сохранятся, но изменения, сделанные после переноса, в таблице не появятся.</p><button class="x-btn ghost" id="dBack">Вернуться к таблице</button></div>' : "";
+      body.innerHTML = '<div class="x-two"><div><div class="x-panel pad"><h3>Где данные</h3>' + info + "</div>" + mig + back + "</div>"
+        + '<div class="x-sticky"><div class="x-panel pad"><h3>Копии базы</h3><p class="x-sub">Сервер делает копию раз в сутки и хранит последние 14</p>'
+        + (bk.length ? bk.slice(0, 6).map(function (b) { return '<div class="x-urow"><div><b>' + E(when(b.ts)) + "</b><small>" + E(b.name) + " · " + kb(b.size) + "</small></div></div>"; }).join("") : '<div class="x-empty">Копий пока нет</div>')
+        + '<button class="x-btn ghost" id="dBk" style="margin-top:10px">Сделать копию сейчас</button></div></div></div>';
+      $("dBk").onclick = function () { this.disabled = true; C.call("/admin/backups", { body: {} }).then(function () { toast("Копия базы сделана"); paintData(); }).catch(function (e) { toast(String(e)); paintData(); }); };
+      if ($("dGo")) $("dGo").onclick = function () {
+        if (!confirm("Перенести задачи, реестр КП, клиентов" + (st.to_pin_set || ($("dToPin") && $("dToPin").value) ? " и ТО" : "") + " из Google-таблицы в CRM?\n\nПосле этого все работают только в CRM.")) return;
+        var go = $("dGo"); go.disabled = true; go.textContent = "Переношу… (до минуты)"; $("dErr").textContent = "";
+        C.call("/admin/migrate", { body: { to_pin: $("dToPin") ? $("dToPin").value.trim() : "" } }).then(function (res) {
+          var t = res.to || {};
+          alert("Перенесено: задач " + res.tasks + ", заявок " + res.leads + ", клиентов " + res.clients
+            + (t.moved ? ", объектов ТО " + t.objects + (t.pins === "kept" ? " (PIN вкладки ТО прежние)" : ". PIN специалистов и бухгалтера ТО задайте заново во вкладке «ТО МПБ → Специалисты»") : ". График ТО остался в таблице")
+            + ".\nКопия базы до переноса: " + res.backup + "\n\nСтраница обновится.");
+          location.reload();
+        }).catch(function (e) { go.disabled = false; go.textContent = "Перенести из таблицы"; $("dErr").textContent = String(e); });
+      };
+      if ($("dBack")) $("dBack").onclick = function () {
+        if (!confirm("Вернуть работу в Google-таблицу? Изменения, сделанные в CRM после переноса, в таблице НЕ появятся.")) return;
+        C.call("/admin/storage", { body: { mode: "sheet" } }).then(function () { location.reload(); }).catch(function (e) { toast(String(e)); });
+      };
     }).catch(function (e) { body.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
   }
 

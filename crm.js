@@ -83,11 +83,40 @@
     }, function () { throw "Сервер недоступен. Проверьте адрес моста в ⚙ и интернет"; });
   };
 
+  /* ---------- где данные: Google-таблица (sheet) или база моста (bridge, после переноса) ---------- */
+  C.storage = (function () { try { return localStorage.getItem("mpb_storage") || "sheet"; } catch (e) { return "sheet"; } })();
+  C.dataV = null;
+  var readyDone = false;
+  C.ready = new Promise(function (res) { C.on("ready", function () { readyDone = true; res(); }); });
+  function setStorage(m) {
+    if (!m || m === C.storage) return;
+    var prev = C.storage; C.storage = m;
+    try { localStorage.setItem("mpb_storage", m); } catch (e) {}
+    if (readyDone) {                                         // переключили во время работы — перезагружаем, чтобы не было старых копий данных
+      var h = location.hash, editing = h.indexOf("#/task/") === 0 || h === "#/new" || h.indexOf("#/kpreg/lead/") === 0 || h === "#/kpreg/new";
+      if (!editing) location.reload(); else emit("storage", { from: prev, to: m });
+    }
+  }
+  /* те же вызовы api_*, что раньше шли в таблицу, — в базу моста; без входа данные недоступны */
+  C.dataCall = function (fn, args) {
+    function go() {
+      return C.call("/data", { body: { fn: fn, args: args || [] } }).then(function (j) {
+        if (!j || !j.ok) throw (j && j.error) || "Ошибка сервера";
+        return j.data;
+      });
+    }
+    if (C.loggedIn()) return go();
+    return C.requireLogin().then(go, function () { throw "Войдите в CRM (Личный кабинет → Войти), чтобы работать с задачами и реестром"; });
+  };
+
   /* ---------- вход ---------- */
   C.init = function () {
-    if (!tok() || !C.configured()) { emit("ready"); return Promise.resolve(); }
-    return C.call("/me").then(function (r) { C.me = r.user; C.prefs = r.prefs; C.bot = r.bot; startPolling(); emit("login", C.me); })
-      .catch(function () { /* сессия недействительна — просто не вошли */ }).then(function () { emit("ready"); });
+    var st = C.configured() ? C.call("/storage", { auth: false }).then(function (r) { setStorage(r.storage); C.dataV = r.data_v; }, function () { /* старый мост — данные в таблице */ }) : Promise.resolve();
+    return st.then(function () {
+      if (!tok() || !C.configured()) return;
+      return C.call("/me").then(function (r) { C.me = r.user; C.prefs = r.prefs; C.bot = r.bot; startPolling(); emit("login", C.me); })
+        .catch(function () { /* сессия недействительна — просто не вошли */ });
+    }).then(function () { emit("ready"); });
   };
   C.login = function (name, pin) {
     return C.call("/auth/login", { auth: false, body: { name: name, pin: pin, tz: -new Date().getTimezoneOffset() } }).then(function (r) {
@@ -139,6 +168,8 @@
     if (!C.loggedIn() || document.hidden) return Promise.resolve();
     return C.call("/sync").then(function (s) {
       var prev = C.sync; C.sync = s; paintBadges();
+      if (s.storage) setStorage(s.storage);
+      if (s.data_v != null) { var dv = C.dataV; C.dataV = s.data_v; if (dv != null && dv !== s.data_v) emit("data", s); }   // кто-то изменил задачи/реестр
       if (prev && window.MPBSound && ((s.notif_unread || 0) > (prev.notif_unread || 0) || (s.team_unread || 0) > (prev.team_unread || 0))) MPBSound.play();
       (s.urgent || []).slice(0, 3).forEach(function (m) { if (!shownUrgent[m.id]) { shownUrgent[m.id] = 1; if (prev || Date.now() / 1000 - m.ts < 86400) urgentBanner(m); } });   // после входа — свежие неподтверждённые срочные тоже всплывают
       emit("sync", s);
