@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261022f";</script>
+<script>window.MPB_VERSION="20261022g";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261022f">
+<link rel="stylesheet" href="theme-v2.css?v=20261022g">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -2428,7 +2428,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261022f"></script>
+<script src="chat.js?v=20261022g"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2456,18 +2456,45 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
       localStorage.setItem("mpb_bridge", JSON.stringify({ url: document.getElementById("brUrl").value.trim(), key: document.getElementById("brKey").value.trim() })); } catch(e){}
     location.reload();
   };
+  /* Телефон и планшет: нижнее меню не перекрывает чаты; когда открыта клавиатура — меню прячется (body.kb-open).
+     --vvh/--vvtop — видимая часть экрана над клавиатурой (iPhone не уменьшает страницу сам), --chat-h — высота окна чатов на планшете. */
+  (function(){
+    var root = document.documentElement, vv = window.visualViewport, touch = matchMedia("(hover:none)"), narrow = matchMedia("(max-width:900px)"), tmr = 0;
+    function typing(){ var a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || a.isContentEditable || (a.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset|file|range|color|date|time|month)$/i.test(a.type))); }
+    function upd(){
+      tmr = 0;
+      var h = vv ? vv.height : innerHeight, top = vv ? vv.offsetTop : 0;
+      root.style.setProperty("--vvh", Math.round(h) + "px");
+      root.style.setProperty("--vvtop", Math.round(top) + "px");
+      var kb = (vv && innerHeight - h > 140) || (touch.matches && narrow.matches && typing());
+      document.body.classList.toggle("kb-open", !!kb);
+      var nav = document.getElementById("bottomnav"), navOn = nav && !kb && getComputedStyle(nav).display !== "none";
+      var box = document.querySelector('#team-app:not([style*="none"]) .x-chat, #chat-app:not([style*="none"]) .chat-wrap');
+      if (box && innerWidth > 760) {                         // на телефоне окно чата раскладывается само (body.shell в theme-v2.css)
+        var t = box.getBoundingClientRect().top + window.scrollY, bottomGap = navOn ? innerHeight - nav.getBoundingClientRect().top + 10 : 16;
+        root.style.setProperty("--chat-h", Math.max(420, Math.round(h + top - t - bottomGap)) + "px");
+      }
+    }
+    function later(){ if (!tmr) tmr = setTimeout(upd, 30); }
+    if (vv) { vv.addEventListener("resize", later); vv.addEventListener("scroll", later); }
+    addEventListener("resize", later); addEventListener("hashchange", function(){ setTimeout(upd, 80); });
+    document.addEventListener("focusin", function(){ setTimeout(upd, 60); });
+    document.addEventListener("focusout", function(){ setTimeout(upd, 160); });
+    ["team-app", "chat-app"].forEach(function(id){ var el = document.getElementById(id); if (el) new MutationObserver(later).observe(el, { childList: true }); });
+    window.addEventListener("load", upd); upd();
+  })();
   var moved = false; try { moved = localStorage.getItem("mpb_storage") === "bridge"; } catch(e){}
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261022f"></script>
-<script src="extras.js?v=20261022f"></script>
-<script src="team.js?v=20261022f"></script>
-<script src="auto.js?v=20261022f"></script>
-<script src="stages.js?v=20261022f"></script>
-<script src="clients.js?v=20261022f"></script>
-<script src="kpv.js?v=20261022f"></script>
-<script src="chatpanel.js?v=20261022f"></script>
+<script src="crm.js?v=20261022g"></script>
+<script src="extras.js?v=20261022g"></script>
+<script src="team.js?v=20261022g"></script>
+<script src="auto.js?v=20261022g"></script>
+<script src="stages.js?v=20261022g"></script>
+<script src="clients.js?v=20261022g"></script>
+<script src="kpv.js?v=20261022g"></script>
+<script src="chatpanel.js?v=20261022g"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

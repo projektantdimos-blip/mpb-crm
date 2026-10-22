@@ -1479,3 +1479,22 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 #chat-app .cm .cdoc .dn{min-width:0;display:block;text-align:left}
 #chat-app .cm .cdoc .dn b{display:block;font-weight:600;font-size:.9rem;overflow-wrap:anywhere;white-space:normal}
 #chat-app .cm .cdoc .dn small{display:block;opacity:.7;margin:2px 0 0}
+/* ---- телефон и планшет: чаты не уходят под нижнее меню; при открытой клавиатуре меню прячется (22.10) ---- */
+body.kb-open .bottomnav{display:none!important}
+@media(max-width:760px){
+  body.shell #chat-app .chat-wrap.has-sel,body.shell #team-app .x-chat.room-open{inset:var(--vvtop,0px) 0 auto 0!important;height:calc(var(--vvh,100dvh) - 84px - env(safe-area-inset-bottom))!important}
+  body.shell.kb-open #chat-app .chat-wrap.has-sel,body.shell.kb-open #team-app .x-chat.room-open{height:var(--vvh,100dvh)!important}
+  body.shell.kb-open #chat-app,body.shell.kb-open #team-app{padding-bottom:0!important}
+  body.shell #chat-app .chat-wrap.has-sel>.chat-list{display:none!important}          /* открыт диалог — без списка и кнопки «+» поверх «Отправить» */
+  body.shell #chat-app .chat-wrap.has-sel>.chat-thread{display:flex!important;height:100%!important;min-height:0!important}
+  body.shell:has(#chat-app .chat-wrap.has-sel) #apiGear,body.shell:has(#team-app .x-chat.room-open) #apiGear{display:none!important}   /* ⚙ не закрывает кнопки шапки диалога */
+  body.shell #team-app .x-chat.room-open{display:flex!important;flex-direction:column}
+  body.shell #team-app .x-chat.room-open>.x-thread{flex:1 1 auto;height:auto!important;min-height:0!important;max-height:none!important}
+}
+@media(min-width:761px) and (max-width:1180px){
+  #team-app .x-chat{display:grid!important;grid-template-columns:280px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important;height:var(--chat-h,calc(100dvh - 240px))!important;min-height:420px;margin-bottom:0!important}
+  #team-app .x-info{display:none!important}
+  #team-app .x-dlgs{max-height:none!important;height:auto!important;min-height:0!important;overflow:hidden}
+  #team-app .x-thread{height:auto!important;min-height:0!important}
+  #chat-app .chat-wrap{height:var(--chat-h,calc(100dvh - 160px))!important;min-height:420px}
+}
