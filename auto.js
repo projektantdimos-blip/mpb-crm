@@ -35,9 +35,9 @@
     var el = $("auto-app"), sub = "Система сама напоминает, переносит этапы и сообщает о просрочках — вам не нужно держать это в голове";
     if (!U.gate(el, "Автоматизация", sub, render)) return;
     el.innerHTML = U.head("Автоматизация", sub, isAdmin() ? '<button class="x-btn accent" id="auNew">' + ic("plus") + "Новая автоматизация</button>" : "")
-      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="mail" class="' + (S.tab === "mail" ? "on" : "") + '">' + ic("chat") + 'Письма</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
+      + '<div class="wrap"><div class="x-bar"><div class="x-seg" id="auTabs"><button data-t="rules" class="' + (S.tab === "rules" ? "on" : "") + '">' + ic("zap") + 'Правила</button><button data-t="mail" class="' + (S.tab === "mail" ? "on" : "") + '">' + ic("chat") + 'Письма</button><button data-t="bot" class="' + (S.tab === "bot" ? "on" : "") + '">' + ic("send") + 'Telegram-бот</button><button data-t="ai" class="' + (S.tab === "ai" ? "on" : "") + '">' + ic("zap") + 'ИИ-помощник</button></div></div><div id="auBody"><div class="x-empty">Загрузка…</div></div></div>';
     $("auTabs").querySelectorAll("button").forEach(function (b) { b.onclick = function () { S.tab = b.dataset.t; render(); }; });
-    var nb = $("auNew"); if (nb) nb.onclick = function () { if (S.tab === "mail") mailEditor(null); else editor(null); };
+    var nb = $("auNew"); if (nb && S.tab === "ai") nb.style.display = "none"; if (nb) nb.onclick = function () { if (S.tab === "mail") mailEditor(null); else editor(null); };
     load();
   }
   function load() {
@@ -54,9 +54,43 @@
     return '<div class="x-notif ' + (ok ? "on" : (s.configured ? "bad" : "")) + '" style="margin-bottom:16px"><span class="dot"></span><div style="flex:1"><b>' + (ok ? "Автоматизации работают" : s.configured ? "Нужно внимание" : "Не подключена таблица") + "</b><small>" + line + "</small></div>"
       + (isAdmin() && s.configured ? '<button class="x-btn ghost" id="auRun" style="padding:8px 14px">Проверить сейчас</button>' : "") + "</div>";
   }
+  /* ---------- ИИ-помощник «Переписки» (YandexGPT): включение, правила передачи, стиль ответов, расход ---------- */
+  function paintAi(b) {
+    b.innerHTML = '<div class="x-panel"><div class="x-empty">Загрузка…</div></div>';
+    C.call("/ai/status").then(function (st) {
+      var s = st.settings || {}, u = st.usage || {}, adm = isAdmin(), on = st.configured && st.enabled;
+      var tok = function (n) { return (n || 0).toLocaleString("ru-RU"); };
+      var card = '<div class="x-notif ' + (on ? "on" : st.configured ? "" : "bad") + '" style="margin-bottom:16px"><span class="dot"></span><div style="flex:1"><b>'
+        + (on ? "ИИ-помощник работает" : st.configured ? "ИИ подключён, но выключен" : "ИИ не подключён") + "</b><small>"
+        + (st.configured ? "Разбор входящих — " + E(st.models.fast) + ", черновики ответов — " + E(st.models.smart) + ". Не больше " + st.max_per_hour + " обращений в час."
+          : "Администратору: в .env моста задать YANDEX_API_KEY и YANDEX_FOLDER_ID и перезапустить мост (см. гайд «ИИ-помощник»).") + "</small></div></div>";
+      var left = adm ? '<div class="x-panel pad"><h3>Настройки</h3>'
+        + '<label class="x-check" style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><button class="x-sw ' + (s.enabled ? "on" : "") + '" id="aiOn"' + (st.configured ? "" : " disabled") + '></button><span>Разбирать каждое новое входящее (почта, Telegram, Max)</span></label>'
+        + '<div class="x-field"><label>Кому что передавать</label><textarea id="aiRouting" rows="6" placeholder="Например:&#10;Счета, акты, оплаты — Игорю&#10;Новые заявки на проект — Алексею&#10;Вопросы по монтажу — Дмитрию">' + E(s.routing || "") + "</textarea></div>"
+        + '<div class="x-field"><label>Как мы пишем клиентам (для черновиков)</label><textarea id="aiStyle" rows="6" placeholder="Пара примеров удачных ответов и правила: обращение по имени, без «уважаемый», подпись…">' + E(s.style || "") + "</textarea></div>"
+        + '<div class="x-err" id="aiErr"></div><button class="x-btn primary" id="aiSave">Сохранить</button></div>'
+        : '<div class="x-panel pad"><h3>Как пользоваться</h3><p class="x-sub">Откройте диалог в «Переписке» — справа вкладка «ИИ»: тип сообщения, данные клиента, кому передать и черновик ответа. Настройки меняет руководитель.</p></div>';
+      var right = '<div class="x-sticky"><div class="x-panel pad"><h3>Расход за ' + E(u.month || "месяц") + "</h3>"
+        + (adm ? '<p class="x-sub">Обращений: <b>' + tok(u.calls) + "</b> · токенов: <b>" + tok((u.in_tok || 0) + (u.out_tok || 0)) + "</b><br>Сегодня: " + tok(u.today && u.today.calls) + " обращ. · " + tok(u.today && u.today.tokens) + " ток.</p>"
+          + Object.keys(u.by_model || {}).map(function (m) { return '<div class="x-urow"><div><b>' + E(m) + "</b><small>" + tok(u.by_model[m].calls) + " обращ. · " + tok(u.by_model[m].tokens) + " ток.</small></div></div>"; }).join("")
+          + '<p class="x-sub" style="margin-top:10px">Счёт — в консоли Yandex Cloud. Lite в несколько раз дешевле Pro: Pro тратится только на черновики по кнопке.</p>' : '<p class="x-sub">Видно руководителю</p>')
+        + '</div><div class="x-panel pad" style="margin-top:12px"><h3>Как это работает</h3><p class="x-sub">Через полминуты после входящего ИИ читает диалог и предлагает: тип, данные клиента, кому передать. Сам ничего не отправляет, не передаёт и не создаёт — только подсказки во вкладке «ИИ» диалога. Переписка уходит в Yandex Cloud (данные остаются в России).</p></div></div>';
+      b.innerHTML = card + '<div class="x-two"><div>' + left + "</div>" + right + "</div>";
+      if (adm) {
+        var sw = $("aiOn"); if (sw) sw.onclick = function () { sw.classList.toggle("on"); };
+        $("aiSave").onclick = function () {
+          var btn = this; btn.disabled = true; $("aiErr").textContent = "";
+          C.call("/ai/settings", { body: { enabled: $("aiOn").classList.contains("on"), routing: $("aiRouting").value, style: $("aiStyle").value } })
+            .then(function () { U.toast("Настройки ИИ сохранены"); paintAi(b); if (window.MPBD) C.call("/ai/status").then(function (r) { MPBD.ai = r; }).catch(function () {}); })
+            .catch(function (e) { btn.disabled = false; $("aiErr").textContent = String(e); });
+        };
+      }
+    }).catch(function (e) { b.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(String(e).indexOf("требует обновления сервера") >= 0 ? "ИИ-помощник появится после обновления сервера моста" : e) + "</div></div>"; });
+  }
   function paint() {
     var b = $("auBody"); if (!b) return;
     if (S.tab === "bot") { paintBot(b); return; }
+    if (S.tab === "ai") { paintAi(b); return; }
     if (S.tab === "mail") { paintMail(b); return; }
     b.innerHTML = statusCard() + '<div class="x-two"><div class="x-panel">' + (S.rules.map(function (r) {
       return '<div class="auto ' + (r.enabled ? "" : "offr") + '" data-id="' + r.id + '">' + (isAdmin() ? '<button class="x-sw ' + (r.enabled ? "on" : "") + '" data-sw="' + r.id + '" title="Включить/выключить"></button>' : '<span class="x-pill ' + (r.enabled ? "ok" : "") + '">' + (r.enabled ? "вкл" : "выкл") + "</span>")

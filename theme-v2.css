@@ -1498,3 +1498,16 @@ body.kb-open .bottomnav{display:none!important}
   #team-app .x-thread{height:auto!important;min-height:0!important}
   #chat-app .chat-wrap{height:var(--chat-h,calc(100dvh - 160px))!important;min-height:420px}
 }
+
+/* ---- «Переписка» → вкладка «ИИ» (подсказка YandexGPT) ---- */
+#chat-app .ai-head{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+#chat-app .ai-sum{margin:0 0 10px;font-size:.92rem;line-height:1.45}
+#chat-app .ai-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-bottom:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2,var(--card))}
+#chat-app .ai-facts div{min-width:0}
+#chat-app .ai-facts small{display:block;color:var(--muted);font-size:.72rem}
+#chat-app .ai-facts b{display:block;font-size:.86rem;font-weight:600;overflow-wrap:anywhere}
+#chat-app .ai-route{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--brand-2,#3a86d6) 12%,transparent);margin-bottom:6px}
+#chat-app .ai-route small{display:block;color:var(--muted);font-size:.76rem;margin-top:2px}
+#chat-app .ai-draft{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+#chat-app .ai-draft textarea{width:100%;margin:8px 0;min-height:140px;border-radius:12px;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:.88rem}
+#chat-app .ai-foot{color:var(--muted);font-size:.74rem;margin:12px 0 0}

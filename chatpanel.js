@@ -10,7 +10,8 @@
   function $(id) { return document.getElementById(id); }
   function Kc() { return window.__kpc; }
   function money(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
-  function st(t) { return per[t.id] || (per[t.id] = { tab: "c", rows: [], num: "", object: "", address: "", init: false, errors: [], busy: false, cl: undefined }); }
+  function aiOn() { return !!(D.ai && D.ai.configured && D.ai.enabled); }
+  function st(t) { return per[t.id] || (per[t.id] = { tab: aiOn() ? "a" : "c", rows: [], num: "", object: "", address: "", init: false, errors: [], busy: false, cl: undefined }); }
   function crm() { return !!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn()); }
 
   /* ---------- конвертация строк панели в состояние конструктора ---------- */
@@ -39,13 +40,72 @@
   D.render = function (box, t, name) {
     var s = st(t);
     if (!s.init) { s.init = true; s.object = name; }
-    box.innerHTML = '<div class="cp-tabs">' + [["c", "Клиент"], ["n", "Создать клиента"], ["k", "КП"]].map(function (x) { return '<button data-t="' + x[0] + '" class="' + (s.tab === x[0] ? "on" : "") + '">' + x[1] + "</button>"; }).join("") + '</div><div class="cp-body" id="cpBody"></div>';
+    box.innerHTML = '<div class="cp-tabs">' + (aiOn() ? [["a", "ИИ"]] : []).concat([["c", "Клиент"], ["n", "Создать клиента"], ["k", "КП"]]).map(function (x) { return '<button data-t="' + x[0] + '" class="' + (s.tab === x[0] ? "on" : "") + '">' + x[1] + "</button>"; }).join("") + '</div><div class="cp-body" id="cpBody"></div>';
     box.querySelectorAll(".cp-tabs button").forEach(function (b) { b.onclick = function () { s.tab = b.dataset.t; D.render(box, t, name); }; });
     var body = $("cpBody");
-    if (s.tab === "c") tabClient(body, t, name, s, box);
+    if (s.tab === "a") tabAi(body, t, name, s, box);
+    else if (s.tab === "c") tabClient(body, t, name, s, box);
     else if (s.tab === "n") tabNew(body, t, name, s, box);
     else tabKp(body, t, name, s, box);
   };
+
+  /* ---------- «ИИ»: подсказка YandexGPT по диалогу (мост: /api/crm/ai). Только подсказки — решает сотрудник ---------- */
+  D.ai = null;                                                   // {configured, enabled} — узнаём один раз после входа
+  function aiStatus() {
+    if (!crm()) return;
+    MPBC.call("/ai/status").then(function (r) { D.ai = r; }).catch(function () { D.ai = null; });
+  }
+  if (window.MPBC && MPBC.on) { MPBC.on("login", aiStatus); if (crm()) aiStatus(); }
+  var URG = { high: "срочно", normal: "", low: "не срочно" };
+  function tabAi(body, t, name, s, box) {
+    var path = "/ai/thread/" + encodeURIComponent(t.id);
+    function wait(txt) { body.innerHTML = '<div class="cp-empty">' + txt + "</div>"; }
+    function err(e) { body.innerHTML = '<p class="cp-note" style="color:var(--bad)">' + E(e) + '</p><button class="x-btn ghost cp-w" id="aiRetry">Повторить</button>'; $("aiRetry").onclick = function () { tabAi(body, t, name, s, box); }; }
+    function run() { wait("ИИ разбирает переписку…"); MPBC.call(path + "/triage", { body: {} }).then(function (r) { paint(r.triage); }).catch(err); }
+    function paint(tr) {
+      if (!$("cpBody") || $("cpBody") !== body) return;
+      if (!tr) { body.innerHTML = '<p class="cp-note">Этот диалог ИИ ещё не разбирал. Новые входящие он разбирает сам через полминуты после письма.</p><button class="x-btn primary cp-w" id="aiRun">Разобрать сейчас</button>'; $("aiRun").onclick = run; return; }
+      var d = tr.data || {}, f = [["Организация", d.org], ["Контакт", d.contact], ["Телефон", d.phone], ["Почта", d.email], ["ИНН", d.inn], ["Объект", d.object], ["Что нужно", d.need]].filter(function (x) { return x[1]; });
+      body.innerHTML = '<div class="ai-head"><span class="x-pill ' + (d.kind === "spam" ? "" : "ok") + '">' + E(d.kind_label || d.kind) + "</span>" + (URG[d.urgency] ? ' <span class="x-pill' + (d.urgency === "high" ? " bad" : "") + '">' + URG[d.urgency] + "</span>" : "") + "</div>"
+        + (tr.stale ? '<p class="cp-note">Пришли новые сообщения — <a href="#" id="aiRe">разобрать заново</a></p>' : "")
+        + '<p class="ai-sum">' + E(d.summary) + "</p>"
+        + (f.length ? '<div class="ai-facts">' + f.map(function (x) { return "<div><small>" + x[0] + "</small><b>" + E(x[1]) + "</b></div>"; }).join("") + "</div>" : "")
+        + (d.route_user_id ? '<div class="ai-route"><span>Передать: <b>' + E(d.route_to) + "</b>" + (d.route_reason ? "<small>" + E(d.route_reason) + "</small>" : "") + '</span><button class="x-btn ghost" id="aiAssign">Передать</button></div>' : "")
+        + '<div class="cp-two" style="margin-top:10px">' + (d.kind !== "spam" ? '<button class="x-btn ghost cp-w" id="aiClient">Создать клиента</button>' : "") + '<button class="x-btn ghost cp-w" id="aiRe2">Разобрать заново</button></div>'
+        + '<div class="ai-draft"><div class="cp-f"><label>Черновик ответа</label><input id="aiHint" placeholder="пожелание: например, предложить выезд на объект"></div>'
+        + '<button class="x-btn primary cp-w" id="aiDraft">Предложить ответ</button><div id="aiOut"></div></div>'
+        + '<p class="ai-foot">Подсказка ИИ (YandexGPT) — проверьте перед использованием. ИИ ничего не отправляет сам.</p>';
+      [$("aiRe"), $("aiRe2")].forEach(function (b) { if (b) b.onclick = function (e) { e.preventDefault(); run(); }; });
+      if ($("aiAssign")) $("aiAssign").onclick = function () {
+        var b = this; b.disabled = true;
+        MPBC.call("/mail/assign", { body: { thread_id: t.id, user_id: d.route_user_id, note: "по подсказке ИИ: " + (d.summary || "").slice(0, 200) } })
+          .then(function () { U.toast("Диалог передан: " + d.route_to); b.textContent = "Передано ✓"; }).catch(function (e) { b.disabled = false; U.toast(String(e)); });
+      };
+      if ($("aiClient")) $("aiClient").onclick = function () {
+        s.prefill = { cust: d.org || d.contact || name, contact: d.contact, phone: d.phone || d.email, obj: [d.object, d.need].filter(Boolean).join(" — ") };
+        s.tab = "n"; D.render(box, t, name);
+      };
+      $("aiDraft").onclick = function () {
+        var b = this; b.disabled = true; b.textContent = "Пишу черновик…";
+        MPBC.call(path + "/draft", { body: { hint: $("aiHint").value } }).then(function (r) {
+          b.disabled = false; b.textContent = "Предложить другой вариант";
+          $("aiOut").innerHTML = '<textarea id="aiText" rows="8"></textarea><button class="x-btn primary cp-w" id="aiPut">Вставить в ответ</button>';
+          $("aiText").value = r.text;
+          $("aiPut").onclick = function () {
+            var ta = $("chatText"); if (!ta) { U.toast("Поле ответа не найдено"); return; }
+            ta.value = $("aiText").value; ta.dispatchEvent(new Event("input", { bubbles: true })); ta.focus();
+            U.toast("Черновик вставлен — проверьте и отправьте");
+          };
+        }).catch(function (e) { b.disabled = false; b.textContent = "Предложить ответ"; $("aiOut").innerHTML = '<p class="cp-note" style="color:var(--bad)">' + E(e) + "</p>"; });
+      };
+    }
+    if (!crm()) { wait("Войдите в CRM, чтобы видеть подсказки ИИ"); return; }
+    wait("Загрузка…");
+    MPBC.call(path).then(function (r) {
+      if (!r.configured) { body.innerHTML = '<p class="cp-note">ИИ-помощник не подключён. Руководителю: ключ YandexGPT в настройках моста — см. «Автоматизация → ИИ-помощник».</p>'; return; }
+      paint(r.triage);
+    }).catch(function (e) { err(String(e).indexOf("требует обновления сервера") >= 0 ? "ИИ-помощник появится после обновления сервера моста" : e); });
+  }
 
   function tabClient(body, t, name, s, box) {
     body.innerHTML = '<div class="cp-empty">Ищу в задачах и заявках…</div>';
@@ -69,9 +129,10 @@
   }
 
   function tabNew(body, t, name, s, box) {
+    var pf = s.prefill || {}; s.prefill = null;                  // из подсказки ИИ («Создать клиента»)
     var me = (window.MPBC && MPBC.me && MPBC.me.name) || "", mail = /@/.test(t.peer || ""), funnels = ["Переписка"].concat((window.FUNNEL_SOURCES || []).filter(function (f) { return f !== "Переписка"; }));
-    body.innerHTML = '<div class="cp-f"><label>Заказчик</label><input id="ncCust" value="' + E(name) + '"></div><div class="cp-f"><label>Контактное лицо</label><input id="ncContact" value="' + E(mail ? "" : name) + '"></div>'
-      + '<div class="cp-f"><label>Телефон / почта</label><input id="ncPhone" value="' + E(t.peer || "") + '"></div><div class="cp-f"><label>Объект / что нужно</label><input id="ncObj" placeholder="адрес или кратко: что хочет клиент"></div>'
+    body.innerHTML = '<div class="cp-f"><label>Заказчик</label><input id="ncCust" value="' + E(pf.cust || name) + '"></div><div class="cp-f"><label>Контактное лицо</label><input id="ncContact" value="' + E(pf.contact || (mail ? "" : name)) + '"></div>'
+      + '<div class="cp-f"><label>Телефон / почта</label><input id="ncPhone" value="' + E(pf.phone || t.peer || "") + '"></div><div class="cp-f"><label>Объект / что нужно</label><input id="ncObj" value="' + E(pf.obj || "") + '" placeholder="адрес или кратко: что хочет клиент"></div>'
       + '<div class="cp-f"><label>Откуда клиент</label><select id="ncFun">' + funnels.map(function (f) { return "<option>" + E(f) + "</option>"; }).join("") + '</select></div>'
       + '<div class="cp-f"><label>Ответственный</label><input id="ncOwn" value="' + E(me) + '"></div><div class="x-err" id="ncErr"></div><button class="x-btn primary cp-w" id="ncGo">Создать клиента</button>';
     $("ncGo").onclick = function () {
