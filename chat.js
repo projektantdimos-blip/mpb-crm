@@ -602,6 +602,7 @@
     if (!b) return;
     if (!pushSupported()) { b.style.display = "none"; return; }
     currentPushSub().then(function (sub) {
+      if (crmPush()) sub = sub && MPBC.pushOn() ? sub : null;   // «включено» — только если подписка привязана к вам
       b.classList.toggle("on", !!sub);
       b.title = sub ? "Уведомления включены на этом устройстве — нажмите, чтобы отключить"
                      : "Включить уведомления о новых сообщениях на этом устройстве";
@@ -628,7 +629,13 @@
       return sub.unsubscribe().then(function () { return api("/api/push/unsubscribe", { method: "POST", body: { endpoint: endpoint } }); });
     }).then(refreshPushBtn, refreshPushBtn);
   }
+  function crmPush() { return window.MPBC && MPBC.loggedIn && MPBC.loggedIn() && MPBC.enablePush; }
   function togglePush() {
+    if (crmPush()) {                                    // на устройстве одна подписка — та же, что в «Личном кабинете → Уведомления»
+      (MPBC.pushOn() ? MPBC.disablePush() : MPBC.enablePush())
+        .then(function () { setErr(""); refreshPushBtn(); }, function (e) { setErr(String(e)); refreshPushBtn(); });
+      return;
+    }
     currentPushSub().then(function (sub) { if (sub) disablePush(); else enablePush(); });
   }
 

@@ -245,6 +245,17 @@
     }).then(function (sub) { return C.call("/me/push/subscribe", { body: sub.toJSON() }); })
       .then(function () { try { localStorage.setItem("mpb_push_user", String(C.me.id)); } catch (e) {} emit("push"); });
   };
+  /* после входа: подписка этого устройства снова отправляется на мост (мост мог её удалить, если push-сервис отказал),
+     а если в браузере её уже нет — снимаем отметку «включено», чтобы не обманывать */
+  C.on("login", function () {
+    try {
+      if (!C.pushSupported() || Notification.permission !== "granted") return;
+      navigator.serviceWorker.getRegistration().then(function (reg) { return reg ? reg.pushManager.getSubscription() : null; }).then(function (sub) {
+        if (sub && C.pushOn()) C.call("/me/push/subscribe", { body: sub.toJSON() }).catch(function () {});
+        else if (!sub && localStorage.getItem("mpb_push_user")) { localStorage.removeItem("mpb_push_user"); emit("push"); }
+      }).catch(function () {});
+    } catch (e) {}
+  });
   C.disablePush = function () {
     return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
       var p = sub ? C.call("/me/push/unsubscribe", { body: { endpoint: sub.endpoint } }).catch(function () {}).then(function () { return sub.unsubscribe(); }) : Promise.resolve();
