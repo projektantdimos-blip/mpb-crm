@@ -66,6 +66,9 @@
           : "Администратору: в .env моста задать YANDEX_API_KEY и YANDEX_FOLDER_ID и перезапустить мост (см. гайд «ИИ-помощник»).") + "</small></div></div>";
       var left = adm ? '<div class="x-panel pad"><h3>Настройки</h3>'
         + '<label class="x-check" style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><button class="x-sw ' + (s.enabled ? "on" : "") + '" id="aiOn"' + (st.configured ? "" : " disabled") + '></button><span>Разбирать каждое новое входящее (почта, Telegram, Max)</span></label>'
+        + '<label class="x-check" style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><button class="x-sw ' + (s.auto_assign ? "on" : "") + '" id="aiAuto"' + (st.configured ? "" : " disabled") + '></button><span>Передавать сотруднику автоматически, если ИИ уверен по правилам ниже</span></label>'
+        + '<div class="x-field" style="margin-left:52px"><select id="aiScope"><option value="mail"' + (s.auto_scope !== "all" ? " selected" : "") + '>только почта</option><option value="all"' + (s.auto_scope === "all" ? " selected" : "") + '>почта, Telegram и Max</option></select>'
+        + '<small class="x-sub" style="display:block;margin-top:4px">Письма, уже переданные правилом «Письма» или вручную, ИИ не трогает. Спам и неясные — только подсказка.</small></div>'
         + '<div class="x-field"><label>Кому что передавать</label><textarea id="aiRouting" rows="6" placeholder="Например:&#10;Счета, акты, оплаты — Игорю&#10;Новые заявки на проект — Алексею&#10;Вопросы по монтажу — Дмитрию">' + E(s.routing || "") + "</textarea></div>"
         + '<div class="x-field"><label>Как мы пишем клиентам (для черновиков)</label><textarea id="aiStyle" rows="6" placeholder="Пара примеров удачных ответов и правила: обращение по имени, без «уважаемый», подпись…">' + E(s.style || "") + "</textarea></div>"
         + '<div class="x-err" id="aiErr"></div><button class="x-btn primary" id="aiSave">Сохранить</button></div>'
@@ -74,13 +77,13 @@
         + (adm ? '<p class="x-sub">Обращений: <b>' + tok(u.calls) + "</b> · токенов: <b>" + tok((u.in_tok || 0) + (u.out_tok || 0)) + "</b><br>Сегодня: " + tok(u.today && u.today.calls) + " обращ. · " + tok(u.today && u.today.tokens) + " ток.</p>"
           + Object.keys(u.by_model || {}).map(function (m) { return '<div class="x-urow"><div><b>' + E(m) + "</b><small>" + tok(u.by_model[m].calls) + " обращ. · " + tok(u.by_model[m].tokens) + " ток.</small></div></div>"; }).join("")
           + '<p class="x-sub" style="margin-top:10px">Счёт — в консоли Yandex Cloud. Lite в несколько раз дешевле Pro: Pro тратится только на черновики по кнопке.</p>' : '<p class="x-sub">Видно руководителю</p>')
-        + '</div><div class="x-panel pad" style="margin-top:12px"><h3>Как это работает</h3><p class="x-sub">Через полминуты после входящего ИИ читает диалог и предлагает: тип, данные клиента, кому передать. Сам ничего не отправляет, не передаёт и не создаёт — только подсказки во вкладке «ИИ» диалога. Переписка уходит в Yandex Cloud (данные остаются в России).</p></div></div>';
+        + '</div><div class="x-panel pad" style="margin-top:12px"><h3>Как это работает</h3><p class="x-sub">Через полминуты после входящего ИИ читает диалог и предлагает: тип, данные клиента, кому передать. Клиентам ничего не отправляет и ничего не создаёт. Передаёт сотруднику сам, только если включена автопередача и он уверен; иначе — подсказка во вкладке «ИИ» диалога. Переписка уходит в Yandex Cloud (данные остаются в России).</p></div></div>';
       b.innerHTML = card + '<div class="x-two"><div>' + left + "</div>" + right + "</div>";
       if (adm) {
-        var sw = $("aiOn"); if (sw) sw.onclick = function () { sw.classList.toggle("on"); };
+        ["aiOn", "aiAuto"].forEach(function (id) { var sw = $(id); if (sw) sw.onclick = function () { sw.classList.toggle("on"); }; });
         $("aiSave").onclick = function () {
           var btn = this; btn.disabled = true; $("aiErr").textContent = "";
-          C.call("/ai/settings", { body: { enabled: $("aiOn").classList.contains("on"), routing: $("aiRouting").value, style: $("aiStyle").value } })
+          C.call("/ai/settings", { body: { enabled: $("aiOn").classList.contains("on"), auto_assign: $("aiAuto").classList.contains("on"), auto_scope: $("aiScope").value, routing: $("aiRouting").value, style: $("aiStyle").value } })
             .then(function () { U.toast("Настройки ИИ сохранены"); paintAi(b); if (window.MPBD) C.call("/ai/status").then(function (r) { MPBD.ai = r; }).catch(function () {}); })
             .catch(function (e) { btn.disabled = false; $("aiErr").textContent = String(e); });
         };

@@ -70,7 +70,8 @@
         + (tr.stale ? '<p class="cp-note">Пришли новые сообщения — <a href="#" id="aiRe">разобрать заново</a></p>' : "")
         + '<p class="ai-sum">' + E(d.summary) + "</p>"
         + (f.length ? '<div class="ai-facts">' + f.map(function (x) { return "<div><small>" + x[0] + "</small><b>" + E(x[1]) + "</b></div>"; }).join("") + "</div>" : "")
-        + (d.route_user_id ? '<div class="ai-route"><span>Передать: <b>' + E(d.route_to) + "</b>" + (d.route_reason ? "<small>" + E(d.route_reason) + "</small>" : "") + '</span><button class="x-btn ghost" id="aiAssign">Передать</button></div>' : "")
+        + (d.auto_assigned ? '<div class="ai-route"><span>Передано автоматически: <b>' + E(d.auto_assigned) + "</b>" + (d.route_reason ? "<small>" + E(d.route_reason) + "</small>" : "") + "</span><span>✓</span></div>"
+          : d.route_user_id ? '<div class="ai-route"><span>Передать: <b>' + E(d.route_to) + "</b>" + (d.route_reason ? "<small>" + E(d.route_reason) + "</small>" : "") + '</span><button class="x-btn ghost" id="aiAssign">Передать</button></div>' : "")
         + '<div class="cp-two" style="margin-top:10px">' + (d.kind !== "spam" ? '<button class="x-btn ghost cp-w" id="aiClient">Создать клиента</button>' : "") + '<button class="x-btn ghost cp-w" id="aiRe2">Разобрать заново</button></div>'
         + '<div class="ai-draft"><div class="cp-f"><label>Черновик ответа</label><input id="aiHint" placeholder="пожелание: например, предложить выезд на объект"></div>'
         + '<button class="x-btn primary cp-w" id="aiDraft">Предложить ответ</button><div id="aiOut"></div></div>'
