@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261025b";</script>
+<script>window.MPB_VERSION="20261025c";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -217,6 +217,7 @@ textarea{resize:vertical;min-height:64px}
 .kpc-scope .chk.inline{display:inline-flex;margin-right:16px}
 .kpc-scope .radios{display:flex;gap:6px}
 .kpc-scope .multi .chk{margin:4px 0}
+.kpc-scope .multi .chk.inline{display:inline-flex;margin:4px 20px 4px 0}
 .kpc-scope .list .listrow{display:grid;grid-template-columns:22px 1fr 70px auto 28px;gap:6px;align-items:center;margin-bottom:6px}
 .kpc-scope .list .listrow .err{grid-column:2/-1;margin:0}
 .kpc-scope .list .num{color:var(--muted);text-align:right}
@@ -274,7 +275,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261025b">
+<link rel="stylesheet" href="theme-v2.css?v=20261025c">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -1231,6 +1232,7 @@ const DEFAULT_DEADLINE_DAYS = 20;
 
 
 
+const SYSTEMS = ['СПС.СОУЭ', 'АО', 'ВПВ', 'АУП'].map(s => ({ id: s, text: s, label: s, inline: true }));   // системы для закупки оборудования и монтажа
 const CATALOG = [
   {
     id: 'risk', title: 'Проведение расчёта пожарного риска', project: true,
@@ -1305,14 +1307,22 @@ const CATALOG = [
     example: {}
   },
   {
-    id: 'equip', title: 'Заказ и поставка оборудования для монтажа',
-    src: 'Шаблоны для КП, строка 6',
-    rule: 'В шаблоне «ПД(РД) … (выбери нужное)»: выберите одно и впишите шифр.',
-    fields: [
-      { id: 'kind', type: 'radio', options: ['ПД', 'РД'], label: 'По какой документации' },
-      { id: 'cipher', type: 'text', max: 60, label: 'Шифр', ph: 'например, 12-34-ПБ' }],
-    lines: v => ['Заказ и поставка оборудования для проведения монтажа по ' + v.kind + ' ШИФР: ' + v.cipher],
-    example: { kind: 'ПД', cipher: 'XX-00' }
+    id: 'equip', title: 'Закупка и поставка оборудования для монтажных работ',
+    src: 'Шаблоны для КП, строка 6 (формулировка изменена по вашей просьбе 25.10.2026)',
+    rule: 'Отметьте системы, для которых закупается оборудование, — они перечисляются в скобках.',
+    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }],
+    lines: v => ['Закупка и поставка оборудования для проведения монтажных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')'],
+    check: v => v.systems.length ? null : { key: 'systems', msg: 'Отметьте хотя бы одну систему.' },
+    example: { systems: ['СПС.СОУЭ', 'АО'] }
+  },
+  {
+    id: 'install', title: 'Проведение монтажных и пусконаладочных работ', project: true,
+    src: 'Новая позиция (по вашей просьбе 25.10.2026)',
+    rule: 'Отметьте системы, на которые выполняются монтаж и пусконаладка, — они перечисляются в скобках.',
+    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }],
+    lines: v => ['Проведение монтажных и пусконаладочных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')'],
+    check: v => v.systems.length ? null : { key: 'systems', msg: 'Отметьте хотя бы одну систему.' },
+    example: { systems: ['СПС.СОУЭ', 'АО'] }
   },
   {
     id: 'cats', title: 'Расчёт категорий помещений по взрывопожарной и пожарной опасности', project: true,
@@ -1996,7 +2006,7 @@ function fieldControl(svc, f) {
         const set = new Set(st.fields[f.id]); cb.checked ? set.add(o.id) : set.delete(o.id);
         st.fields[f.id] = Array.from(set); touch(key); refresh();
       });
-      box.append(h('label', { class: 'chk' }, cb, h('span', null, o.label)));
+      box.append(h('label', { class: 'chk' + (o.inline ? ' inline' : '') }, cb, h('span', null, o.label || o.text)));
     });
     return h('div', { class: 'field small' }, h('span', { class: 'lbl' }, f.label), box, errBox(key));
   }
@@ -2446,7 +2456,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261025b"></script>
+<script src="chat.js?v=20261025c"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2505,14 +2515,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261025b"></script>
-<script src="extras.js?v=20261025b"></script>
-<script src="team.js?v=20261025b"></script>
-<script src="auto.js?v=20261025b"></script>
-<script src="stages.js?v=20261025b"></script>
-<script src="clients.js?v=20261025b"></script>
-<script src="kpv.js?v=20261025b"></script>
-<script src="chatpanel.js?v=20261025b"></script>
+<script src="crm.js?v=20261025c"></script>
+<script src="extras.js?v=20261025c"></script>
+<script src="team.js?v=20261025c"></script>
+<script src="auto.js?v=20261025c"></script>
+<script src="stages.js?v=20261025c"></script>
+<script src="clients.js?v=20261025c"></script>
+<script src="kpv.js?v=20261025c"></script>
+<script src="chatpanel.js?v=20261025c"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

@@ -368,7 +368,9 @@
      Следующее сообщение уточняет это же КП («цена 60 000», «адрес …», «пришли в ворде»). */
   function aiCatalog() {
     return K().CATALOG.map(function (s) {
-      return { id: s.id, title: s.title, fields: (s.fields || []).map(function (f) { return { id: f.id, type: f.type, label: f.label || "", options: f.options || [] }; }) };
+      return { id: s.id, title: s.title, fields: (s.fields || []).map(function (f) {
+        return { id: f.id, type: f.type, label: f.label || "", options: (f.options || []).map(function (o) { return typeof o === "string" ? o : o.id; }) };
+      }) };
     });
   }
   function aiCurrent() {                                           // текущее КП конструктора — в том же виде, что отвечает ИИ
@@ -382,8 +384,8 @@
     d.services.forEach(function (x) {
       var svc = kc.CATALOG.filter(function (c) { return c.id === x.id; })[0], fields = {};
       Object.keys(x.fields || {}).forEach(function (k) {
-        var v = x.fields[k];
-        fields[k] = typeof v === "number" ? String(v) : Array.isArray(v) ? v.map(function (i) { return { mark: i.mark, qty: i.qty ? String(i.qty) : "" }; }) : v;
+        var v = x.fields[k], f = svc && (svc.fields || []).filter(function (y) { return y.id === k; })[0];
+        fields[k] = typeof v === "number" ? String(v) : Array.isArray(v) && !(f && f.type === "multi") ? v.map(function (i) { return { mark: i.mark, qty: i.qty ? String(i.qty) : "" }; }) : v;
       });
       var price = x.price > 0 ? x.price : 0;
       if (!price && svc) { price = P.suggest(svc, { fields: fields }); if (price) notes.push("«" + svc.title + "» — цена по прайсу " + money(price)); }
