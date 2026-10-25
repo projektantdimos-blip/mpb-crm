@@ -94,8 +94,80 @@
         var changed = false;
         S.msgs.forEach(function (m) { var n = rx[String(m.id)] || [], a = JSON.stringify(m.reactions || []), b = JSON.stringify(n); if (a !== b) { m.reactions = n; changed = true; } });
         if (changed) paintThread(true);
+        return loadAiTasks();
       }).catch(function () {});
     }, 4000);
+  }
+  /* ИИ: подсказки «Поручение» под сообщениями (мост ищет их в фоне после отправки) */
+  S.aiTasks = {};
+  function loadAiTasks() {
+    var rid = S.cur, room = S.rooms.filter(function (r) { return r.id === rid; })[0];
+    if (S.aiOff || (room && room.kind === "ai")) return Promise.resolve();
+    return C.call("/ai/team/" + encodeURIComponent(rid) + "/tasks").then(function (t) {
+      if (S.cur !== rid) return;
+      if (JSON.stringify(t || {}) !== JSON.stringify(S.aiTasks)) { S.aiTasks = t || {}; paintThread(true); }
+    }, function (e) { if (String(e).indexOf("обновления сервера") >= 0 || /404|Not Found/.test(String(e))) S.aiOff = true; });
+  }
+  function aiTaskHtml(m) {
+    var t = S.aiTasks[String(m.id)]; if (!t) return "";
+    var due = t.due ? " · до " + t.due.slice(8, 10) + "." + t.due.slice(5, 7) + (t.tm ? " " + t.tm : "") : "";
+    if (t.status === "done") return '<div class="x-aitask done">' + ic("check") + "<span>Напоминание создано: <b>" + E(t.assignee) + "</b> — " + E(t.title) + due + "</span></div>";
+    var can = C.me && (C.me.role === "admin" || C.me.id === t.author_id || C.me.id === t.assignee_id);
+    return '<div class="x-aitask">' + ic("zap") + "<span>Поручение: <b>" + E(t.assignee) + "</b> — " + E(t.title) + due + "</span>"
+      + (can ? '<button type="button" data-aiok="' + m.id + '">Напомнить</button><button type="button" class="x" data-aino="' + m.id + '" title="Это не поручение" aria-label="Скрыть">×</button>' : "") + "</div>";
+  }
+  function wireAiTasks(el) {
+    el.querySelectorAll("[data-aiok]").forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation(); b.disabled = true;
+        C.call("/ai/team/task/" + b.dataset.aiok + "/accept", { body: {} }).then(function (t) { S.aiTasks[String(t.msg_id)] = t; paintThread(true); toast("Напоминание создано: " + t.assignee + " увидит его в «Мои задачи»"); })
+          .catch(function (er) { b.disabled = false; toast(String(er)); });
+      };
+    });
+    el.querySelectorAll("[data-aino]").forEach(function (b) {
+      b.onclick = function (e) {
+        e.stopPropagation();
+        C.call("/ai/team/task/" + b.dataset.aino + "/dismiss", { body: {} }).then(function () { delete S.aiTasks[b.dataset.aino]; paintThread(true); }).catch(function (er) { toast(String(er)); });
+      };
+    });
+  }
+  /* ИИ: «Кратко: что решили» по чату */
+  function summaryDialog(room) {
+    var days = 7;
+    xmodal('<h3>' + ic("zap") + ' Кратко: что решили</h3><p class="x-sub">«' + E(room.name) + '» — ИИ читает переписку и выделяет решения, поручения и повисшие вопросы</p>'
+      + '<div class="x-seg" id="smDays">' + [[1, "Сутки"], [3, "3 дня"], [7, "Неделя"], [30, "Месяц"]].map(function (d) { return '<button type="button" data-d="' + d[0] + '" class="' + (d[0] === days ? "on" : "") + '">' + d[1] + "</button>"; }).join("") + "</div>"
+      + '<div id="smBody" class="x-aisum"><div class="x-empty">Загрузка…</div></div><div class="x-err" id="smErr"></div>'
+      + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Закрыть</button><button class="x-btn primary" id="smGo">' + ic("zap") + "Составить</button></div>", true);
+    function paint(n) {
+      var b = $("smBody"); if (!b) return;
+      if (!n) { b.innerHTML = '<p class="x-sub">Сводки пока не было. Выберите период и нажмите «Составить».</p>'; return; }
+      var d = n.data, at = new Date(n.ts * 1000);
+      var li = function (a) { return a.length ? "<ul>" + a.map(function (x) { return "<li>" + E(x) + "</li>"; }).join("") + "</ul>" : '<p class="x-sub">—</p>'; };
+      b.innerHTML = '<p class="meta">' + E(n.by) + " · " + p2(at.getDate()) + "." + p2(at.getMonth() + 1) + " " + p2(at.getHours()) + ":" + p2(at.getMinutes()) + " · за " + d.days + " дн., сообщений: " + d.count
+        + (n.new_since ? ' · <b>после сводки ещё ' + n.new_since + "</b>" : "") + "</p>"
+        + "<p>" + E(d.summary) + "</p><h6>Решили</h6>" + li(d.decisions)
+        + "<h6>Поручения</h6>" + (d.tasks.length ? d.tasks.map(function (t, i) { return '<div class="x-aitrow"><span><b>' + E(t.who || "—") + "</b> — " + E(t.what) + (t.due ? " · " + E(t.due) : "") + "</span>" + (t.user_id ? '<button type="button" class="x-btn ghost" data-rm="' + i + '">Напомнить</button>' : "") + "</div>"; }).join("") : '<p class="x-sub">—</p>')
+        + "<h6>Без ответа</h6>" + li(d.open);
+      b.querySelectorAll("[data-rm]").forEach(function (x) {
+        x.onclick = function () {
+          var t = d.tasks[+x.dataset.rm]; x.disabled = true;
+          C.call("/ai/team/" + encodeURIComponent(room.id) + "/remind", { body: { user_id: t.user_id, what: t.what, due: "" } }).then(function () { x.textContent = "✓ Создано"; toast("Напоминание создано: " + t.who); })
+            .catch(function (e) { x.disabled = false; toast(String(e)); });
+        };
+      });
+    }
+    C.call("/ai/team/" + encodeURIComponent(room.id) + "/summary").then(function (r) {
+      if (!r.configured) { $("smBody").innerHTML = '<p class="x-sub">ИИ не подключён на мосте (YANDEX_API_KEY).</p>'; $("smGo").disabled = true; return; }
+      if (r.note) { days = r.note.data.days || 7; $("smDays").querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", +x.dataset.d === days); }); }
+      paint(r.note);
+    }).catch(function (e) { $("smBody").innerHTML = '<p class="x-sub">' + E(e) + "</p>"; });
+    $("smDays").querySelectorAll("button").forEach(function (x) { x.onclick = function () { days = +x.dataset.d; $("smDays").querySelectorAll("button").forEach(function (y) { y.classList.toggle("on", y === x); }); }; });
+    $("smGo").onclick = function () {
+      var go = this; go.disabled = true; go.textContent = "ИИ читает чат…"; $("smErr").textContent = "";
+      C.call("/ai/team/" + encodeURIComponent(room.id) + "/summary", { body: { days: days } }).then(function (r) { paint(r.note); })
+        .catch(function (e) { $("smErr").textContent = String(e); })
+        .then(function () { go.disabled = false; go.innerHTML = ic("zap") + "Обновить"; });
+    };
   }
   function loadRooms() {
     return C.call("/team/rooms").then(function (rs) { S.rooms = rs; paintRooms(); });
@@ -150,7 +222,7 @@
     paintRooms();
     $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">Загрузка…</div>';
     return C.call("/team/rooms/" + encodeURIComponent(id) + "/messages").then(function (ms) {
-      S.msgs = ms; S.lastId = ms.length ? ms[ms.length - 1].id : 0; paintThread(); paintInfo();
+      S.msgs = ms; S.lastId = ms.length ? ms[ms.length - 1].id : 0; S.aiTasks = {}; paintThread(); paintInfo(); loadAiTasks();
       return C.call("/team/rooms/" + encodeURIComponent(id) + "/read", { body: {} }).then(loadRooms).then(function () { C.refresh(); });
     }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
   }
@@ -306,7 +378,8 @@
       + '<div class="tx" data-pop="' + m.id + '">'
       + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
       + (files.length ? '<div class="x-files">' + files.map(fileHtml).join("") + "</div>" : "") + "</div>"
-      + (rx ? '<div class="x-rx">' + rx + "</div>" : "")
+      + aiTaskHtml(m)
+      + (rx ?'<div class="x-rx">' + rx + "</div>" : "")
       + (m.urgent ? '<div class="x-ack">' + ic("check") + (m.acks.length ? "Прочитали: " + E(m.acks.join(", ")) : "Пока никто не подтвердил") + (!me && !mine ? '<button data-ack="' + m.id + '">Прочитал(а)</button>' : "") + "</div>" : "") + "</div></div>";
   }
 
@@ -379,15 +452,16 @@
       + AI_EX.map(function (x) { return '<button type="button" class="x-aiex">' + E(x) + "</button>"; }).join("") + "<p>Потом можно уточнять: «цена 60 000», «добавь адрес …», «пришли в ворде».</p></div></div>";
     var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
     if (old && keep) wasBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 80;
-    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : ai ? "ai" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (ai ? '<button type="button" class="x-btn ghost x-ainew" id="tAiNew" title="Следующее сообщение начнёт новое КП">Новое КП</button>' : "") + (C.me && C.me.role === "admin" && !ai ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
+    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : ai ? "ai" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (ai ? '<button type="button" class="x-btn ghost x-ainew" id="tAiNew" title="Следующее сообщение начнёт новое КП">Новое КП</button>' : "") + (!ai && !S.aiOff ? '<button type="button" class="x-hbtn x-sumbtn" id="tSum" title="ИИ: кратко — что решили, кому что поручили" aria-label="Кратко: что решили">' + ic("zap") + "<span>Кратко</span></button>" : "") + (C.me && C.me.role === "admin" && !ai ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
       + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (ai ? "Какое КП сделать? Услуги, объект, адрес, цена, срок" : window.innerWidth <= 1180 ? "Сообщение… (@Имя — упомянуть)" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea>' + (ai ? "" : '<button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + "Срочное</button>") + '<button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
-    paintReply(); wireMessages(el); loadImages(el);
+    paintReply(); wireMessages(el); loadImages(el); wireAiTasks(el);
     if ($("tStyle")) $("tStyle").onclick = function () { styleDialog(room); };
+    if ($("tSum")) $("tSum").onclick = function () { summaryDialog(room); };
     $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
     $("tAttach").onclick = function () { $("tFile").click(); };
     $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };

@@ -270,6 +270,7 @@
       + '<div class="cl2-act"><button class="x-btn ghost" id="clMsg">' + ic("chat") + 'Написать</button><button class="x-btn primary" id="clKp">' + ic("file") + "Создать КП</button></div></div></div>"
       + '<div class="cl2-inn"><label>ИНН</label><input id="clInn" inputmode="numeric" maxlength="12" value="' + E(c.inn || "") + '" placeholder="10 или 12 цифр"><button class="x-btn ghost" id="clInnSave">Сохранить</button><small>' + (c.innManual ? "задан вручную" : c.innAuto ? "найден в тексте заявок — проверьте и сохраните" : "ИНН помогает находить дубли: клиенты с одинаковым ИНН объединяются в одну группу") + "</small></div>"
       + (others.length ? '<div class="cl2-dup">' + ic("alert") + "<span>Возможный дубль: «" + E(others.map(function (x) { return x.name; }).join("», «")) + "». Один и тот же заказчик? Объедините карточки, чтобы история не раздваивалась.</span>" + '<button class="x-btn primary" id="clMerge">' + ic("repeat") + "Объединить</button></div>" : "")
+      + '<div class="x-panel pad cl2-ai" id="clAi" style="margin-top:16px"></div>'
       + '<div class="x-panel pad" style="margin-top:16px"><h3>Путь клиента</h3><p class="x-sub">От первой заявки до обслуживания — всё связано автоматически</p>' + chainHtml(chainOf(c)) + "</div>"
       + '<div class="cl2-mini"><div><small>Договоры, сумма</small><b>' + money(c.wonSum) + "</b></div><div><small>КП в работе</small><b>" + c.live.length + "</b></div><div><small>Задач в работе</small><b>" + c.open.length + "</b></div><div><small>Объектов на ТО</small><b>" + toN + "</b></div></div>"
       + '<div class="cl2-two"><div class="x-panel pad"><h3>История</h3><p class="x-sub">Все события по клиенту в одной ленте</p><div class="tl">' + timeline(c) + "</div></div>"
@@ -287,6 +288,52 @@
     };
     $("clKp").onclick = function () { kpPicker(c); };
     var mg = $("clMerge"); if (mg) mg.onclick = function () { mergeDlg(mydups[0]); };
+    aiPanel(c);
+  }
+  /* ИИ: «Что с этим клиентом?» — сводка по задачам, заявкам, КП, ТО и переписке (последняя хранится на мосте) */
+  function aiPayload(c) {
+    var cut = function (v, n) { return String(v == null ? "" : v).slice(0, n); };
+    var th = window.__chatThreads ? window.__chatThreads() : [];
+    var tids = th.filter(function (t) {
+      if (norm(t.title) === c.key) return true;
+      return phones(t.peer).some(function (x) { return c.phones[x]; }) || emails(t.peer).some(function (x) { return c.emails[x]; });
+    }).slice(0, 10).map(function (t) { return t.id; });
+    return { key: c.key, name: cut(c.name, 200), names: Object.keys(c.names).slice(0, 10).map(function (n) { return cut(n, 200); }), inn: c.inn || "",
+      phones: Object.keys(c.phones).slice(0, 10), emails: Object.keys(c.emails).slice(0, 10), threads: tids,
+      tasks: c.tasks.slice(0, 60).map(function (t) { return { row: t.row, workType: cut(t.workType, 200), address: cut(t.address, 300), stage: cut(t.stage, 120), deadline: cut(t.deadline, 30), startDate: cut(t.startDate, 30), closed: !!t.closed, contractNo: cut(t.contractNo, 60), manager: cut(t.manager, 80), responsible: cut(t.responsible, 80), comment: cut(t.comment, 3000) }; }),
+      leads: c.leads.slice(0, 60).map(function (l) { return { row: l.row, date: cut(l.date, 30), status: cut(l.status, 60), object: cut(l.object, 300), essence: cut(l.essence, 3000), amount: +l.amount || 0, owner: cut(l.owner, 80), lastContact: cut(l.lastContact, 30), comment: cut(l.comment, 3000) }; }) };
+  }
+  function aiPanel(c) {
+    var box = $("clAi"); if (!box) return;
+    if (!(window.MPBC && MPBC.loggedIn && MPBC.loggedIn())) { box.remove(); return; }
+    function head(btn) { return '<div class="cl2-aih"><div><h3>' + ic("zap") + " Что с этим клиентом?</h3><p class=\"x-sub\">ИИ собирает задачи, заявки, КП, ТО и переписку в короткую сводку</p></div>" + btn + "</div>"; }
+    function paint(n) {
+      if (!n) { box.innerHTML = head('<button class="x-btn primary" id="clAiGo">' + ic("zap") + "Собрать сводку</button>"); wire(); return; }
+      var d = n.data, at = new Date(n.ts * 1000), p2 = function (x) { return x < 10 ? "0" + x : "" + x; };
+      var li = function (h, a) { return a && a.length ? "<h6>" + h + "</h6><ul>" + a.map(function (x) { return "<li>" + E(x) + "</li>"; }).join("") + "</ul>" : ""; };
+      var tone = { waiting_us: "over", idle: "soon", waiting_client: "soon", closed: "", new: "blue", active: "blue" }[d.status] || "blue";
+      box.innerHTML = head('<button class="x-btn ghost" id="clAiGo">' + ic("repeat") + "Обновить</button>")
+        + '<div class="x-aisum"><p><span class="x-pill ' + tone + '">' + E(d.status_label) + "</span> " + E(d.summary) + "</p>"
+        + li("В работе", d.in_work) + (d.money ? "<h6>Деньги</h6><p>" + E(d.money) + "</p>" : "") + (d.last_contact ? "<h6>Последний контакт</h6><p>" + E(d.last_contact) + "</p>" : "")
+        + li("Что сделать", d.next_steps) + li("Риски", d.risks)
+        + '<p class="meta">' + E(n.by) + " · " + p2(at.getDate()) + "." + p2(at.getMonth() + 1) + " " + p2(at.getHours()) + ":" + p2(at.getMinutes())
+        + " · учтено: задач " + d.sources.tasks + ", заявок " + d.sources.leads + ", диалогов " + d.sources.dialogs + ", объектов ТО " + d.sources.to + "</p></div>";
+      wire();
+    }
+    function wire() {
+      var go = $("clAiGo"); if (!go) return;
+      go.onclick = function () {
+        go.disabled = true; go.textContent = "ИИ собирает сводку…";
+        MPBC.call("/ai/client", { body: aiPayload(c) }).then(function (r) { if ($("clAi") === box) paint(r.note); })
+          .catch(function (e) { go.disabled = false; go.innerHTML = ic("zap") + "Собрать сводку"; U.toast(String(e)); });
+      };
+    }
+    box.innerHTML = head("");
+    MPBC.call("/ai/client?key=" + encodeURIComponent(c.key)).then(function (r) {
+      if ($("clAi") !== box) return;
+      if (!r.configured) { box.remove(); return; }
+      paint(r.note);
+    }).catch(function () { box.remove(); });                  // мост без ИИ или старый — блок не показываем
   }
   function kpPicker(c) {
     if (!window.MPBP) { U.toast("Модуль КП не загружен — обновите страницу"); return; }

@@ -69,6 +69,7 @@
         + '<label class="x-check" style="display:flex;gap:10px;align-items:center;margin-bottom:6px"><button class="x-sw ' + (s.auto_assign ? "on" : "") + '" id="aiAuto"' + (st.configured ? "" : " disabled") + '></button><span>Передавать сотруднику автоматически, если ИИ уверен по правилам ниже</span></label>'
         + '<div class="x-field" style="margin-left:52px"><select id="aiScope"><option value="mail"' + (s.auto_scope !== "all" ? " selected" : "") + '>только почта</option><option value="all"' + (s.auto_scope === "all" ? " selected" : "") + '>почта, Telegram и Max</option></select>'
         + '<small class="x-sub" style="display:block;margin-top:4px">Письма, уже переданные правилом «Письма» или вручную, ИИ не трогает. Спам и неясные — только подсказка.</small></div>'
+        + '<label class="x-check" style="display:flex;gap:10px;align-items:center;margin-bottom:12px"><button class="x-sw ' + (s.team_tasks !== false ? "on" : "") + '" id="aiTeam"' + (st.configured ? "" : " disabled") + '></button><span>Искать поручения в чатах «Команды» («Яна, подготовь счёт до пятницы» → кнопка «Напомнить»)</span></label>'
         + '<div class="x-field"><label>Кому что передавать</label><textarea id="aiRouting" rows="6" placeholder="Например:&#10;Счета, акты, оплаты — Игорю&#10;Новые заявки на проект — Алексею&#10;Вопросы по монтажу — Дмитрию">' + E(s.routing || "") + "</textarea></div>"
         + '<div class="x-field"><label>Как мы пишем клиентам (для черновиков)</label><textarea id="aiStyle" rows="6" placeholder="Пара примеров удачных ответов и правила: обращение по имени, без «уважаемый», подпись…">' + E(s.style || "") + "</textarea></div>"
         + '<div class="x-err" id="aiErr"></div><button class="x-btn primary" id="aiSave">Сохранить</button></div>'
@@ -80,10 +81,10 @@
         + '</div><div class="x-panel pad" style="margin-top:12px"><h3>Как это работает</h3><p class="x-sub">Через полминуты после входящего ИИ читает диалог и предлагает: тип, данные клиента, кому передать. Клиентам ничего не отправляет и ничего не создаёт. Передаёт сотруднику сам, только если включена автопередача и он уверен; иначе — подсказка во вкладке «ИИ» диалога. Переписка уходит в Yandex Cloud (данные остаются в России).</p></div></div>';
       b.innerHTML = card + '<div class="x-two"><div>' + left + "</div>" + right + "</div>";
       if (adm) {
-        ["aiOn", "aiAuto"].forEach(function (id) { var sw = $(id); if (sw) sw.onclick = function () { sw.classList.toggle("on"); }; });
+        ["aiOn", "aiAuto", "aiTeam"].forEach(function (id) { var sw = $(id); if (sw) sw.onclick = function () { sw.classList.toggle("on"); }; });
         $("aiSave").onclick = function () {
           var btn = this; btn.disabled = true; $("aiErr").textContent = "";
-          C.call("/ai/settings", { body: { enabled: $("aiOn").classList.contains("on"), auto_assign: $("aiAuto").classList.contains("on"), auto_scope: $("aiScope").value, routing: $("aiRouting").value, style: $("aiStyle").value } })
+          C.call("/ai/settings", { body: { enabled: $("aiOn").classList.contains("on"), auto_assign: $("aiAuto").classList.contains("on"), team_tasks: $("aiTeam").classList.contains("on"), auto_scope: $("aiScope").value, routing: $("aiRouting").value, style: $("aiStyle").value } })
             .then(function () { U.toast("Настройки ИИ сохранены"); paintAi(b); if (window.MPBD) C.call("/ai/status").then(function (r) { MPBD.ai = r; }).catch(function () {}); })
             .catch(function (e) { btn.disabled = false; $("aiErr").textContent = String(e); });
         };
