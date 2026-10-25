@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware      # noqa: E402
 
 from datetime import date, timedelta                                   # noqa: E402
 
-from app import appsscript, config, crm_auth, crm_auto, crm_auto_routes, crm_db, crm_clients, crm_kp, crm_mail, crm_routes, crm_sched, crm_to, crm_stage_routes, crm_stages as st, db, tg_bot   # noqa: E402
+from app import ai_yandex, crm_ai, appsscript, config, crm_auth, crm_auto, crm_auto_routes, crm_db, crm_clients, crm_kp, crm_mail, crm_routes, crm_sched, crm_to, crm_stage_routes, crm_stages as st, db, tg_bot   # noqa: E402
 
 
 # --- поддельные таблица Google и Telegram: общие для приложения (через /dev/sheet) и для моста ---
@@ -178,6 +178,54 @@ app.include_router(crm_kp.router)
 app.include_router(crm_mail.router)
 app.include_router(crm_clients.router)
 app.include_router(crm_to.router)
+app.include_router(crm_ai.router)
+
+
+def fake_ai(body):
+    """Поддельный YandexGPT для стенда: разбор по ключевым словам, черновик — шаблон. Формат ответа — как у API."""
+    import json as _j, re as _re
+    text = body["messages"][-1]["text"]
+    last = text.rsplit("---", 1)[-1]
+    if "jsonSchema" in body and "services" in body["jsonSchema"]["schema"]["properties"]:     # окно ИИ в конструкторе КП
+        msg = text.rsplit("Сообщение сотрудника:\n", 1)[-1]
+        low = msg.lower()
+        cur = {}
+        if "Текущее КП в конструкторе:\n" in text:
+            cur = _j.loads(text.split("Текущее КП в конструкторе:\n", 1)[1].split("\n\nСообщение сотрудника:", 1)[0])
+        price = _re.search(r"(\d[\d\s]{2,})\s*(?:руб|р\.|₽|$)", msg)
+        price = int(_re.sub(r"\s", "", price.group(1))) if price else 0
+        days = _re.search(r"(\d+)\s*р\.?\s*д", low)
+        obj = _re.search(r"(?:для|объект)\s+([^,]+)", msg)
+        adr = _re.search(r"((?:г\.|ул\.|пр\.|СПб)[^;]*?\d+[^,]*(?:,\s*д\.\s*\d+)?)", msg)
+        svcs = [{"id": i, "price": 0} for k, i in (("спс", "design_sps"), ("ао", "design_ao"), ("ауп", "design_aup"), ("декларац", "decl")) if k in low]
+        if cur and not svcs:
+            svcs = cur.get("services") or []
+        if svcs and price:
+            svcs[0]["price"] = price
+        fmt = "both" if ("ворд" in low or "word" in low) and ("pdf" in low or "пдф" in low) else "docx" if ("ворд" in low or "word" in low) else "pdf"
+        only_send = bool(cur) and not obj and not price and not days and not adr and ("пришли" in low or "скинь" in low)
+        d = {"action": "send" if only_send else "update" if cur and not obj else "new", "format": fmt, "num": "", "object": obj.group(1).strip() if obj else cur.get("object", ""),
+             "address": adr.group(1).strip() if adr else cur.get("address", ""), "no_address": "без адреса" in low or bool(cur.get("no_address")),
+             "deadline_days": int(days.group(1)) if days else cur.get("deadline_days", 0), "services": svcs, "custom": [],
+             "reply": "Стенд: заполнил конструктор по сообщению.", "questions": "" if svcs else "Какие услуги включить?"}
+        out = _j.dumps(d, ensure_ascii=False)
+    elif "jsonSchema" in body:
+        low = last.lower()
+        kind = "invoice_docs" if ("счёт" in low or "счет" in low or "оплат" in low) else "new_request" if ("нужн" in low or "проект" in low or "смет" in low) else "question"
+        phone = (_re.search(r"\+?\d[\d\s()-]{8,}\d", last) or [""])[0]
+        inn = (_re.search(r"\b\d{10}(?:\d{2})?\b", last) or [""])[0]
+        d = {"kind": kind, "summary": "Стенд: " + last.strip().split("\n")[-1][:120], "urgency": "normal", "org": "", "contact": "",
+             "phone": phone, "email": "", "inn": inn, "object": "", "need": "", "route_to": "Игорь" if kind == "invoice_docs" else "Алексей",
+             "route_reason": "по типу сообщения (стенд)", "route_confident": True, "reply_needed": kind != "invoice_docs", "create_lead": kind == "new_request"}
+        out = _j.dumps(d, ensure_ascii=False)
+    else:
+        out = "Здравствуйте!\n\nСпасибо за обращение. [уточнить детали]\n\nС уважением, МПБ"
+    return {"result": {"alternatives": [{"message": {"role": "assistant", "text": out}, "status": "ALTERNATIVE_STATUS_FINAL"}],
+                       "usage": {"inputTextTokens": str(len(text) // 3), "completionTokens": str(len(out) // 3), "totalTokens": "0"},
+                       "modelVersion": "stand"}}
+
+
+ai_yandex._post = fake_ai
 
 
 from fastapi import Request                                # noqa: E402
@@ -191,6 +239,16 @@ async def dev_sheet(request: Request):
         return {"ok": True, "data": fake_sheet(body.get("fn"), body.get("args") or [])}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.post("/dev/incoming")
+async def dev_incoming(request: Request):
+    """Стенд: «пришло входящее» (как из почты) — для проверки ИИ-разбора и автопередачи."""
+    import time as _t
+    b = await request.json()
+    ok = db.add_message(b.get("channel", "mail"), b["peer"], b.get("title", b["peer"]), str(_t.time()), "in",
+                        b.get("title", b["peer"]), b.get("subject", ""), b["text"], _t.time())
+    return {"ok": ok, "thread_id": f"{b.get('channel', 'mail')}:{b['peer']}"}
 
 
 @app.get("/dev/export")

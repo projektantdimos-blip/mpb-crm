@@ -361,6 +361,113 @@
     }).catch(function (e) { $("tpBody").innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
   }
 
+  /* ====================================================== ИИ-помощник КП ======================================================
+     Личный чат «Разработка КП» в «Команде» (team.js). Сотрудник пишет «КП на проект СПС.СОУЭ для …, 50 000, 30 р.д.» →
+     мост (YandexGPT) возвращает заполненный конструктор → КП собирается в конструкторе этого браузера, проверяется, вносится
+     в реестр («Сохранить в реестр»), сохраняется версией, и помощник присылает в чат PDF или Word — как попросили.
+     Следующее сообщение уточняет это же КП («цена 60 000», «адрес …», «пришли в ворде»). */
+  function aiCatalog() {
+    return K().CATALOG.map(function (s) {
+      return { id: s.id, title: s.title, fields: (s.fields || []).map(function (f) { return { id: f.id, type: f.type, label: f.label || "", options: f.options || [] }; }) };
+    });
+  }
+  function aiCurrent() {                                           // текущее КП конструктора — в том же виде, что отвечает ИИ
+    var s = K().state, out = { num: s.num, object: s.object, address: s.address, no_address: !!s.noAddress, deadline_days: s.deadline.on ? parseInt(s.deadline.days, 10) || 0 : 0, services: [], custom: [] };
+    K().CATALOG.forEach(function (c) { var x = s.services[c.id]; if (x.on) out.services.push(Object.assign({ id: c.id, price: parseInt(x.price, 10) || 0 }, x.fields)); });
+    if (s.custom.on) s.custom.items.forEach(function (it) { if (it.text) out.custom.push({ text: it.text, price: parseInt(it.price, 10) || 0 }); });
+    return out.object || out.services.length || out.custom.length ? out : null;
+  }
+  function aiSaved(d, num, notes) {                                // ответ ИИ → состояние конструктора
+    var kc = K(), services = {};
+    d.services.forEach(function (x) {
+      var svc = kc.CATALOG.filter(function (c) { return c.id === x.id; })[0], fields = {};
+      Object.keys(x.fields || {}).forEach(function (k) {
+        var v = x.fields[k];
+        fields[k] = typeof v === "number" ? String(v) : Array.isArray(v) ? v.map(function (i) { return { mark: i.mark, qty: i.qty ? String(i.qty) : "" }; }) : v;
+      });
+      var price = x.price > 0 ? x.price : 0;
+      if (!price && svc) { price = P.suggest(svc, { fields: fields }); if (price) notes.push("«" + svc.title + "» — цена по прайсу " + money(price)); }
+      services[x.id] = { on: true, price: price ? String(price) : "", fields: fields };
+    });
+    var days = d.deadline_days || 0;
+    return { num: num, date: kc.state.date, object: d.object, address: d.no_address ? "" : d.address, noAddress: !!d.no_address,
+      deadline: { on: days > 0, days: String(days || 20), dirty: true }, services: services,
+      custom: d.custom.length ? { on: true, items: d.custom.map(function (c) { return { text: c.text, price: c.price ? String(c.price) : "" }; }) } : null };
+  }
+  function missingOf(chk) {
+    var kc = K();
+    return chk.errors.map(function (e) {
+      var m = /^svc\.([^.]+)\./.exec(e.key || ""), svc = m && kc.CATALOG.filter(function (c) { return c.id === m[1]; })[0];
+      return svc ? "«" + svc.title + "»: " + e.msg.charAt(0).toLowerCase() + e.msg.slice(1) : e.msg;
+    }).filter(function (m, i, a) { return a.indexOf(m) === i; }).slice(0, 6);
+  }
+  function b64(blob) {
+    return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = bad; r.readAsDataURL(blob); });
+  }
+  function kpFiles(saved, format) {                                // PDF и/или Word текущего КП — для вложения в чат
+    var kinds = format === "both" ? ["pdf", "docx"] : [format === "docx" ? "docx" : "pdf"];
+    return Promise.all(kinds.map(function (k) {
+      return K()[k](saved).then(function (f) {
+        return b64(f.blob).then(function (data) { return { filename: f.name, mime: f.blob.type || (k === "pdf" ? "application/pdf" : "application/octet-stream"), data: data }; });
+      });
+    }));
+  }
+  /* обработка сообщения из чата «Разработка КП»: возвращает { text, files } — ответ помощника */
+  var LAST = "mpb_kai_last";                                       // последнее КП помощника — чтобы после перезагрузки «пришли в ворде» работало
+  function kpAnswer(text) {
+    var kc = K(), notes = [];
+    if (!aiCurrent()) { try { var last = JSON.parse(localStorage.getItem(LAST) || "null"); if (last) kc.load(last); } catch (e) {} }
+    return C.call("/ai/kp", { body: { text: text, catalog: aiCatalog(), current: aiCurrent() } }).then(function (r) {
+      var d = r.data, s = kc.state;
+      var numP = d.action === "send" ? Promise.resolve(null)
+        : d.num ? Promise.resolve(d.num) : (d.action === "update" && s.num) ? Promise.resolve(s.num)
+        : kc.nextNum().then(function (n) { return n || ""; }, function () { return ""; });
+      return numP.then(function (num) {
+        if (num !== null) kc.load(aiSaved(d, num, notes));
+        else if (!aiCurrent()) return { text: "Пока нет КП, которое можно прислать. Напишите, какое КП нужно: услуги, объект, адрес, цена, срок." };
+        var chk = kc.check(), lines = [];
+        if (d.reply && d.action !== "send") lines.push(d.reply);
+        if (notes.length) lines.push(notes.join("\n"));
+        if (!chk.ok) {
+          lines.push("Чтобы собрать КП, не хватает:\n" + missingOf(chk).map(function (m) { return "• " + m; }).join("\n"));
+          if (d.questions) lines.push(d.questions);
+          lines.push("Допишите ответом — дополню это КП.");
+          return { text: lines.join("\n\n") };
+        }
+        var saved = snapshot(), total = kc.total(), send = d.action === "send";
+        try { localStorage.setItem(LAST, JSON.stringify(saved)); } catch (e) {}
+        return Promise.all([
+          send ? Promise.resolve(null) : kc.register().catch(function () { return false; }),
+          send ? Promise.resolve(0) : C.call("/kp/versions", { body: { num: saved.num, object: saved.object || "", total: total, state: saved, note: "ИИ-помощник: " + text.slice(0, 250), status: "draft" } })
+            .then(function (v) { return v.version; }, function () { return 0; }),
+          kpFiles(saved, d.format)
+        ]).then(function (res) {
+          var head = "КП № " + saved.num + " · " + (saved.object || "") + " · " + money(total);
+          var tail = send ? "" : (res[0] ? "В реестре КП ✓" : "В реестр не внесено — нажмите «Сохранить в реестр» в конструкторе") + (res[1] ? " · версия " + res[1] : "");
+          var warns = chk.warnings.map(function (w) { return w.msg; });
+          return { text: [head].concat(lines, warns.length ? [warns.join("\n")] : [], tail ? [tail] : []).join("\n\n"), files: res[2] };
+        });
+      });
+    });
+  }
+  P.kpChat = function (rid, text, replyTo) {                       // вызывает team.js после отправки сообщения в «Разработку КП»
+    if (!K()) return Promise.reject("Конструктор КП не загружен — обновите страницу");
+    return kpAnswer(text).then(null, function (e) { return { text: "Не получилось: " + (e && e.message || e) }; }).then(function (a) {
+      return C.call("/team/rooms/" + encodeURIComponent(rid) + "/send", { body: { text: a.text, as_bot: true, reply_to: replyTo || 0, files: a.files || [] } });
+    });
+  };
+  P.kpReset = function () {                                        // «Новое КП»: следующее сообщение начнёт КП с чистого листа
+    if (K()) K().load({ num: "", object: "", address: "", services: {} });
+    try { localStorage.removeItem(LAST); } catch (e) {}
+  };
+  P.mountAi = function (el) {                                      // в конструкторе — ссылка на чат «Разработка КП»
+    el.innerHTML = '<a class="kai-link-card" href="#/team?room=' + (C.me ? "kpai_" + C.me.id : "") + '"><span class="kai-ic">' + ic("zap") + "</span><span><b>ИИ-помощник КП</b>"
+      + "<small>Напишите в «Команде» → «Разработка КП», какое КП нужно, — помощник заполнит конструктор, внесёт КП в реестр и пришлёт PDF или Word</small></span><em>Открыть чат →</em></a>";
+    var a = el.querySelector("a");
+    a.onclick = function (e) { if (!C.me) { e.preventDefault(); U.toast("Войдите в «Личном кабинете» — помощник работает через сервер CRM"); } };
+  };
+  C.on("login", function () { var w = document.querySelector("#kpc-app .kai-wrap"); if (w) P.mountAi(w); });
+
   if (U.cur() === "price") {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", render); else render();
   }

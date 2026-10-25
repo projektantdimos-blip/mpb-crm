@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261023d";</script>
+<script>window.MPB_VERSION="20261025b";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -274,7 +274,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261023d">
+<link rel="stylesheet" href="theme-v2.css?v=20261025b">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -2174,13 +2174,13 @@ function refresh() {
   return res;
 }
 let kpPrevImgs = null;
+function loadPrevImgs() {                               // картинки шапки, QR, подписи и печати — те же, что в PDF
+  return kpAssets().then(A => {
+    kpPrevImgs = { banner: A.banner.src, qr1: A.qr1.toDataURL('image/png'), qr2: A.qr2.toDataURL('image/png'), sign: A.sign.toDataURL('image/png') };
+  });
+}
 function renderPreview() {
-  if (!kpPrevImgs) {                                   // картинки шапки, QR, подписи и печати — те же, что в PDF
-    kpAssets().then(A => {
-      kpPrevImgs = { banner: A.banner.src, qr1: A.qr1.toDataURL('image/png'), qr2: A.qr2.toDataURL('image/png'), sign: A.sign.toDataURL('image/png') };
-      renderPreview();
-    }).catch(() => {});
-  }
+  if (!kpPrevImgs) loadPrevImgs().then(renderPreview, () => {});
   const I = kpPrevImgs || {};
   const m = buildModel(state, true);
   const rows = m.rows.map((r, i) => '<tr><td class="n">' + (i + 1) + '</td><td>' + r.lines.map((l, k) => '<div' + (k === 0 ? ' class="b"' : '') + '>' + markHtml(l) + '</div>').join('') + '</td><td class="r">' +
@@ -2251,6 +2251,15 @@ async function autoNumber(force) {
   if (autoNumBusy || (state.num && !force)) return;
   autoNumBusy = true;
   try {
+    const max = await maxKpNumber();
+    if (max && (!state.num || force)) {
+      state.num = String(max + 1);
+      const inp = document.querySelector('input[data-field="num"]'); if (inp) inp.value = state.num;
+      refresh();
+    }
+  } finally { autoNumBusy = false; }
+}
+async function maxKpNumber() {
     let max = 0;
     const eat = (v) => { const n = parseInt(v, 10); if (n > max && n < 100000) max = n; };
     try {
@@ -2263,12 +2272,7 @@ async function autoNumber(force) {
     try {
       if (window.MPBC && MPBC.loggedIn && MPBC.loggedIn()) (await MPBC.call('/kp/versions?limit=500')).forEach(x => eat(x.num));
     } catch (e) { /* версии недоступны */ }
-    if (max && (!state.num || force)) {
-      state.num = String(max + 1);
-      const inp = document.querySelector('input[data-field="num"]'); if (inp) inp.value = state.num;
-      refresh();
-    }
-  } finally { autoNumBusy = false; }
+    return max;
 }
 function resetAll() {
   if (!confirm('Очистить все поля и начать новое КП?')) return;
@@ -2336,7 +2340,8 @@ function init() {                                    // экран констр�
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.saveVersion() : alert('Модуль версий не загружен') }, 'Сохранить версию'),
         h('button', { type: 'button', class: 'ghost', onclick: () => window.MPBP ? MPBP.versions() : alert('Модуль версий не загружен') }, 'Версии КП')),
       h('h3', null, 'Предпросмотр'), previewEl));
-  const tabConstructor = h('div', { id: 'tab-constructor', class: 'layout' }, left, right);
+  const aiEl = h('div', { class: 'kai-wrap' });                  // окно «ИИ-помощник КП» (kpv.js)
+  const tabConstructor = h('div', { id: 'tab-constructor' }, aiEl, h('div', { class: 'layout' }, left, right));
   const tabMemo = h('div', { id: 'tab-memo', class: 'hidden' }, buildMemo());
   const btnA = h('button', { type: 'button', class: 'tab active' }, 'Конструктор');
   const btnB = h('button', { type: 'button', class: 'tab' }, 'Памятка по формулировкам');
@@ -2350,6 +2355,7 @@ function init() {                                    // экран констр�
       h('p', null, 'МПБ — Мир пожарной безопасности. Выбирайте услуги из списка — формулировки и оформление подставятся правильно.')),
       h('nav', null, btnA, btnB)),
     tabConstructor, tabMemo);
+  if (window.MPBP && MPBP.mountAi) MPBP.mountAi(aiEl);
   refresh();
   setTimeout(() => autoNumber(false), 400);                       // номер КП подставляется сам (после загрузки модулей и входа)
   setTimeout(() => autoNumber(false), 3000);
@@ -2366,7 +2372,8 @@ function init() {                                    // экран констр�
         const sv = saved.services && saved.services[s.id];
         if (sv) st.services[s.id] = { on: !!sv.on, price: sv.price || '', fields: Object.assign(defaultFields(s), sv.fields || {}) };
       });
-      st.deadline.on = hasProject(st);
+      if (saved.deadline) Object.assign(st.deadline, saved.deadline); else st.deadline.on = hasProject(st);
+      if (saved.custom && saved.custom.on && saved.custom.items && saved.custom.items.length) st.custom = JSON.parse(JSON.stringify(saved.custom));
       return st;
     },
     checkSaved(saved) { return validate(this.fromSaved(saved)); },
@@ -2387,6 +2394,17 @@ function init() {                                    // экран констр�
     },
 
     check() { return validate(state); },
+    register() { return registerDownloaded(true); },   // как кнопка «Сохранить в реестр»
+    async nextNum() { const m = await maxKpNumber(); return m ? String(m + 1) : ''; },
+    async previewHtml() {                            // предпросмотр текущего КП (с картинками) — для окна ИИ
+      if (!kpPrevImgs) { try { await loadPrevImgs(); } catch (e) {} }
+      if (!inited) return '';
+      renderPreview(); return previewEl.innerHTML;
+    },
+    async docx(saved) {
+      const st = this.fromSaved(saved);
+      return { blob: await buildDocx(st, await loadJSZip(), 'blob'), name: docxFileName(st) };
+    },
     total() {
       let s = 0;
       CATALOG.forEach(v => { const x = state.services[v.id]; if (x.on) s += parseIntStrict(x.price) || 0; });
@@ -2428,7 +2446,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261023d"></script>
+<script src="chat.js?v=20261025b"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2487,14 +2505,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261023d"></script>
-<script src="extras.js?v=20261023d"></script>
-<script src="team.js?v=20261023d"></script>
-<script src="auto.js?v=20261023d"></script>
-<script src="stages.js?v=20261023d"></script>
-<script src="clients.js?v=20261023d"></script>
-<script src="kpv.js?v=20261023d"></script>
-<script src="chatpanel.js?v=20261023d"></script>
+<script src="crm.js?v=20261025b"></script>
+<script src="extras.js?v=20261025b"></script>
+<script src="team.js?v=20261025b"></script>
+<script src="auto.js?v=20261025b"></script>
+<script src="stages.js?v=20261025b"></script>
+<script src="clients.js?v=20261025b"></script>
+<script src="kpv.js?v=20261025b"></script>
+<script src="chatpanel.js?v=20261025b"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

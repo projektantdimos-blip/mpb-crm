@@ -122,15 +122,16 @@
     return '<span class="x-rm ' + (cls || "") + (url ? " ph" : "") + '" style="background-color:' + roomColor(r) + (url ? ";background-image:url(" + url + ")" : "") + '">' + (url ? "" : ic(roomIcon(r))) + "</span>";
   }
   function roomItem(r) {
-    var hasU = r.urgent_open > 0, last = r.last;
-    return '<div class="x-dlg ' + (r.id === S.cur ? "on" : "") + '" data-r="' + E(r.id) + '">' + roomAv(r, r.kind === "task" ? "task" : "") + '<div class="m"><b>' + E(r.name) + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
+    var hasU = r.urgent_open > 0, last = r.last, ai = r.kind === "ai";
+    return '<div class="x-dlg ' + (r.id === S.cur ? "on " : "") + (ai ? "ai" : "") + '" data-r="' + E(r.id) + '">' + roomAv(r, r.kind === "task" ? "task" : ai ? "ai" : "") + '<div class="m"><b>' + E(r.name) + (ai ? '<span class="x-aitag">ИИ</span>' : "") + (hasU ? '<span class="x-flame">' + ic("flame") + "</span>" : "") + "</b><span>" + (last ? E(last.user) + ": " + E(last.text) : E(r.descr)) + '</span></div><div class="tm">' + (last ? when(last.ts) : "") + "<br>" + (r.unread ? '<span class="x-un ' + (hasU ? "red" : "") + '">' + r.unread + "</span>" : "") + "</div></div>";
   }
   function paintRooms() {
     var el = $("tRooms"); if (!el) return;
     el.setAttribute("data-ptr", "team"); window.__ptr = window.__ptr || {}; window.__ptr.team = function () { return loadRooms(); };
     var urg = S.rooms.filter(function (r) { return r.urgent_open > 0; }), n = urg.reduce(function (a, r) { return a + r.urgent_open; }, 0);
     if ($("tUrgN")) $("tUrgN").textContent = n;
-    el.innerHTML = (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span data-i="!" class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")
+    var aiRooms = S.rooms.filter(function (r) { return r.kind === "ai"; });
+    el.innerHTML = (aiRooms.length ? '<div class="x-grp ai">' + ic("zap") + "ИИ-помощник</div>" + aiRooms.map(roomItem).join("") : "") + (urg.length ? '<div class="x-grp red">' + ic("flame") + "Срочное</div>" + urg.map(function (r) { return '<div class="x-dlg" data-r="' + E(r.id) + '"><span data-i="!" class="x-rm red">' + ic("flame") + '</span><div class="m"><b>' + E(r.name) + "</b><span>" + E(r.last ? r.last.user + ": " + r.last.text : "") + "</span></div></div>"; }).join("") : "")
       + (S.tab === "task" ? "" : '<div class="x-grp">Каналы</div>' + S.rooms.filter(function (r) { return r.kind === "chan"; }).map(roomItem).join(""))
       + (S.tab === "chan" ? "" : '<div class="x-grp">Диалоги по задачам</div>' + (S.rooms.filter(function (r) { return r.kind === "task"; }).map(roomItem).join("") || '<p class="x-empty" style="padding:14px">Пока нет. Нажмите «Диалог по задаче» или «Обсуждение» в карточке задачи</p>'));
     var tb = $("tTabs");
@@ -290,15 +291,17 @@
     document.body.appendChild(v);
   }
 
+  function botAva() { return '<span class="x-ava sm bot">' + ic("zap") + "</span>"; }
   function msgHtml(m) {
-    var me = C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0, files = m.files || [];
+    var bot = m.user_id === -1, aiRoom = /^kpai_/.test(S.cur);
+    var me = !bot && C.me && m.user === C.me.name, mine = m.acks && C.me && m.acks.indexOf(C.me.name) >= 0, files = m.files || [];
     var rx = (m.reactions || []).map(function (x) {
       var on = C.me && x.users.indexOf(C.me.name) >= 0;
       return '<button type="button" class="x-rxc' + (on ? " on" : "") + '" data-rx="' + E(x.e) + '" data-m="' + m.id + '" title="' + E(x.users.join(", ")) + '">' + x.e + " <b>" + x.n + "</b></button>";
     }).join("");
-    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + '" data-mid="' + m.id + '">' + ava(m.user, "sm") + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small>'
+    return '<div class="x-msg ' + (m.urgent ? "urg " : "") + (me ? "me" : "") + (bot ? "bot" : "") + '" data-mid="' + m.id + '">' + (bot ? botAva() : ava(m.user, "sm")) + '<div class="bd"><div class="nm">' + E(m.user) + "<small>" + when(m.ts) + '</small>'
       + '<button type="button" class="x-act" data-pop="' + m.id + '" title="Реакция или ответ" aria-label="Реакция или ответ">' + ic("smile") + "</button>"
-      + ((me || (C.me && C.me.role === "admin")) && m.user_id ? '<button type="button" class="x-del" data-del="' + m.id + '" title="Удалить сообщение" aria-label="Удалить">' + ic("trash") + "</button>" : "") + '</div>'
+      + ((me || aiRoom || (C.me && C.me.role === "admin")) && m.user_id ? '<button type="button" class="x-del" data-del="' + m.id + '" title="Удалить сообщение" aria-label="Удалить">' + ic("trash") + "</button>" : "") + '</div>'
       + (m.reply ? '<div class="x-quote" data-go="' + m.reply.id + '"><b>' + E(m.reply.user) + "</b><span>" + E(m.reply.text) + "</span></div>" : "")
       + '<div class="tx" data-pop="' + m.id + '">'
       + (m.urgent ? '<div class="x-urgtag">' + ic("flame") + "Срочное</div>" : "") + ((files.length && m.text.indexOf("Файлы: ") === 0) ? "" : E(m.text))
@@ -368,14 +371,18 @@
   function paintThread(keep) {
     var el = $("tThread"); if (!el) return;
     var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0] || { name: "Чат", descr: "", kind: "chan", id: S.cur };
+    var ai = room.kind === "ai";
     var pin = S.msgs.filter(function (m) { return m.urgent; }).slice(-1)[0];
     var prevDay = "", body = S.msgs.map(function (m) { var d = dayLabel(m.ts), h = (d !== prevDay ? '<span class="x-day">' + d + "</span>" : "") + msgHtml(m); prevDay = d; return h; }).join("");
+    if (ai && S.aiBusy === room.id) body += '<div class="x-msg bot">' + botAva() + '<div class="bd"><div class="nm">ИИ-помощник КП</div><div class="tx x-aiwait">Собираю КП…</div></div></div>';
+    if (ai && !body) body = '<div class="x-aihello">' + botAva() + "<div><b>Здравствуйте! Я соберу КП по вашему описанию.</b><p>Напишите услуги, объект, адрес, цену и срок — заполню конструктор, внесу КП в реестр и пришлю сюда PDF (или Word — просто попросите).</p>"
+      + AI_EX.map(function (x) { return '<button type="button" class="x-aiex">' + E(x) + "</button>"; }).join("") + "<p>Потом можно уточнять: «цена 60 000», «добавь адрес …», «пришли в ворде».</p></div></div>";
     var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
     if (old && keep) wasBottom = old.scrollHeight - old.scrollTop - old.clientHeight < 80;
-    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (C.me && C.me.role === "admin" ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
+    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : ai ? "ai" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (ai ? '<button type="button" class="x-btn ghost x-ainew" id="tAiNew" title="Следующее сообщение начнёт новое КП">Новое КП</button>' : "") + (C.me && C.me.role === "admin" && !ai ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
       + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
       + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (window.innerWidth <= 1180 ? "Сообщение… (@Имя — упомянуть)" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea><button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + 'Срочное</button><button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+      + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (ai ? "Какое КП сделать? Услуги, объект, адрес, цена, срок" : window.innerWidth <= 1180 ? "Сообщение… (@Имя — упомянуть)" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea>' + (ai ? "" : '<button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + "Срочное</button>") + '<button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
     var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) m.scrollTop = 1e6;
     $("tIn").value = val;
     $("tSend").onclick = send;
@@ -413,7 +420,9 @@
         }).catch(function (e) { toast(String(e)); });
       };
     });
-    $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
+    if ($("tUrg")) $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
+    if ($("tAiNew")) $("tAiNew").onclick = function () { if (window.MPBP && MPBP.kpReset) MPBP.kpReset(); toast("Следующее сообщение начнёт новое КП"); };
+    el.querySelectorAll(".x-aiex").forEach(function (b) { b.onclick = function () { var t = $("tIn"); t.value = b.textContent; t.focus(); t.dispatchEvent(new Event("input")); }; });
     el.querySelectorAll("[data-ack]").forEach(function (b) { b.onclick = function () { C.call("/team/messages/" + b.dataset.ack + "/ack", { body: {} }).then(function () { return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages"); }).then(function (ms) { S.msgs = ms; paintThread(true); loadRooms(); C.refresh(); }); }; });
   }
   /* подсказка имён по «@»: выбираете сотрудника — имя подставляется в сообщение */
@@ -451,6 +460,20 @@
       else if (e.key === "Escape") close();
     }, true);
   }
+  var AI_EX = ["КП на разработку проекта СПС.СОУЭ для ООО «Ромашка», г. Санкт-Петербург, ул. Ленина, д. 5, цена 50 000 ₽, срок 30 р.д.",
+    "ТО огнетушителей ОП-4 — 10 шт. и ОУ-3 — 2 шт., 12 000 ₽, объект ТЦ «Невский», без адреса, пришли в ворде"];
+  function aiAsk(rid, text, mid) {                     // помощник КП (kpv.js) собирает КП в этом браузере и отвечает в чат
+    if (!window.MPBP || !MPBP.kpChat) { toast("Модуль КП не загружен — обновите страницу"); return; }
+    S.aiBusy = rid; if (S.cur === rid) paintThread(true);
+    MPBP.kpChat(rid, text, mid).catch(function (e) { toast("Помощник не ответил: " + e); }).then(function () {
+      S.aiBusy = null;
+      if (S.cur !== rid) { loadRooms(); return; }
+      return C.call("/team/rooms/" + encodeURIComponent(rid) + "/messages?after=" + S.lastId).then(function (ms) {
+        mergeMsgs(ms); paintThread();
+        return C.call("/team/rooms/" + encodeURIComponent(rid) + "/read", { body: {} });
+      }).then(loadRooms).catch(function () {});
+    });
+  }
   function mergeMsgs(ms) {                           // не добавляем уже показанные сообщения (опрос и отправка могут принести одно и то же)
     var have = {}; S.msgs.forEach(function (m) { have[m.id] = 1; });
     ms.forEach(function (m) { if (!have[m.id]) { S.msgs.push(m); have[m.id] = 1; } });
@@ -465,7 +488,8 @@
     var tu = $("tUrg"); if (tu) tu.classList.remove("on");
     Promise.all(fs.map(readB64)).then(function (d) {
       return C.call("/team/rooms/" + encodeURIComponent(rid) + "/send", { body: { text: text, urgent: urgent, reply_to: reply ? reply.id : 0, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });
-    }).then(function () {
+    }).then(function (r) {
+      if (/^kpai_/.test(rid) && text) aiAsk(rid, text, r && r.id);
       return C.call("/team/rooms/" + encodeURIComponent(rid) + "/messages?after=" + S.lastId);
     }).then(function (ms) { if (S.cur === rid) { mergeMsgs(ms); paintThread(); } loadRooms(); if (urgent) toast("Срочное отправлено — сотрудники получат оповещение, даже в тихие часы"); })
       .catch(function (e) {                                                         // не ушло — возвращаем текст в поле
@@ -476,6 +500,12 @@
   }  function paintInfo() {
     var el = $("tInfo"); if (!el) return;
     var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0], urgs = S.msgs.filter(function (m) { return m.urgent; });
+    if (room && room.kind === "ai") {
+      el.innerHTML = '<div><h6>О чате</h6><p style="font-size:.86rem;color:var(--muted);margin:0">Ваш личный чат с ИИ-помощником — его видите только вы. Готовое КП открывается в «Конструкторе КП», попадает в «Реестр КП» и в «Версии КП».</p></div>'
+        + '<div><h6>Можно писать</h6><p style="font-size:.86rem;color:var(--muted);margin:0">«КП на проект АПС для …, адрес …, 80 000, срок 20 р.д.»<br>«цена 60 000», «добавь ТО огнетушителей ОП-4 — 6 шт.»<br>«пришли в ворде», «пришли pdf и word»</p></div>'
+        + '<div><a class="x-linkcard" href="#/kpc"><span class="x-rm ai">' + ic("file") + "</span><span><b>Конструктор КП</b><small>Открыть текущее КП</small></span></a></div>";
+      return;
+    }
     el.innerHTML = (room && room.kind === "task" ? '<div><h6>Задача</h6><a class="x-linkcard" href="#/task/' + room.task_row + '"><span class="x-rm task">' + ic("tasks") + "</span><span><b>" + E(room.name) + "</b><small>Открыть карточку задачи</small></span></a></div>" : '<div><h6>О канале</h6><p style="font-size:.86rem;color:var(--muted);margin:0">' + E(room ? room.descr : "") + "</p></div>")
       + "<div><h6>Сотрудники</h6>" + (S.users.map(function (n) { return '<div class="x-member">' + ava(n, "sm") + E(n) + (C.me && n === C.me.name ? '<small style="margin-left:auto;color:var(--muted)">вы</small>' : "") + "</div>"; }).join("") || '<p class="x-empty" style="padding:6px">—</p>') + "</div>"
       + "<div><h6>Срочные в этом чате</h6>" + (urgs.slice(-4).map(function (m) { return '<div class="x-linkcard" style="background:var(--bad-l);border-color:transparent;color:var(--bad)">' + ic("flame") + "<span><b>" + E(m.user) + '</b><small style="color:inherit;opacity:.8">' + E(m.text.slice(0, 80)) + "</small></span></div>"; }).join("") || '<p style="font-size:.84rem;color:var(--muted);margin:0">Пока нет</p>') + "</div>";
