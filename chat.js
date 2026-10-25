@@ -103,7 +103,8 @@
   var CH = {
     tg:   { label: "Telegram", color: "#2b8ac6" },
     mail: { label: "Почта",    color: "#ee9264" },
-    max:  { label: "Макс",     color: "#7a55a8" }
+    max:  { label: "Макс",     color: "#7a55a8" },
+    site: { label: "Сайт",     color: "#d8453a" }
   };
   var st = { threads: [], sel: null, msgs: [], filter: "all", q: "", err: "", built: false, sending: false, tick: 0 };
   var el = {};
@@ -369,7 +370,7 @@
   }
 
   function renderChips() {
-    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
+    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["site", "Сайт"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
     var seg = crmOn()
       ? '<div class="seg"><button data-f="all" class="' + (mine ? "" : "on") + '">Все диалоги</button>' +
         '<button data-f="mine" class="' + (mine ? "on" : "") + '">' + IC.sort + 'Мне передали' + (n ? '<b class="cnt">' + n + "</b>" : "") + "</button></div>"
@@ -437,7 +438,9 @@
   function renderThread(keepScroll) {
     var t = curThread();
     el.wrap.classList.toggle("has-sel", !!t);
-    el.text.disabled = el.send.disabled = !t || st.sending;
+    var site = !!t && t.channel === "site";                // заявка с сайта: отвечаем по телефону или письмом
+    el.text.disabled = el.send.disabled = !t || st.sending || site;
+    el.text.placeholder = site ? "Заявка с сайта — позвоните клиенту или напишите ему письмо («Новый диалог» → Почта)" : "Ответ… (Ctrl+Enter — отправить)";
     if (!t) {
       if (el.assign) el.assign.innerHTML = "";
       renderInfo(null);
