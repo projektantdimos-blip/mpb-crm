@@ -17,24 +17,49 @@
   /* ---------- конвертация строк панели в состояние конструктора ---------- */
   function svcOf(id) { var c = Kc(); return c ? c.CATALOG.filter(function (s) { return s.id === id; })[0] : null; }
   function qtyField(svc) { return (svc.fields || []).filter(function (f) { return f.type === "int"; })[0]; }
+  var CUSTOM = "custom";                                     // «Своя позиция»: строка с вашей формулировкой
+  function extraFields(svc) { return (svc ? svc.fields || [] : []).filter(function (f) { return f.type === "multi" || f.type === "text"; }); }
   function unitPrice(svc) {
     if (!window.MPBP || !MPBP.suggest) return 0;
     var f = {}, qf = qtyField(svc); if (qf) f[qf.id] = "1";
     return MPBP.suggest(svc, { fields: f }) || 0;
   }
   function toSaved(s) {
-    var services = {};
+    var services = {}, custom = [];
     s.rows.forEach(function (r) {
+      var q = Math.max(1, +r.q || 1);
+      if (r.id === CUSTOM) {
+        var tx = (r.text || "").trim();
+        custom.push({ text: tx && q > 1 ? tx + " (" + q + " шт.)" : tx, price: String(Math.round(q * (+r.p || 0))) });
+        return;
+      }
       var svc = svcOf(r.id); if (!svc) return;
-      var cur = services[r.id], q = Math.max(1, +r.q || 1), qf = qtyField(svc), f = {};
+      var cur = services[r.id], qf = qtyField(svc), f = cur ? cur.fields : {};
       var prev = cur ? (+cur._q || 0) : 0;
       if (qf) f[qf.id] = String(prev + q);
+      extraFields(svc).forEach(function (x) {                // системы и шифр проекта; одинаковые строки объединяются
+        var v = (r.f || {})[x.id];
+        if (x.type === "multi") { var a = f[x.id] || []; (v || []).forEach(function (o) { if (a.indexOf(o) < 0) a.push(o); }); f[x.id] = a; }
+        else if (!f[x.id]) f[x.id] = (v || "").trim();
+      });
       services[r.id] = { on: true, price: String(Math.round(((cur ? +cur.price : 0)) + q * (+r.p || 0))), fields: f, _q: prev + q };
     });
     Object.keys(services).forEach(function (k) { delete services[k]._q; });
-    return { num: s.num, object: s.object, address: s.address, noAddress: !s.address, services: services };
+    var out = { num: s.num, object: s.object, address: s.address, noAddress: !s.address, services: services };
+    if (custom.length) out.custom = { on: true, items: custom };
+    return out;
   }
-  function total(s) { return s.rows.reduce(function (a, r) { return a + (svcOf(r.id) ? Math.max(1, +r.q || 1) * (+r.p || 0) : 0); }, 0); }
+  function total(s) { return s.rows.reduce(function (a, r) { return a + (r.id === CUSTOM || svcOf(r.id) ? Math.max(1, +r.q || 1) * (+r.p || 0) : 0); }, 0); }
+  function rowExtras(r) {                                    // доп. поля строки: своя формулировка, системы, шифр проекта
+    if (r.id === CUSTOM) return '<div class="cp-r3"><input data-f="text" value="' + E(r.text || "") + '" placeholder="Название услуги — как в КП"></div>';
+    var f = r.f || {};
+    return extraFields(svcOf(r.id)).map(function (x) {
+      if (x.type === "multi") return '<div class="cp-r3 cp-sys">' + x.options.map(function (o) {
+        return '<label><input type="checkbox" data-x="' + x.id + '" data-o="' + E(o.id) + '"' + ((f[x.id] || []).indexOf(o.id) >= 0 ? " checked" : "") + ">" + E(o.label || o.text) + "</label>";
+      }).join("") + "</div>";
+      return '<div class="cp-r3"><input data-x="' + x.id + '" value="' + E(f[x.id] || "") + '" placeholder="' + E(x.label + (x.ph ? " — " + x.ph : "")) + '" maxlength="' + (x.max || 100) + '"></div>';
+    }).join("");
+  }
 
   /* ---------- вкладки ---------- */
   D.render = function (box, t, name) {
@@ -161,11 +186,12 @@
       body.innerHTML = '<div class="cp-two"><div class="cp-f"><label>№ предложения</label><input id="cpNum" inputmode="numeric" value="' + E(s.num) + '" placeholder="212"></div>'
         + '<div class="cp-f"><label>Объект (заказчик)</label><input id="cpObj" value="' + E(s.object) + '"></div></div><div class="cp-f"><label>Адрес объекта</label><input id="cpAddr" value="' + E(s.address) + '" placeholder="не указывать — оставьте пустым"></div>'
         + s.rows.map(function (r, i) {
-          return '<div class="cp-row" data-i="' + i + '"><div class="cp-r1"><select data-f="id">' + kc.CATALOG.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.id ? " selected" : "") + ">" + E(c.title) + "</option>"; }).join("") + '</select>'
-            + '<button data-del="' + i + '" title="Убрать строку">×</button></div>'
+          return '<div class="cp-row" data-i="' + i + '"><div class="cp-r1"><select data-f="id">' + kc.CATALOG.map(function (c) { return '<option value="' + c.id + '"' + (c.id === r.id ? " selected" : "") + ">" + E(c.title) + "</option>"; }).join("")
+            + '<option value="' + CUSTOM + '"' + (r.id === CUSTOM ? " selected" : "") + ">Своя позиция (своя формулировка)</option></select>"
+            + '<button data-del="' + i + '" title="Убрать строку">×</button></div>' + rowExtras(r)
             + '<div class="cp-r2"><label>Кол-во<input data-f="q" type="number" min="1" value="' + r.q + '"></label><label>Цена за ед., ₽<input data-f="p" type="number" min="0" value="' + r.p + '"></label><span class="cp-sum">' + money(Math.max(1, +r.q || 1) * (+r.p || 0)) + "</span></div></div>";
         }).join("")
-        + '<button class="x-btn ghost cp-w" id="cpAdd">+ Добавить строку</button>'
+        + '<div class="cp-acts"><button class="x-btn ghost" id="cpAdd">+ Услуга</button><button class="x-btn ghost" id="cpAddCustom">+ Своя позиция</button></div>'
         + '<div class="cp-tot"><span>Итого</span><b>' + money(total(s)) + '</b></div>'
         + (s.errors.length ? '<ul class="cp-err">' + s.errors.slice(0, 4).map(function (e) { return "<li>" + E(e.msg) + "</li>"; }).join("") + (s.errors.length > 4 ? "<li>и ещё " + (s.errors.length - 4) + "…</li>" : "") + "</ul>" : '<p class="cp-ok">Всё заполнено — можно отправлять</p>')
         + '<div class="cp-acts"><button class="x-btn ghost" id="cpTpl">Шаблон…</button><button class="x-btn ghost" id="cpOpen">В конструктор</button></div>'
@@ -179,13 +205,27 @@
         row.querySelectorAll("[data-f]").forEach(function (inp) {
           inp.onchange = function () {
             var f = inp.dataset.f;
-            if (f === "id") { r.id = inp.value; r.p = unitPrice(svcOf(r.id)) || r.p; } else r[f] = +inp.value || 0;
+            if (f === "id") { r.id = inp.value; r.f = {}; r.p = (r.id === CUSTOM ? 0 : unitPrice(svcOf(r.id))) || r.p; }
+            else if (f === "text") r.text = inp.value;
+            else r[f] = +inp.value || 0;
+            draw();
+          };
+        });
+        row.querySelectorAll("[data-x]").forEach(function (inp) {
+          inp.onchange = function () {
+            var x = inp.dataset.x; r.f = r.f || {};
+            if (inp.type === "checkbox") {
+              var a = (r.f[x] || []).filter(function (o) { return o !== inp.dataset.o; });
+              if (inp.checked) a.push(inp.dataset.o);
+              r.f[x] = a;
+            } else r.f[x] = inp.value;
             draw();
           };
         });
       });
       body.querySelectorAll("[data-del]").forEach(function (b) { b.onclick = function () { if (s.rows.length > 1) s.rows.splice(+b.dataset.del, 1); draw(); }; });
       $("cpAdd").onclick = function () { var c = kc.CATALOG[Math.min(1, kc.CATALOG.length - 1)]; s.rows.push({ id: c.id, q: 1, p: unitPrice(c) }); draw(); };
+      $("cpAddCustom").onclick = function () { s.rows.push({ id: CUSTOM, q: 1, p: 0, text: "" }); draw(); };
       $("cpOpen").onclick = function () { kc.load(toSaved(s)); location.hash = "#/kpc"; };
       $("cpTpl").onclick = function () {
         if (!window.MPBP || !MPBP.templateList) { U.toast("Модуль шаблонов не загружен"); return; }
@@ -193,8 +233,14 @@
           var v = U.xmodal('<h3>Шаблон КП</h3><p class="x-sub">Услуги шаблона заменят строки в панели</p>' + l.map(function (x, i) { return '<div class="cp-card" data-i="' + i + '"><span><b>' + E(x.name) + "</b><small>" + E(x.descr || "") + "</small></span></div>"; }).join("") + '<div class="x-row"><button class="x-btn ghost" onclick="MPBT.closeModal()">Отмена</button></div>');
           v.querySelectorAll(".cp-card").forEach(function (c) {
             c.onclick = function () {
-              var tpl = l[+c.dataset.i], ids = Object.keys(tpl.state.services || {}).filter(function (k) { return tpl.state.services[k].on && svcOf(k); });
-              s.rows = ids.map(function (k) { return { id: k, q: 1, p: unitPrice(svcOf(k)) }; }); T.closeModal(); draw();
+              var tpl = l[+c.dataset.i], sv = tpl.state.services || {}, ids = Object.keys(sv).filter(function (k) { return sv[k].on && svcOf(k); });
+              s.rows = ids.map(function (k) {
+                var f = {}; extraFields(svcOf(k)).forEach(function (x) { if ((sv[k].fields || {})[x.id] != null) f[x.id] = sv[k].fields[x.id]; });
+                return { id: k, q: 1, p: unitPrice(svcOf(k)), f: f };
+              });
+              var cu = tpl.state.custom;
+              if (cu && cu.on) (cu.items || []).forEach(function (it) { s.rows.push({ id: CUSTOM, q: 1, p: parseInt(String(it.price).replace(/\D/g, ""), 10) || 0, text: it.text || "" }); });
+              T.closeModal(); draw();
             };
           });
         });

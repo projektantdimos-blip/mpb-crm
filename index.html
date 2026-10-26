@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261025e";</script>
+<script>window.MPB_VERSION="20261026a";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -275,7 +275,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261025e">
+<link rel="stylesheet" href="theme-v2.css?v=20261026a">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -1233,6 +1233,8 @@ const DEFAULT_DEADLINE_DAYS = 20;
 
 
 const SYSTEMS = ['СПС.СОУЭ', 'АО', 'ВПВ', 'АУП'].map(s => ({ id: s, text: s, label: s, inline: true }));   // системы для закупки оборудования и монтажа
+const CODE_FIELD = { id: 'code', type: 'text', optional: true, max: 60, label: 'Шифр проекта (если работы по проекту)', ph: 'например, 12-2026-СПС' };
+const byCode = v => v.code ? ' согласно проекту шифр ' + v.code : '';   // «… (СПС.СОУЭ) согласно проекту шифр 12-2026-СПС»
 const CATALOG = [
   {
     id: 'risk', title: 'Проведение расчёта пожарного риска', project: true,
@@ -1309,18 +1311,18 @@ const CATALOG = [
   {
     id: 'equip', title: 'Закупка и поставка оборудования для монтажных работ',
     src: 'Шаблоны для КП, строка 6 (формулировка изменена по вашей просьбе 25.10.2026)',
-    rule: 'Отметьте системы, для которых закупается оборудование, — они перечисляются в скобках.',
-    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }],
-    lines: v => ['Закупка и поставка оборудования для проведения монтажных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')'],
+    rule: 'Отметьте системы, для которых закупается оборудование, — они перечисляются в скобках. Шифр проекта — если оборудование по проекту.',
+    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }, CODE_FIELD],
+    lines: v => ['Закупка и поставка оборудования для проведения монтажных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')' + byCode(v)],
     check: v => v.systems.length ? null : { key: 'systems', msg: 'Отметьте хотя бы одну систему.' },
     example: { systems: ['СПС.СОУЭ', 'АО'] }
   },
   {
     id: 'install', title: 'Проведение монтажных и пусконаладочных работ', project: true,
     src: 'Новая позиция (по вашей просьбе 25.10.2026)',
-    rule: 'Отметьте системы, на которые выполняются монтаж и пусконаладка, — они перечисляются в скобках.',
-    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }],
-    lines: v => ['Проведение монтажных и пусконаладочных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')'],
+    rule: 'Отметьте системы, на которые выполняются монтаж и пусконаладка, — они перечисляются в скобках. Шифр проекта — если работы по проекту.',
+    fields: [{ id: 'systems', type: 'multi', label: 'Системы', options: SYSTEMS }, CODE_FIELD],
+    lines: v => ['Проведение монтажных и пусконаладочных работ (' + (v.systems.length ? v.systems.join(', ') : MARK) + ')' + byCode(v)],
     check: v => v.systems.length ? null : { key: 'systems', msg: 'Отметьте хотя бы одну систему.' },
     example: { systems: ['СПС.СОУЭ', 'АО'] }
   },
@@ -2456,7 +2458,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261025e"></script>
+<script src="chat.js?v=20261026a"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2515,14 +2517,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261025e"></script>
-<script src="extras.js?v=20261025e"></script>
-<script src="team.js?v=20261025e"></script>
-<script src="auto.js?v=20261025e"></script>
-<script src="stages.js?v=20261025e"></script>
-<script src="clients.js?v=20261025e"></script>
-<script src="kpv.js?v=20261025e"></script>
-<script src="chatpanel.js?v=20261025e"></script>
+<script src="crm.js?v=20261026a"></script>
+<script src="extras.js?v=20261026a"></script>
+<script src="team.js?v=20261026a"></script>
+<script src="auto.js?v=20261026a"></script>
+<script src="stages.js?v=20261026a"></script>
+<script src="clients.js?v=20261026a"></script>
+<script src="kpv.js?v=20261026a"></script>
+<script src="chatpanel.js?v=20261026a"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

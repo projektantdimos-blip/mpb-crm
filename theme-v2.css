@@ -779,6 +779,8 @@ input:focus,select:focus,textarea:focus,#kpreg-app input:focus,#kpreg-app select
 .cp-r2 label{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700}
 .cp-r2 input{margin-top:4px;text-align:right;background:var(--card)}
 .cp-sum{text-align:right;font-weight:800;font-size:1rem;padding-bottom:9px}
+.cp-r3{margin-top:8px}.cp-r3 input{width:100%;box-sizing:border-box;background:var(--card);text-align:left}
+.cp-sys{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.85rem}.cp-sys label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}.cp-sys input{width:auto;margin:0}
 .cp-tot{font-size:1.1rem;padding:14px 2px}
 .cp-acts .x-btn{font-size:.88rem;padding:11px 8px}
 #cpSend{padding:14px;font-size:.95rem}
