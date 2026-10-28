@@ -104,7 +104,8 @@
     tg:   { label: "Telegram", color: "#2b8ac6" },
     mail: { label: "Почта",    color: "#ee9264" },
     max:  { label: "Макс",     color: "#7a55a8" },
-    site: { label: "Сайт",     color: "#d8453a" }
+    site: { label: "Сайт",     color: "#d8453a" },
+    avito: { label: "Авито",   color: "#00aaff" }
   };
   var st = { threads: [], sel: null, msgs: [], filter: "all", q: "", err: "", built: false, sending: false, tick: 0 };
   var el = {};
@@ -370,7 +371,7 @@
   }
 
   function renderChips() {
-    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["site", "Сайт"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
+    var items = [["all", "Все"], ["tg", "Telegram"], ["max", "Макс"], ["mail", "Почта"], ["avito", "Авито"], ["site", "Сайт"], ["done", "Отработано"]], n = myOpen().length, mine = st.filter === "mine";
     var seg = crmOn()
       ? '<div class="seg"><button data-f="all" class="' + (mine ? "" : "on") + '">Все диалоги</button>' +
         '<button data-f="mine" class="' + (mine ? "on" : "") + '">' + IC.sort + 'Мне передали' + (n ? '<b class="cnt">' + n + "</b>" : "") + "</button></div>"
