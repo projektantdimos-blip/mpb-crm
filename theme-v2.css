@@ -1700,3 +1700,31 @@ body.kb-open .bottomnav{display:none!important}
   html body #chat-app .chat-new.chat-new svg{display:block!important;width:26px!important;height:26px!important;margin:0!important;stroke-width:2.2;position:static!important;transform:none!important}
   body.kb-open #chat-app .chat-new.chat-new,body:has(#chat-app .chat-wrap.has-sel) #chat-app .chat-new.chat-new{display:none!important}
 }
+
+/* Телефон: компактная шапка списков «Переписки» и «Команды» (29.10, согласовано по визуализации).
+   Заголовок в одну строку с ⚙, «Все диалоги / Мне передали» и фильтры каналов — одна лента, листается вбок
+   (как папки в Telegram), поиск 36 px со значком лупы. Список диалогов начинается на ~110 px выше. */
+@media (max-width:760px){
+  html body #chat-app#chat-app header.top,html body #team-app#team-app header.top{padding:10px 64px 2px 16px!important;min-height:0!important}
+  html body #chat-app#chat-app header.top h1,html body #team-app#team-app header.top h1{font-size:1.45rem!important;line-height:1.2!important;margin:0!important}
+  html body #chat-app#chat-app header.top p,html body #team-app#team-app header.top p{display:none!important}
+  html body #apiGear#apiGear{top:8px!important;right:12px!important;width:36px!important;height:36px!important;border-radius:50%!important}
+  html body #chat-app#chat-app .chat-tools{padding:6px 0 4px!important;gap:6px!important;border:0!important}
+  html body #chat-app#chat-app #chatChips{display:flex!important;flex-direction:row!important;align-items:center!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:6px!important;
+    padding:0 16px 2px!important;margin:0!important;scrollbar-width:none;border:0!important}
+  html body #chat-app#chat-app #chatChips::-webkit-scrollbar{display:none}
+  html body #chat-app#chat-app #chatChips .seg,html body #chat-app#chat-app #chatChips .chs{display:contents!important}
+  html body #chat-app#chat-app #chatChips .seg button[data-f="all"]{display:none!important}
+  html body #chat-app#chat-app #chatChips .chs button[data-f="all"]{order:-1}
+  html body #chat-app#chat-app #chatChips button,html body #team-app#team-app #tTabs button{flex:none!important;width:auto!important;min-width:0!important;height:30px!important;padding:0 12px!important;
+    border-radius:15px!important;font-size:14px!important;font-weight:600!important;border:0!important;background:var(--surface-2)!important;color:var(--muted)!important;white-space:nowrap;
+    display:inline-flex!important;align-items:center;gap:4px;box-shadow:none!important;margin:0!important}
+  html body #chat-app#chat-app #chatChips button.on,html body #team-app#team-app #tTabs button.on{background:var(--blue)!important;color:#fff!important}
+  html body #chat-app#chat-app #chatChips button svg{width:14px;height:14px}
+  html body #chat-app#chat-app #chatChips .cnt{background:#e5483c;color:#fff;border-radius:9px;padding:0 6px;font-size:11px;line-height:18px;margin-left:2px}
+  html body #chat-app#chat-app #chatQ{height:36px!important;min-height:0!important;margin:4px 16px 6px!important;width:calc(100% - 32px)!important;padding:0 12px 0 34px!important;border-radius:10px!important;border:0!important;
+    background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a96a3' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 11px center/16px!important;box-sizing:border-box}
+  html body #team-app#team-app #tTabs{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:6px!important;padding:6px 16px!important;margin:0!important;
+    border:0!important;background:none!important;scrollbar-width:none}
+  html body #team-app#team-app #tTabs::-webkit-scrollbar{display:none}
+}
