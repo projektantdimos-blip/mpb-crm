@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261029c";</script>
+<script>window.MPB_VERSION="20261029d";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -275,7 +275,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261029c">
+<link rel="stylesheet" href="theme-v2.css?v=20261029d">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -300,6 +300,7 @@ textarea{resize:vertical;min-height:64px}
 <div id="auto-app" style="display:none"></div>
 <div id="stages-app" style="display:none"></div>
 <div id="clients-app" style="display:none"></div>
+<div id="pay-app" style="display:none"></div>
 <div id="price-app" style="display:none"></div>
 <div id="contracts-app" style="display:none">
   <div style="padding:8px 16px;font-size:.85rem;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center;background:var(--card);border-bottom:1px solid var(--line)">
@@ -780,6 +781,7 @@ function sectionForHash(h){
   if (h.indexOf("#/auto") === 0) return "auto";
   if (h.indexOf("#/stages") === 0) return "stages";
   if (h.indexOf("#/clients") === 0) return "clients";
+  if (h.indexOf("#/pay") === 0) return "pay";
   return "tasks";
 }
 /* «Инженер ТО» видит только «ТО МПБ», «Команду» (один чат) и свой кабинет. Роль запоминается, чтобы до ответа сервера
@@ -804,13 +806,13 @@ function renderTopNav(){
     return;
   }
   document.body.classList.toggle("shell", cur === "chat" || cur === "team");
-  var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1 };
+  var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1, pay:1 };
   var pa = own[cur] ? cur : "commerce";
   var b = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
   var sub = '<div class="sub">'+b("#/kpreg/","list","Реестр КП",cur==="kpreg")+b("#/kpc","calc","Конструктор КП",cur==="kpc")+b("#/price","list","Прайс",cur==="price")+b("#/contracts","file","Договоры",cur==="contracts")+'</div>';
   document.getElementById("topnav").innerHTML =
     '<div class="nav-label">Работа</div>' + b("#/dash","chart","Сводка",pa==="dash") + b("#/","tasks","Задачи",pa==="tasks") + b("#/cal","cal","Календарь",pa==="cal") + b("#/my","bell","Мои задачи",pa==="my")
-    + '<div class="nav-label">Клиенты и продажи</div>' + b("#/clients","users","Клиенты",pa==="clients") + b("#/kpreg/","briefcase","Коммерция",pa==="commerce") + (pa==="commerce" ? sub : "") + b("#/to","wrench","ТО МПБ",pa==="to")
+    + '<div class="nav-label">Клиенты и продажи</div>' + b("#/clients","users","Клиенты",pa==="clients") + b("#/kpreg/","briefcase","Коммерция",pa==="commerce") + (pa==="commerce" ? sub : "") + b("#/to","wrench","ТО МПБ",pa==="to") + (window.MPBC && MPBC.me && MPBC.me.role === "admin" ? b("#/pay","wallet","Оплаты",pa==="pay") : "")
     + '<div class="nav-label">Общение</div>' + b("#/team","team","Команда",pa==="team") + b("#/chat","chat","Переписка",pa==="chat")
     + '<button data-notif="1">'+icon("bell")+'<span>Уведомления</span></button>'
     + '<div class="nav-label">Система</div>' + b("#/auto","zap","Автоматизация",pa==="auto") + b("#/stages","layers","Этапы и сроки",pa==="stages") + b("#/log","history","Журнал изменений",pa==="log") + b("#/me","user","Личный кабинет",pa==="me");
@@ -904,6 +906,8 @@ function globalRouter(){
   document.getElementById("stages-app").style.display = (sec === "stages") ? "block" : "none";
   if (sec === "stages" && window.MPBS && window.MPBS.render) window.MPBS.render();
   document.getElementById("clients-app").style.display = (sec === "clients") ? "block" : "none";
+  document.getElementById("pay-app").style.display = (sec === "pay") ? "block" : "none";
+  if (sec === "pay" && window.MPBPay) window.MPBPay.render();
   if (sec === "clients" && window.MPBK && window.MPBK.render) window.MPBK.render();
   document.getElementById("price-app").style.display = (sec === "price") ? "block" : "none";
   if (sec === "price" && window.MPBP && window.MPBP.render) window.MPBP.render();
@@ -921,14 +925,14 @@ globalRouter();
 
 var STATUSES = [
   ["Новое обращение","Нет"], ["КП отправлено","Нет"], ["Переговоры","Нет"],
-  ["Согласование условий","Нет"], ["Отложено","Да"], ["Выиграно","Да"], ["Отказ","Да"]
+  ["Согласование условий","Нет"], ["Отложено","Да"], ["Выиграно","Да"], ["Оплачено","Да"], ["Отказ","Да"]
 ];
 var STATUS_ARCHIVAL = {};
 STATUSES.forEach(function(s){ STATUS_ARCHIVAL[s[0]] = s[1] === "Да"; });
 var STATUS_NAMES = STATUSES.map(function(s){ return s[0]; });
 var FUNNEL_SOURCES = ["Сайт","Сарафан","Алексей","Дмитрий","Переписка"];
 window.FUNNEL_SOURCES = FUNNEL_SOURCES;   // нужен clients.js и chatpanel.js («Создать клиента» из диалога)
-var STATUS_COLORS = {"Новое обращение":"#3a86d6","КП отправлено":"#6f6fe0","Переговоры":"#e0a21c","Согласование условий":"#1fb3b3","Отложено":"#8794ab","Выиграно":"#1f9d63","Отказ":"#d8453a"};
+var STATUS_COLORS = {"Новое обращение":"#3a86d6","КП отправлено":"#6f6fe0","Переговоры":"#e0a21c","Согласование условий":"#1fb3b3","Отложено":"#8794ab","Выиграно":"#1f9d63","Оплачено":"#0e7c4a","Отказ":"#d8453a"};
 var OVERDUE_DAYS = 5;
 
 function esc(s){ if(s==null)s=""; return String(s).split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;").split('"').join("&quot;"); }
@@ -2479,7 +2483,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261029c"></script>
+<script src="chat.js?v=20261029d"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2538,14 +2542,15 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261029c"></script>
-<script src="extras.js?v=20261029c"></script>
-<script src="team.js?v=20261029c"></script>
-<script src="auto.js?v=20261029c"></script>
-<script src="stages.js?v=20261029c"></script>
-<script src="clients.js?v=20261029c"></script>
-<script src="kpv.js?v=20261029c"></script>
-<script src="chatpanel.js?v=20261029c"></script>
+<script src="crm.js?v=20261029d"></script>
+<script src="extras.js?v=20261029d"></script>
+<script src="team.js?v=20261029d"></script>
+<script src="auto.js?v=20261029d"></script>
+<script src="stages.js?v=20261029d"></script>
+<script src="clients.js?v=20261029d"></script>
+<script src="pay.js?v=20261029d"></script>
+<script src="kpv.js?v=20261029d"></script>
+<script src="chatpanel.js?v=20261029d"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

@@ -1566,3 +1566,20 @@ body.kb-open .bottomnav{display:none!important}
 .cl2-aih h3{display:flex;align-items:center;gap:8px;margin:0}
 .cl2-aih h3 svg{width:18px;height:18px;color:#7c5cff}
 .cl2-ai .x-aisum{margin-top:10px}
+
+/* «Оплаты» из 1С (pay.js) */
+.pay-t{width:100%;border-collapse:collapse;font-size:.88rem}
+.pay-t th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line)}
+.pay-t td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.pay-t td small{display:block;color:var(--muted);font-size:.78rem;margin-top:2px}
+.pay-t td b{display:block}
+.pay-t .r{text-align:right;white-space:nowrap}
+.pay-t tr.bad td{background:color-mix(in srgb,var(--bad) 7%,transparent)}
+.pay-t tfoot td{font-weight:600;border-bottom:0}
+.pay-p{max-width:340px;color:var(--muted);font-size:.82rem}
+.pay-st{display:inline-block;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-bottom:4px;background:var(--surface-2);color:var(--muted)}
+.pay-st.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.pay-st.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.pay-months{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:6px 0 12px}
+.pay-months label{display:flex;align-items:center;gap:4px;font-size:.85rem}
+@media(max-width:760px){.pay-t thead{display:none}.pay-t tr{display:block;border-bottom:1px solid var(--line);padding:8px 0}.pay-t td{display:block;border:0;padding:3px 12px}.pay-t .r{text-align:left}.pay-p{max-width:none}.pay-months{grid-template-columns:repeat(4,1fr)}}

@@ -488,7 +488,7 @@
      «Ещё» на телефоне
      ================================================================ */
   X.more = function () {
-    var L = [["#/dash", "chart", "Сводка"], ["#/", "tasks", "Задачи"], ["#/cal", "cal", "Календарь"], ["#/my", "bell", "Мои задачи"], ["#/clients", "users", "Клиенты"], ["#/kpreg/", "list", "Реестр КП"], ["#/kpc", "calc", "Конструктор КП"], ["#/contracts", "file", "Договоры"], ["#/to", "wrench", "ТО МПБ"], ["#/team", "team", "Команда"], ["#/chat", "chat", "Переписка"], ["#/auto", "zap", "Автоматизация"], ["#/stages", "layers", "Этапы и сроки"], ["#/log", "history", "Журнал"], ["#/me", "user", "Кабинет"]];
+    var L = [["#/dash", "chart", "Сводка"], ["#/", "tasks", "Задачи"], ["#/cal", "cal", "Календарь"], ["#/my", "bell", "Мои задачи"], ["#/clients", "users", "Клиенты"], ["#/kpreg/", "list", "Реестр КП"], ["#/kpc", "calc", "Конструктор КП"], ["#/contracts", "file", "Договоры"], ["#/to", "wrench", "ТО МПБ"], ["#/pay", "wallet", "Оплаты"], ["#/team", "team", "Команда"], ["#/chat", "chat", "Переписка"], ["#/auto", "zap", "Автоматизация"], ["#/stages", "layers", "Этапы и сроки"], ["#/log", "history", "Журнал"], ["#/me", "user", "Кабинет"]];
     var v = document.createElement("div"); v.className = "x-veil on";
     v.innerHTML = '<div class="x-sheet"><h3>Все разделы <small style="font-weight:400;color:var(--muted);font-size:.7rem;margin-left:6px">версия ' + (window.MPB_VERSION || "?") + '</small></h3><div class="grid">' + L.map(function (x) { return '<button data-g="' + x[0] + '">' + ic(x[1]) + x[2] + "</button>"; }).join("") + "</div></div>";
     v.onclick = function (e) { if (e.target === v) v.remove(); };
