@@ -211,6 +211,16 @@
     if (nb) nb.onclick = function (e) { e.stopPropagation(); C.toggleNotifs(); };
   };
   C.on("login", C.afterNav); C.on("logout", C.afterNav); C.on("ready", C.afterNav);
+  C.isEngineer = function () {                    // «Инженер ТО»; до ответа /me — по запомненной роли
+    if (C.me) return C.me.role === "engineer";
+    try { return C.loggedIn() && localStorage.getItem("mpb_role") === "engineer"; } catch (e) { return false; }
+  };
+  function roleChanged() {                         // роль запоминаем: инженер ТО сразу попадает в «ТО МПБ», без мелькания чужих разделов
+    var r = C.me ? C.me.role : "", old = "";
+    try { old = localStorage.getItem("mpb_role") || ""; if (r) localStorage.setItem("mpb_role", r); else localStorage.removeItem("mpb_role"); } catch (e) {}
+    if ((old === "engineer") !== (r === "engineer") && window.__route) window.__route();
+  }
+  C.on("login", roleChanged); C.on("logout", roleChanged);
 
   /* колокольчик: список уведомлений */
   C.toggleNotifs = function () {

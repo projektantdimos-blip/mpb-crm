@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261028a";</script>
+<script>window.MPB_VERSION="20261029a";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -275,7 +275,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261028a">
+<link rel="stylesheet" href="theme-v2.css?v=20261029a">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -782,8 +782,27 @@ function sectionForHash(h){
   if (h.indexOf("#/clients") === 0) return "clients";
   return "tasks";
 }
+/* «Инженер ТО» видит только «ТО МПБ», «Команду» (один чат) и свой кабинет. Роль запоминается, чтобы до ответа сервера
+   не мелькали чужие разделы; сервер всё равно не отдаёт инженеру ничего лишнего. */
+var ENGINEER_SECTIONS = { to:1, team:1, me:1 };
+function isEngineer(){
+  if (window.MPBC && MPBC.isEngineer) return MPBC.isEngineer();
+  try { return localStorage.getItem("mpb_role") === "engineer" && !!localStorage.getItem("mpb_session"); } catch(e){ return false; }
+}
 function renderTopNav(){
   var cur = sectionForHash(location.hash);
+  if (isEngineer()) {
+    document.body.classList.toggle("shell", cur === "team");
+    var be = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
+    var bne = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+t+'</button>'; };
+    document.getElementById("topnav").innerHTML = '<div class="nav-label">Работа</div>' + be("#/to","wrench","ТО МПБ",cur==="to") + be("#/team","team","Команда",cur==="team")
+      + '<button data-notif="1">'+icon("bell")+'<span>Уведомления</span></button>' + be("#/me","user","Личный кабинет",cur==="me");
+    document.getElementById("bottomnav").innerHTML = bne("#/to","wrench","ТО МПБ",cur==="to") + bne("#/team","team","Команда",cur==="team") + bne("#/me","user","Кабинет",cur==="me");
+    document.getElementById("subnavM").innerHTML = "";
+    document.querySelectorAll("#topnav button[data-goto], #bottomnav button[data-goto]").forEach(function(btn){ btn.onclick = function(){ location.hash = btn.dataset.goto; }; });
+    if (window.MPBC && window.MPBC.afterNav) window.MPBC.afterNav();
+    return;
+  }
   document.body.classList.toggle("shell", cur === "chat" || cur === "team");
   var own = { tasks:1, dash:1, cal:1, my:1, chat:1, to:1, team:1, log:1, me:1, auto:1, stages:1, clients:1 };
   var pa = own[cur] ? cur : "commerce";
@@ -862,6 +881,7 @@ function fitToFrame(tf){
   } catch (e) { tf.style.height = "calc(100vh - 110px)"; tf.setAttribute("scrolling", "auto"); }   // не получилось — как раньше, со своей прокруткой
 }
 function globalRouter(){
+  if (isEngineer() && !ENGINEER_SECTIONS[sectionForHash(location.hash)]) { location.replace("#/to"); return; }
   renderTopNav();
   var sec = sectionForHash(location.hash);
   document.getElementById("tasks-app").style.display = (sec === "tasks") ? "block" : "none";
@@ -893,6 +913,7 @@ function globalRouter(){
   else if (sec === "tasks") { tasksRouter(); }
 }
 window.addEventListener("hashchange", globalRouter);
+window.__route = globalRouter;                             // crm.js перерисовывает разделы после входа и выхода (роль могла смениться)
 globalRouter();
 </script>
 <script>
@@ -2458,7 +2479,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261028a"></script>
+<script src="chat.js?v=20261029a"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2517,14 +2538,14 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261028a"></script>
-<script src="extras.js?v=20261028a"></script>
-<script src="team.js?v=20261028a"></script>
-<script src="auto.js?v=20261028a"></script>
-<script src="stages.js?v=20261028a"></script>
-<script src="clients.js?v=20261028a"></script>
-<script src="kpv.js?v=20261028a"></script>
-<script src="chatpanel.js?v=20261028a"></script>
+<script src="crm.js?v=20261029a"></script>
+<script src="extras.js?v=20261029a"></script>
+<script src="team.js?v=20261029a"></script>
+<script src="auto.js?v=20261029a"></script>
+<script src="stages.js?v=20261029a"></script>
+<script src="clients.js?v=20261029a"></script>
+<script src="kpv.js?v=20261029a"></script>
+<script src="chatpanel.js?v=20261029a"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

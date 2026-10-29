@@ -54,7 +54,7 @@
     if (window.globalRouter) window.globalRouter();
   }
   S.load = function () {
-    if (!C || !C.loggedIn || !C.loggedIn()) return Promise.resolve(null);
+    if (!C || !C.loggedIn || !C.loggedIn() || (C.isEngineer && C.isEngineer())) return Promise.resolve(null);   // инженеру ТО этапы не нужны
     return C.call("/stages").then(function (d) {
       var changed = !doc || doc.version !== d.version;
       apply(d);

@@ -31,7 +31,7 @@
   };
   P.note = function (id) { var it = doc.items[id]; return it && it.mode === "unit" ? "за ед. " + it.price.toLocaleString("ru-RU") + " ₽" + (it.note ? ", " + it.note : "") : (it && it.note) || ""; };
   P.load = function () {
-    if (!C || !C.loggedIn || !C.loggedIn()) return Promise.resolve();
+    if (!C || !C.loggedIn || !C.loggedIn() || (C.isEngineer && C.isEngineer())) return Promise.resolve();   // инженеру ТО прайс не нужен
     return C.call("/price").then(function (d) { doc = d; lsSet(d); if (K()) K().refresh(); }).catch(function () {});
   };
   if (C) C.on("login", P.load);

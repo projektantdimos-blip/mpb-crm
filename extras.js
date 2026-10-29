@@ -280,6 +280,7 @@
   /* загрузка списка: с сервера или с устройства; при первом входе переносит локальные записи на сервер */
   function myLoad() {
     if (!srv()) { MY = localLoad(); return Promise.resolve(MY); }
+    if (MPBC.isEngineer && MPBC.isEngineer()) { MY = []; return Promise.resolve(MY); }   // инженеру ТО «Мои задачи» недоступны
     return MPBC.call("/reminders").then(function (rs) {
       MY = rs.map(fromServer);
       var done = false; try { done = localStorage.getItem("mpb_my_imported") === "1"; } catch (e) {}
