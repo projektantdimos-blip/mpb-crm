@@ -122,7 +122,21 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
   td button{width:100%;margin-top:4px}
   td .pin{width:60%!important;display:inline-block}
   td .pin+button{width:36%;display:inline-block}
-}</style>
+}
+.tc-ph{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+.tbtn.ph{flex:0 0 auto;font-weight:600}
+.tbtn.ph.on{border-color:var(--brand-2);color:var(--brand-2)}
+.phwarn{font-size:.82rem;color:var(--bad)}
+.phveil{position:fixed;inset:0;background:rgba(10,20,40,.55);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;z-index:50;overflow:auto}
+.phveil[hidden]{display:none}
+.phbox{background:var(--card,#fff);color:var(--ink);border-radius:16px;max-width:900px;width:100%;padding:16px}
+.phhead,.phfoot{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.phgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:14px 0}
+.phgrid figure{margin:0}
+.phimg{min-height:120px;border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:zoom-in;color:var(--muted);font-size:.85rem}
+.phimg img{width:100%;height:auto;display:block}
+.phgrid figcaption{font-size:.8rem;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -175,6 +189,8 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<input type="file" id="phFile" accept="image/*,application/pdf" multiple hidden>
+<div class="phveil" id="phVeil" hidden><div class="phbox"><div class="phhead"><b id="phTitle">Фото журнала</b><button class="tbtn clr" id="phClose">Закрыть</button></div><div class="phgrid" id="phGrid"></div><div class="phfoot"><button class="tbtn ph" id="phMore">📷 Добавить фото</button></div></div></div>
 
 <script>
 (function(){
@@ -226,9 +242,10 @@ function migrate(d){
   return d;
 }
 var data={objects:[],specialists:[],nextId:1}, me=null, pins={}, accPin=false;
+var photos=[], photoOn=false;      // фото журнала ТО — только когда ТО в CRM (мост); в таблицу фото не пишутся
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 var view=ls("mpb_to_view")||"month", year=new Date().getFullYear();
-var TABS_BY_ROLE={admin:["month","control","acc","obj","spec"],spec:["month","control"],acc:["acc"]};
+var TABS_BY_ROLE={admin:["month","control","acc","obj","spec"],eng:["month","control","acc","obj","spec"],spec:["month","control"],acc:["acc"]};
 var fullYear=ls("mpb_to_full")==="1", selM=0;          // таблица: 3 месяца вокруг текущего или весь год; «Этот месяц»: выбранный месяц
 
 function Y(o){return o.years[year]||(o.years[year]=emptyYear())}
@@ -342,6 +359,81 @@ function renderControl(){
 
 /* ====== Этот месяц: что провести сейчас + «хвосты» прошлых месяцев ====== */
 function mSel(){return selM||(isCurYear()?curM:(year<now.getFullYear()?12:1))}
+/* ====== Фото заполненного журнала ТО (после каждого ТО) ====== */
+function phOf(o,m){return photos.filter(function(p){return p.obj==o.id&&p.year==year&&p.month==m})}
+function boss(){return me&&(me.role==="admin"||me.role==="eng")}      // eng — специалист с полным доступом (без PIN)
+function canPhoto(o){return photoOn&&me&&(boss()||(me.role==="spec"&&o.spec===me.name))}
+function phRow(o,m){
+  if(!photoOn)return "";
+  var n=phOf(o,m).length,add=canPhoto(o);
+  if(!n&&!add)return "";
+  return '<div class="tc-ph">'+(add?'<button class="tbtn ph" data-ph="add">📷 Фото журнала</button>':'')
+    +(n?'<button class="tbtn ph on" data-ph="view">Фото: '+n+'</button>':(Y(o).to[m]==="yes"?'<span class="phwarn">нет фото журнала</span>':''))+'</div>';
+}
+var phTarget=null;
+function phPick(o,m){phTarget={o:o,m:m};var f=$("phFile");f.value="";f.click()}
+function shrink(file){                                     // фото с телефона: сторона до 1800 px, JPEG ~0,3–0,6 МБ
+  return new Promise(function(res){
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type))return res(file);
+    var img=new Image(),url=URL.createObjectURL(file);
+    img.onload=function(){
+      var k=Math.min(1,1800/Math.max(img.width,img.height)),c=document.createElement("canvas");
+      c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function(b){res(b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,"")+".jpg",{type:"image/jpeg"}):file)},"image/jpeg",0.82);
+    };
+    img.onerror=function(){URL.revokeObjectURL(url);res(file)};
+    img.src=url;
+  });
+}
+function b64(blob){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(",")[1])};r.onerror=rej;r.readAsDataURL(blob)})}
+$("phFile").addEventListener("change",function(){
+  var fs=[].slice.call(this.files||[]),t=phTarget;if(!fs.length||!t)return;
+  if(fs.length>10){toast("Не больше 10 фото за раз");return}
+  toast("Загружаю фото…");
+  Promise.all(fs.map(function(f){return shrink(f).then(function(s){return b64(s).then(function(d){return {filename:s.name||"журнал.jpg",mime:s.type||"image/jpeg",data:d}})})}))
+    .then(function(files){return api("to_photoAdd",getPin(),t.o.id,year,t.m,files)})
+    .then(function(list){
+      photos=photos.filter(function(p){return p.obj!=t.o.id}).concat(list);
+      toast("Фото журнала сохранено ✓");render();
+      if(!$("phVeil").hidden)phShow(t.o,t.m);
+    }).catch(function(e){toast(e.message||String(e))});
+});
+var phUrls=[];
+function phShow(o,m){
+  phTarget={o:o,m:m};
+  phUrls.forEach(function(u){URL.revokeObjectURL(u)});phUrls=[];
+  $("phTitle").textContent="Журнал ТО · "+o.name+" · "+MFULL[m-1]+" "+year;
+  $("phMore").style.display=canPhoto(o)?"":"none";
+  var list=phOf(o,m),g=$("phGrid");
+  g.innerHTML=list.length?list.map(function(p){
+    var d=new Date(p.ts*1000),mine=boss()||p.by_name===me.name;
+    return '<figure data-pid="'+p.id+'"><div class="phimg">загрузка…</div><figcaption>'+d.toLocaleDateString("ru-RU")+' · '+esc(p.by_name)
+      +(mine?' <button class="tbtn clr" data-phdel="'+p.id+'">Удалить</button>':'')+'</figcaption></figure>'}).join(""):'<div class="empty-msg">Фото ещё нет</div>';
+  var v=$("phVeil");v.hidden=false;
+  try{var fr=window.frameElement.getBoundingClientRect();      // вкладка внутри CRM растянута по высоте — окно ставим туда, куда смотрит пользователь
+    v.style.cssText="position:absolute;left:0;right:0;bottom:auto;top:"+Math.max(0,-fr.top)+"px;height:"+parent.innerHeight+"px"}catch(e){}
+  where().then(function(b){
+    list.forEach(function(p){
+      fetch(b.url+"/api/crm/to/photo/"+p.id,{method:"POST",headers:{"X-Api-Key":b.key,"Content-Type":"application/json"},body:JSON.stringify({pin:getPin()})})
+        .then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(bl){
+          var u=URL.createObjectURL(bl),box=g.querySelector('[data-pid="'+p.id+'"] .phimg');phUrls.push(u);if(!box)return;
+          box.innerHTML=/^image\//.test(bl.type)?'<img alt="Журнал ТО" src="'+u+'">':'<a href="'+u+'" target="_blank" rel="noopener">Открыть PDF</a>';
+          box.onclick=function(){window.open(u,"_blank")};
+        }).catch(function(){var box=g.querySelector('[data-pid="'+p.id+'"] .phimg');if(box)box.textContent="не загрузилось"});
+    });
+  });
+}
+$("phClose").onclick=function(){$("phVeil").hidden=true};
+$("phMore").onclick=function(){if(phTarget)phPick(phTarget.o,phTarget.m)};
+$("phGrid").addEventListener("click",function(e){
+  var b=e.target.closest("[data-phdel]");if(!b||!phTarget)return;
+  if(!confirm("Удалить это фото журнала?"))return;
+  api("to_photoDel",getPin(),+b.dataset.phdel).then(function(list){
+    photos=photos.filter(function(p){return p.obj!=phTarget.o.id}).concat(list);render();phShow(phTarget.o,phTarget.m);
+  }).catch(function(er){toast(er.message)});
+});
+
 function tcard(o,m,tail){
   var y=Y(o),s=y.to[m]||"";
   return '<div class="tcard '+(s==="yes"?"yes":s==="no"?"no":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
@@ -349,6 +441,7 @@ function tcard(o,m,tail){
    +'<div class="tc-meta">'+esc(o.spec||"без специалиста")+' · '+esc(o.period||"")+(o.kind?' · '+esc(o.kind):'')+'</div>'
    +'<div class="tc-acts"><button class="tbtn yes'+(s==="yes"?" on":"")+'" data-set="yes">✓ Проведено</button><button class="tbtn no'+(s==="no"?" on":"")+'" data-set="no">✕ Не проведено</button>'
    +(s?'<button class="tbtn clr" data-set="" title="Убрать отметку">Сбросить</button>':'')+'</div>'
+   +phRow(o,m)
    +(s==="no"?'<div class="tc-no"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
    +'</div>';
 }
@@ -437,14 +530,15 @@ function renderObj(){
 
 /* ====== Специалисты ====== */
 function renderSpec(){
-  var pinCell=function(key,has){return '<td style="min-width:230px"><span class="pill '+(has?"ok":"grey")+'">'+(has?"PIN задан":"нет PIN")+'</span> <input type="text" inputmode="numeric" maxlength="8" placeholder="новый PIN" class="pin" data-pk="'+esc(key)+'" style="width:100px;min-width:0"> <button class="ghost" data-setpin="1">Задать</button></td>'};
+  var adm=me.role==="admin";
+  var pinCell=function(key,has){if(!adm)return "";return '<td style="min-width:230px"><span class="pill '+(has?"ok":"grey")+'">'+(has?"PIN задан":"нет PIN")+'</span> <input type="text" inputmode="numeric" maxlength="8" placeholder="новый PIN" class="pin" data-pk="'+esc(key)+'" style="width:100px;min-width:0"> <button class="ghost" data-setpin="1">Задать</button></td>'};
   var h='<div class="toolbar"><button class="primary" id="addspec">+ Добавить специалиста</button></div><p class="hint">Справочник специалистов. У каждого — свой PIN (4–8 цифр): по нему специалист входит и видит только свои объекты. Пустое поле + «Задать» удаляет PIN. При удалении специалиста его объекты остаются «без специалиста».</p>';
-  h+='<div class="tblwrap" style="min-height:0;margin-bottom:14px"><table><thead><tr><th class="l">Бухгалтер</th><th>PIN</th></tr></thead><tbody><tr><td class="l"><b>Вход бухгалтера</b> — видит только вкладку «Бухгалтерия»</td>'+pinCell("__acc",accPin)+'</tr></tbody></table></div>';
-  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="l">Специалист</th><th class="l">Телефон</th><th>Объектов</th><th>Не закрыто ТО, шт.</th><th>PIN</th><th></th></tr></thead><tbody>';
+  if(adm)h+='<div class="tblwrap" style="min-height:0;margin-bottom:14px"><table><thead><tr><th class="l">Бухгалтер</th><th>PIN</th></tr></thead><tbody><tr><td class="l"><b>Вход бухгалтера</b> — видит только вкладку «Бухгалтерия»</td>'+pinCell("__acc",accPin)+'</tr></tbody></table></div>';
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="l">Специалист</th><th class="l">Телефон</th><th>Объектов</th><th>Не закрыто ТО, шт.</th><th title="Все объекты и вкладки, как у руководителя, кроме PIN">Полный доступ</th>'+(adm?'<th>PIN</th><th></th>':'')+'</tr></thead><tbody>';
   data.specialists.forEach(function(s,i){
     var os=data.objects.filter(function(o){return o.spec===s.name}),un=0;
     os.forEach(function(o){un+=unclosed(o)});
-    h+='<tr data-si="'+i+'"><td class="n">'+(i+1)+'</td><td><input type="text" data-s="name" value="'+esc(s.name)+'"></td><td><input type="text" data-s="phone" value="'+esc(s.phone)+'"></td><td>'+os.length+'</td><td>'+(un?'<span class="pill bad">'+un+'</span>':'<span class="pill ok">0</span>')+'</td>'+pinCell(s.name,pins[s.name])+'<td><button class="danger" data-delspec="1">Удалить</button></td></tr>';
+    h+='<tr data-si="'+i+'"><td class="n">'+(i+1)+'</td><td><input type="text" data-s="name" value="'+esc(s.name)+'"'+(adm?"":" readonly")+'></td><td><input type="text" data-s="phone" value="'+esc(s.phone)+'"></td><td>'+os.length+'</td><td>'+(un?'<span class="pill bad">'+un+'</span>':'<span class="pill ok">0</span>')+'</td><td><label class="full"><input type="checkbox" data-full="1"'+(s.full?" checked":"")+(adm?"":" disabled")+'> все вкладки</label></td>'+pinCell(s.name,pins[s.name])+(adm?'<td><button class="danger" data-delspec="1">Удалить</button></td>':'')+'</tr>';
   });
   if(!data.specialists.length)h+='<tr><td colspan="7" class="empty-msg">Нет специалистов</td></tr>';
   return h+'</tbody></table></div>';
@@ -480,10 +574,10 @@ function applyRole(){
   [].forEach.call($("tabs").children,function(b){b.style.display=allowed.indexOf(b.dataset.v)>=0?"":"none"});
   if(allowed.indexOf(view)<0)view=allowed[0];
   [].forEach.call($("tabs").children,function(b){b.classList.toggle("active",b.dataset.v===view)});
-  var adm=me.role==="admin";
-  $("specf").style.display=adm?"":"none";
-  $("exp").style.display=$("imp").style.display=$("csv").style.display=adm?"":"none";
-  $("me").textContent=me.name+(adm?" (руководитель)":me.role==="acc"?" (бухгалтерия)":"");
+  var adm=me.role==="admin",full=boss();
+  $("specf").style.display=full?"":"none";
+  $("exp").style.display=$("csv").style.display=full?"":"none";$("imp").style.display=adm?"":"none";
+  $("me").textContent=me.name+(adm?" (руководитель)":me.role==="eng"?" (полный доступ)":me.role==="acc"?" (бухгалтерия)":"");
 }
 function typingNow(){var a=document.activeElement;return a&&$("view").contains(a)&&(a.tagName==="INPUT"||a.tagName==="SELECT")}
 function loadData(silent){
@@ -491,7 +585,7 @@ function loadData(silent){
     if(r.empty&&r.role==="admin"){
       return api("to_import",getPin(),SEED).then(function(){return loadData(silent)});
     }
-    me={role:r.role,name:r.name};pins=r.pins||{};accPin=!!r.accPin;
+    me={role:r.role,name:r.name};pins=r.pins||{};accPin=!!r.accPin;photos=r.photos||[];photoOn=!!r.photos;
     data=migrate({objects:r.objects,specialists:r.specialists,nextId:r.nextId});
     $("login").style.display="none";
     applyRole();fillSpecs();render();setSync("Сохранено ✓");
@@ -525,7 +619,13 @@ $("view").addEventListener("click",function(e){
     if(!oc)return;
     Y(oc).to[mm]=v;op({k:"cell",id:oc.id,year:year,field:"to",m:mm,v:v});
     render();
+    if(v==="yes"&&canPhoto(oc)&&!phOf(oc,mm).length){toast("Сфотографируйте заполненный журнал ТО");phPick(oc,mm)}
     if(v==="no"){var nc=document.querySelector('.tcard[data-id="'+oc.id+'"] input[data-f="deadline"]');if(nc)nc.focus()}
+    return;
+  }
+  if(t.dataset.ph&&t.closest(".tcard")){
+    var pc=t.closest(".tcard"),po=find(pc),pm=+pc.dataset.tm;if(!po)return;
+    if(t.dataset.ph==="add")phPick(po,pm);else phShow(po,pm);
     return;
   }
   if(t.id==="add"){
@@ -550,6 +650,8 @@ $("view").addEventListener("click",function(e){
 });
 $("view").addEventListener("change",function(e){
   var t=e.target;
+  if(t.dataset.full){var fs=data.specialists[+t.closest("tr").dataset.si];if(t.checked)fs.full=true;else delete fs.full;
+    op({k:"specSet",name:fs.name,f:"full",v:t.checked});toast(t.checked?"«"+fs.name+"» видит все объекты и вкладки (после повторного входа)":"Полный доступ снят");return}
   if(t.dataset.s!==undefined){
     var s=data.specialists[+t.closest("tr").dataset.si];
     if(t.dataset.s==="name"){
