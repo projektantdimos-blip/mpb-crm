@@ -107,7 +107,7 @@
     site: { label: "Сайт",     color: "#d8453a" },
     avito: { label: "Авито",   color: "#00aaff" }
   };
-  var st = { threads: [], sel: null, msgs: [], filter: "all", q: "", err: "", built: false, sending: false, tick: 0 };
+  var st = { threads: [], sel: null, msgs: [], filter: "all", q: "", err: "", built: false, sending: false, tick: 0, reply: null, openTail: {} };
   var el = {};
 
   function cfg() {
@@ -254,7 +254,7 @@
         '<button type="button" id="chatRefresh" class="ibtn" title="Обновить сейчас">' + IC.refresh + '</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
-        '<div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">' + IC.clip + '</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
+        '<div id="chatReply" class="chat-replybar" hidden></div><div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">' + IC.clip + '</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
         '<aside class="chat-info" id="chatInfoPane"></aside>' +
       '</div>';
     el.banner = document.getElementById("chatBanner");
@@ -265,6 +265,7 @@
     el.assign = document.getElementById("chatAssign");
     el.info = document.getElementById("chatInfoPane");
     el.msgs = document.getElementById("chatMsgs");
+    el.reply = document.getElementById("chatReply");
     el.text = document.getElementById("chatText");
     if (window.innerWidth <= 760) el.text.placeholder = "Сообщение…";
     el.send = document.getElementById("chatSend");
@@ -311,6 +312,10 @@
     showSync();
     refreshPushBtn();
     el.msgs.onclick = function (e) {
+      var rp = e.target.closest ? e.target.closest("[data-rep]") : null;
+      if (rp) { st.reply = { tid: st.sel, id: +rp.getAttribute("data-rep") }; paintReply(); el.text.focus(); return; }
+      var tl = e.target.closest ? e.target.closest("[data-tail]") : null;
+      if (tl) { var k = tl.getAttribute("data-tail"); st.openTail[k] = !st.openTail[k]; renderThread(true); return; }
       var d = e.target.closest ? e.target.closest(".mdel") : null;
       if (d) {
         if (!confirm("Убрать это сообщение из CRM?\n\nУ получателя (в почте или Telegram) оно останется.")) return;
@@ -422,7 +427,7 @@
 
   /* режим «перевернуть письма»: блоки текста (разделённые пустой строкой) идут в обратном порядке */
   function flipOn() {
-    try { return localStorage.getItem("mpb_chat_flip") !== "0"; } catch (e) { return true; }
+    try { return localStorage.getItem("mpb_chat_flip") === "1"; } catch (e) { return false; }
   }
   function setFlip(on) { try { localStorage.setItem("mpb_chat_flip", on ? "1" : "0"); } catch (e) {} }
   function flipBlocks(text) {
@@ -447,6 +452,7 @@
       renderInfo(null);
       el.head.innerHTML = '<b style="color:var(--muted);font-weight:400">Выберите переписку слева</b>';
       el.msgs.innerHTML = "";
+      paintReply();
       return;
     }
     var ci = chInfo(t.channel), av = avUrl(t), ini = (t.title || "?").trim().charAt(0).toUpperCase();
@@ -473,8 +479,16 @@
     if (del) del.onclick = function () { if (confirm("Убрать фото у «" + (t.title || t.peer) + "»?")) removeAvatar(t.id); };
     var atBottom = el.msgs.scrollHeight - el.msgs.scrollTop - el.msgs.clientHeight < 60;
     var flip = flipOn() && t.channel === "mail";
+    var mail = t.channel === "mail", byId = {};
+    st.msgs.forEach(function (m) { byId[m.id] = m; });
     el.msgs.innerHTML = st.msgs.map(function (m) {
       var subj = m.subject ? '<div class="sj' + (flip && m.direction === "in" ? " sj-b" : "") + '">' + esc(m.subject) + "</div>" : "";
+      if (mail && !flip && m.direction === "in") return mailIn(m);
+      if (mail && m.direction === "out" && m.reply_to && byId[m.reply_to]) {
+        var q = byId[m.reply_to];
+        return '<div class="cm out"><div class="rq"><b>↩ ' + esc(q.subject || "Письмо") + "</b><span>" + esc(splitMail(q.text).main.slice(0, 140)) + "</span></div>" +
+          esc(m.text) + filesHtml(m.files) + '<div class="mt">' + fmtFull(m.ts) + ' <span class="sent" title="Отправлено">' + IC.sent + "</span>" + delBtn(m) + "</div></div>";
+      }
       if (flip && m.direction === "in") {
         // «перевёрнутое» письмо: подпись/ссылки сверху, затем текст, тема внизу
         return '<div class="cm in">' + esc(flipBlocks(m.text)) + filesHtml(m.files) + subj +
@@ -495,8 +509,41 @@
       b.onclick = function () { (st.pending[t.id] || []).splice(+b.getAttribute("data-pi"), 1); renderThread(true); };
     });
     loadChatImages();
+    paintReply();
     if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
   }
+
+  /* Письмо: тема сверху, основной текст, подпись и прошлые письма свёрнуты («··· показать»), «↩ Ответить» */
+  var TAIL_RE = /^(-{2,}\s*(original|исходное|пересылаем|forwarded).*|on .+ wrote:|.+ написал(а)?:|.+ пишет:|от кого:.*|\d{1,2}[./]\d{1,2}[./]\d{2,4},?\s+(в\s+)?\d{1,2}:\d{2}.*:|(from|от):\s.*@.*|-{2}\s*|_{5,}|(с уважением|с наилучшими пожеланиями|best regards|kind regards|regards)[,.!]?|(отправлено|sent) (из|с|from) .*)$/i;
+  function splitMail(text) {                                     // та же граница, что mail_channel._clean_body на мосту
+    var s = String(text || "").replace(/\r/g, ""), lines = s.split("\n");
+    for (var i = 0; i < lines.length; i++) {
+      var l = lines[i].trim();
+      if (TAIL_RE.test(l) || l.charAt(0) === ">") {
+        var main = lines.slice(0, i).join("\n").trim();
+        return main ? { main: main, tail: lines.slice(i).join("\n").trim() } : { main: s.trim(), tail: "" };
+      }
+    }
+    return { main: s.trim(), tail: "" };
+  }
+  function mailIn(m) {
+    var sp = splitMail(m.text), open = st.openTail[m.id];
+    return '<div class="cm in mail">' + (m.subject ? '<div class="sj2">✉ ' + esc(m.subject) + "</div>" : "") + esc(sp.main) + filesHtml(m.files) +
+      (sp.tail ? (open ? '<div class="tail">' + esc(sp.tail) + '</div><button type="button" class="tailbtn" data-tail="' + m.id + '">скрыть ⌃</button>'
+                       : '<button type="button" class="tailbtn" data-tail="' + m.id + '">··· подпись и прошлые письма — показать</button>') : "") +
+      '<div class="mt"><button type="button" class="rep" data-rep="' + m.id + '">↩ Ответить</button><span>' + fmtFull(m.ts) + delBtn(m) + "</span></div></div>";
+  }
+  function paintReply() {
+    if (!el.reply) return;
+    var r = st.reply, m = null;
+    if (r && r.tid === st.sel) for (var i = 0; i < st.msgs.length; i++) if (st.msgs[i].id === r.id) m = st.msgs[i];
+    if (!m) { el.reply.hidden = true; el.reply.innerHTML = ""; return; }
+    el.reply.hidden = false;
+    el.reply.innerHTML = '<span class="ri">↩</span><div class="rl"><b>Ответ на письмо «' + esc(m.subject || "без темы") + '»</b><span>' + esc(splitMail(m.text).main.slice(0, 160)) +
+      '</span></div><button type="button" class="rx" title="Отменить ответ на это письмо" aria-label="Отменить">×</button>';
+    el.reply.querySelector(".rx").onclick = function () { st.reply = null; paintReply(); };
+  }
+  function replyId(t) { return st.reply && st.reply.tid === t.id ? st.reply.id : 0; }
 
   /* ---------- правая панель: клиент, связанные дела, быстрые действия (как в макете) ---------- */
   function ic2(n) { return window.icon ? window.icon(n) : ""; }
@@ -881,19 +928,20 @@
     var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
     if (!t || (!text && !fs.length) || st.sending) return;
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
-    var pend = { t0: Date.now() / 1000, text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" };
+    var pend = { t0: Date.now() / 1000, text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" }, rid = replyId(t);
     (st.pending[t.id] = st.pending[t.id] || []).push(pend);
     el.text.value = ""; growText(); st.files = []; showFileBar();            // сообщение сразу уходит из поля, как в мессенджере
     renderThread(false);
     var job = fs.length
       ? Promise.all(fs.map(readB64)).then(function (d) {
-          var body = { text: text, filename: fs[0].name, mime: fs[0].type || "application/octet-stream", data: d[0], more: [] };
+          var body = { text: text, filename: fs[0].name, mime: fs[0].type || "application/octet-stream", data: d[0], more: [], reply_to: rid };
           for (var i = 1; i < fs.length; i++) body.more.push({ filename: fs[i].name, mime: fs[i].type || "application/octet-stream", data: d[i] });
           return api("/api/threads/" + encodeURIComponent(t.id) + "/send-file", { method: "POST", body: body });
         })
-      : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text } });
+      : api("/api/threads/" + encodeURIComponent(t.id) + "/send", { method: "POST", body: { text: text, reply_to: rid } });
     job.then(function (r) {
       setErr("");
+      if (st.reply && st.reply.tid === t.id) { st.reply = null; paintReply(); }
       if (r && r.file === false) setErr("В Max файл не передаётся — ушёл только текст. Отправьте файл по почте или в Telegram.");
       var arr = st.pending[t.id] || []; arr.splice(arr.indexOf(pend), 1);
       return Promise.all([loadMessages(false), loadThreads()]);

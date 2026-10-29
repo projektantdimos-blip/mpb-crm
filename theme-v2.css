@@ -1728,3 +1728,26 @@ body.kb-open .bottomnav{display:none!important}
     border:0!important;background:none!important;scrollbar-width:none}
   html body #team-app#team-app #tTabs::-webkit-scrollbar{display:none}
 }
+
+/* Письма в «Переписке»: тема сверху, свёрнутый шлейф (подпись, прошлые письма), «↩ Ответить», цитата в ответе (29.10) */
+#chat-app .cm .sj2{display:flex;align-items:center;gap:5px;font-size:.76rem;font-weight:700;color:var(--blue);margin-bottom:3px}
+#chat-app .cm .tailbtn{display:block;width:100%;text-align:left;margin-top:6px;padding:5px 9px;border:0;border-radius:9px;background:color-mix(in srgb,var(--muted) 12%,transparent);color:var(--muted);font:inherit;font-size:.78rem;font-weight:600;cursor:pointer}
+#chat-app .cm .tail{margin-top:6px;padding:4px 9px;border-left:3px solid var(--line);color:var(--muted);font-size:.86rem;white-space:pre-wrap}
+#chat-app .cm.mail .mt{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#chat-app .cm .rep{border:0;background:none;padding:0;color:var(--blue);font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+#chat-app .cm .rq{display:block;border-left:3px solid currentColor;padding:2px 8px;margin-bottom:5px;border-radius:4px;background:rgba(255,255,255,.16);font-size:.8rem;opacity:.95}
+#chat-app .cm .rq b{display:block;font-size:.76rem}
+#chat-app .cm .rq span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chat-app .chat-replybar{display:flex;align-items:center;gap:10px;padding:7px 16px;background:var(--card);border-top:1px solid var(--line);font-size:.85rem}
+#chat-app .chat-replybar[hidden]{display:none!important}
+#chat-app .chat-replybar .ri{color:var(--blue);font-size:1.2rem}
+#chat-app .chat-replybar .rl{flex:1;min-width:0;border-left:3px solid var(--blue);padding-left:8px}
+#chat-app .chat-replybar .rl b{display:block;color:var(--blue);font-size:.8rem}
+#chat-app .chat-replybar .rl span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+#chat-app .chat-replybar .rx{border:0;background:none;font-size:1.3rem;color:var(--muted);cursor:pointer;padding:0 4px}
+@media (max-width:760px){
+  #chat-app .chat-wrap.has-sel.has-sel .chat-replybar{flex:none;background:var(--tg-head);border-top:1px solid var(--tg-line);padding:6px 12px}
+  #chat-app .chat-wrap.has-sel.has-sel .cm.out .rq{border-left-color:#4fa05a;background:rgba(0,0,0,.05)}
+  #chat-app .chat-wrap.has-sel.has-sel .cm.out .rq b{color:#3c8a47}
+  :root[data-theme="dark"] #chat-app .chat-wrap.has-sel.has-sel .cm.out .rq b{color:#9fd3a6}
+}

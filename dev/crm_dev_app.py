@@ -11,7 +11,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / ".data"
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8790
+DATA = HERE / (".data" if PORT == 8790 else f".data-{PORT}")       # второй стенд на другом порту — своя база
 DATA.mkdir(exist_ok=True)
 os.environ["DATA_DIR"] = str(DATA)
 os.environ["BRIDGE_KEY"] = "demo-key-demo-key-demo-key"
@@ -74,8 +75,8 @@ TO_AUTH = {"salt": _TO_SALT, "admin": _toh("0000"), "users": {"Дмитрий": 
 
 def fake_sheet(fn, args):
     t, l = SHEET["tasks"], SHEET["leads"]
-    if fn == "to_load":
-        return TO_DATA
+    if fn == "to_load":                  # как To.gs под PIN руководителя: роль нужна переносу ТО в CRM
+        return {**TO_DATA, "role": "admin", "name": "Руководитель", "specialists": [{"name": "Дмитрий", "phone": ""}, {"name": "Алексей", "phone": ""}]}
     if fn == "to_exportAuth":            # PIN ТО на стенде: 0000 — руководитель, 1111 — Дмитрий, 2222 — бухгалтер
         return TO_AUTH
     if fn == "api_exportSave":
@@ -179,6 +180,17 @@ app.include_router(crm_mail.router)
 app.include_router(crm_clients.router)
 app.include_router(crm_to.router)
 app.include_router(crm_ai.router)
+from app import crm_ai_ops                                 # noqa: E402
+app.include_router(crm_ai_ops.router)
+from app import onec                                       # noqa: E402  оплаты из 1С: поддельная 1С:Fresh стенда
+config.ONEC_ODATA_URL, config.ONEC_ODATA_USER, config.ONEC_SINCE = "https://1c.demo/odata/standard.odata", "demo", date.today().replace(day=1).isoformat()
+_ONEC = [{"Ref_Key": f"demo-{i}", "Number": str(100 + i), "Date": date.today().isoformat() + "T10:00:00", "Posted": True, "ВидОперации": "ОплатаПокупателя",
+          "СуммаДокумента": s_, "НазначениеПлатежа": p_, "Контрагент": {"Description": n_, "ИНН": f"78000{i}"}}
+         for i, (n_, s_, p_) in enumerate([("ООО «Север-Нефть»", 12000, "Оплата за техническое обслуживание"),
+                                           ("ООО Ромашка", 150000, "Оплата по счёту 15 за монтаж"),
+                                           ("ООО Неизвестный", 7300, "Оплата по счёту 77")])]
+onec._http = lambda url: {"value": list(_ONEC)}
+app.include_router(onec.router)
 
 
 def fake_ai(body):
@@ -198,6 +210,11 @@ def fake_ai(body):
         obj = _re.search(r"(?:для|объект)\s+([^,]+)", msg)
         adr = _re.search(r"((?:г\.|ул\.|пр\.|СПб)[^;]*?\d+[^,]*(?:,\s*д\.\s*\d+)?)", msg)
         svcs = [{"id": i, "price": 0} for k, i in (("спс", "design_sps"), ("ао", "design_ao"), ("ауп", "design_aup"), ("декларац", "decl")) if k in low]
+        systems = [c for k, c in (("спс", "СПС.СОУЭ"), ("ао", "АО"), ("впв", "ВПВ"), ("ауп", "АУП")) if k in low]
+        if "монтаж" in low:
+            svcs = [{"id": "install", "price": 0, "systems": systems}]
+        if "закупк" in low or "поставк" in low:
+            svcs = [{"id": "equip", "price": 0, "systems": systems}] + [x for x in svcs if x["id"] == "install"]
         if cur and not svcs:
             svcs = cur.get("services") or []
         if svcs and price:
@@ -208,6 +225,25 @@ def fake_ai(body):
              "address": adr.group(1).strip() if adr else cur.get("address", ""), "no_address": "без адреса" in low or bool(cur.get("no_address")),
              "deadline_days": int(days.group(1)) if days else cur.get("deadline_days", 0), "services": svcs, "custom": [],
              "reply": "Стенд: заполнил конструктор по сообщению.", "questions": "" if svcs else "Какие услуги включить?"}
+        out = _j.dumps(d, ensure_ascii=False)
+    elif "jsonSchema" in body and "is_task" in body["jsonSchema"]["schema"]["properties"]:   # поручение в «Команде»
+        msg = text.rsplit("Сообщение:\n", 1)[-1]
+        names = _re.findall(r"^- (.+)$", body["messages"][0]["text"], _re.M)
+        who = next((n for n in names if n.split()[0][:-1].lower() in msg.lower()), "")
+        import time as _t
+        due = _t.strftime("%Y-%m-%d", _t.gmtime(_t.time() + 3 * 3600 + 86400)) if "завтра" in msg.lower() else ""
+        d = {"is_task": bool(who) and "?" not in msg, "assignee": who, "what": msg.split(",", 1)[-1].strip()[:120].capitalize(), "due_date": due, "due_time": ""}
+        out = _j.dumps(d, ensure_ascii=False)
+    elif "jsonSchema" in body and "decisions" in body["jsonSchema"]["schema"]["properties"]:  # «Кратко: что решили»
+        lines = [x for x in text.split("\n") if x.strip()]
+        d = {"summary": f"Стенд: в чате {len(lines)} сообщ., последнее — «{lines[-1][12:90]}».", "decisions": ["Выезд на объект в пятницу (стенд)"],
+             "tasks": [{"who": "Игорь", "what": "Подготовить акт (стенд)", "due": "пятница"}], "open": ["Кто забирает ключи? (стенд)"]}
+        out = _j.dumps(d, ensure_ascii=False)
+    elif "jsonSchema" in body and "next_steps" in body["jsonSchema"]["schema"]["properties"]:  # «Что с этим клиентом?»
+        first = text.split("\n", 1)[0]
+        d = {"summary": f"Стенд: {first}. Сводка собрана из {text.count(chr(10) + '- ')} строк данных.", "status": "waiting_us",
+             "in_work": ["Монтаж АПС — этап «Монтаж» (стенд)"], "money": "КП на 120 000 ₽ ждёт ответа (стенд)",
+             "last_contact": "Письмо клиента 20.10 о счёте (стенд)", "next_steps": ["Выставить счёт за ТО", "Позвонить по КП"], "risks": ["Срок этапа просрочен (стенд)"]}
         out = _j.dumps(d, ensure_ascii=False)
     elif "jsonSchema" in body:
         low = last.lower()
@@ -292,6 +328,22 @@ def messages(tid: str):
 def mark_read(tid: str):
     db.set_unread(tid, 0)
     return {"ok": True}
+
+
+@app.post("/api/threads/{tid}/send", dependencies=[Depends(crm_auth.api_key)])
+def send(tid: str, b: dict):
+    """Стенд: письмо никуда не уходит — только сохраняется в ленте (тема и «ответ на» — как в боевом мосте)."""
+    th = db.get_thread(tid)
+    if not th:
+        raise HTTPException(404, "Переписка не найдена")
+    rid = int(b.get("reply_to") or 0)
+    last = (db.reply_target(tid, rid) if rid else None) or db.last_incoming(tid) or {}
+    subj = (last.get("subject") or "").strip()
+    if subj and not subj.lower().startswith(("re:", "re[")):
+        subj = "Re: " + subj
+    db.add_message(th["channel"], th["peer"], "", f"<dev{time.time()}@stand>", "out", "Вы", subj, b.get("text", ""), time.time(), False,
+                   reply_to=last.get("id") or 0)
+    return {"ok": True, "subject": subj}
 
 
 @app.get("/api/threads/{tid}/avatar", dependencies=[Depends(crm_auth.api_key)])

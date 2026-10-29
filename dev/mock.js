@@ -3,7 +3,7 @@
 (function () {
   try {
     localStorage.setItem('mpb_api', JSON.stringify({ url: 'https://script.google.com/macros/s/DEMO/exec', key: 'demo' }));
-    localStorage.setItem('mpb_bridge', JSON.stringify({ url: 'http://127.0.0.1:8790', key: 'demo-key-demo-key-demo-key' }));   // стенд моста: dev/crm_dev_app.py
+    localStorage.setItem('mpb_bridge', JSON.stringify({ url: 'http://127.0.0.1:' + (location.port === '8779' ? 8795 : 8790), key: 'demo-key-demo-key-demo-key' }));   // стенд моста: dev/crm_dev_app.py
     localStorage.setItem('mpb_to_pin', '0000');
   } catch (e) {}
 
@@ -79,7 +79,7 @@
       var b = {}; try { b = JSON.parse(opts.body); } catch (e) {}
       var fn = b.fn, a = b.args || [], d = null;
       if (/^api_/.test(fn)) {           // таблица — общая со стендом моста (v2/dev/crm_dev_app.py), чтобы действия из бота были видны в приложении
-        return realFetch('http://127.0.0.1:8790/dev/sheet', { method: 'POST', body: JSON.stringify({ fn: fn, args: a }) }).catch(function () { return null; }).then(function (r) { if (r) return r; return localApi(fn, a); });
+        return realFetch('http://127.0.0.1:' + (location.port === '8779' ? 8795 : 8790) + '/dev/sheet', { method: 'POST', body: JSON.stringify({ fn: fn, args: a }) }).catch(function () { return null; }).then(function (r) { if (r) return r; return localApi(fn, a); });
       }
       if (fn === 'api_listTasks') d = tasks;
       else if (fn === 'api_getTask') d = tasks.filter(function (t) { return t.row === a[0]; })[0] || tasks[0];
