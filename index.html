@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261029d";</script>
+<script>window.MPB_VERSION="20261029f";</script>
 <link rel="icon" href="logo.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta charset="utf-8">
@@ -275,7 +275,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261029d">
+<link rel="stylesheet" href="theme-v2.css?v=20261029f">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -1796,10 +1796,13 @@ function pdfRoundRect(ctx, x, y, w, h, r) {
   ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
-// Рисует страницы КП; возвращает массив canvas.
-async function renderKpPages(model) {
+// Рисует страницы КП; возвращает массив canvas. k < 1 — плотнее: шрифты и вертикальные отступы × k (ширины те же),
+// так короткое КП целиком встаёт на один лист вместе с QR, подписью и печатью (см. buildPdf).
+async function renderKpPages(model, k) {
+  k = k || 1;
   const A = await kpAssets();
-  const F = (size, style) => (style ? style + ' ' : '') + size + 'px ' + PDF.FONT;
+  const F = (size, style) => (style ? style + ' ' : '') + (size * k).toFixed(2) + 'px ' + PDF.FONT;
+  const v = n => n * k;
   const MX = 36, CW = PDF.W - 2 * MX, BLUE = '#1F5C99', GREY = '#66717E', DARK = '#46515F';
   const pages = [];
   let cv, ctx, y;
@@ -1810,78 +1813,79 @@ async function renderKpPages(model) {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PDF.W + 1, PDF.H + 1);
     ctx.drawImage(A.banner, 0, 0, PDF.W, PDF.BANNER_H);
     ctx.textBaseline = 'alphabetic';
-    pages.push(cv); y = PDF.BANNER_H + 24;
+    pages.push(cv); y = PDF.BANNER_H + v(24);
   };
   const txt = (s, x, by, font, color, align) => { ctx.font = font; ctx.fillStyle = color || '#000'; ctx.textAlign = align || 'left'; ctx.fillText(s, x, by); };
   const hline = (x1, x2, ly, color, w) => { ctx.strokeStyle = color; ctx.lineWidth = w || 0.6; ctx.beginPath(); ctx.moveTo(x1, ly); ctx.lineTo(x2, ly); ctx.stroke(); };
 
   newPage();
-  txt('Коммерческое предложение № ' + model.num, PDF.W / 2, y + 16, F(19, 'bold'), '#1d2733', 'center'); y += 28;
-  txt('от ' + model.date, PDF.W / 2, y + 10, F(12), GREY, 'center'); y += 28;
+  txt('Коммерческое предложение № ' + model.num, PDF.W / 2, y + v(16), F(19, 'bold'), '#1d2733', 'center'); y += v(28);
+  txt('от ' + model.date, PDF.W / 2, y + v(10), F(12), GREY, 'center'); y += v(28);
 
   // заказчик справа (жирным), адрес под ним, затем вводный текст по центру
   const XR = PDF.W - MX;
-  y += 4;
+  y += v(4);
   ctx.font = F(12.5, 'bold');
-  pdfWrap(ctx, model.object, CW * 0.8).forEach(l => { txt(l, XR, y + 12, F(12.5, 'bold'), '#1d2733', 'right'); y += 17; });
-  if (model.address) { ctx.font = F(11.5); pdfWrap(ctx, model.address, CW * 0.8).forEach(l => { txt(l, XR, y + 12, F(11.5), DARK, 'right'); y += 16; }); }
-  y += 14;
+  pdfWrap(ctx, model.object, CW * 0.8).forEach(l => { txt(l, XR, y + v(12), F(12.5, 'bold'), '#1d2733', 'right'); y += v(17); });
+  if (model.address) { ctx.font = F(11.5); pdfWrap(ctx, model.address, CW * 0.8).forEach(l => { txt(l, XR, y + v(12), F(11.5), DARK, 'right'); y += v(16); }); }
+  y += v(14);
   ctx.font = F(12.5);
-  pdfWrap(ctx, model.intro, CW * 0.88).forEach(l => { txt(l, PDF.W / 2, y + 12, F(12.5), DARK, 'center'); y += 18; });
-  y += 14;
+  pdfWrap(ctx, model.intro, CW * 0.88).forEach(l => { txt(l, PDF.W / 2, y + v(12), F(12.5), DARK, 'center'); y += v(18); });
+  y += v(14);
   // таблица услуг: № · наименование · стоимость
-  const X0 = MX, XN = MX + 30, X2 = PDF.W - MX - 120, X3 = PDF.W - MX, HH = 26;
+  const X0 = MX, XN = MX + 30, X2 = PDF.W - MX - 120, X3 = PDF.W - MX, HH = v(26);
   const header = () => {
     ctx.fillStyle = '#EE9264'; ctx.fillRect(X0, y, X3 - X0, HH);
-    txt('№', X0 + 15, y + 17, F(11.5, 'bold'), '#fff', 'center');
-    txt('Наименование работ', XN + 6, y + 17, F(11.5, 'bold'), '#fff');
-    txt('Стоимость', X3 - 8, y + 17, F(11.5, 'bold'), '#fff', 'right');
+    txt('№', X0 + 15, y + v(17), F(11.5, 'bold'), '#fff', 'center');
+    txt('Наименование работ', XN + 6, y + v(17), F(11.5, 'bold'), '#fff');
+    txt('Стоимость', X3 - 8, y + v(17), F(11.5, 'bold'), '#fff', 'right');
     y += HH;
   };
   header();
+  const LH = v(16);
   model.rows.forEach((r, i) => {
     ctx.font = F(12);
     const ls = []; r.lines.forEach(t => pdfWrap(ctx, t, X2 - XN - 18).forEach(l => ls.push(l)));
     const pr = r.priceLines.length ? r.priceLines : [''];
-    const h = Math.max(ls.length * 16, pr.length * 16) + 18;
+    const h = Math.max(ls.length, pr.length) * LH + v(18);
     if (y + h > PDF.BOTTOM - 40) { newPage(); header(); }
-    txt(String(i + 1), X0 + 15, y + 9 + 12, F(12), GREY, 'center');
-    ls.forEach((l, k) => txt(l, XN + 6, y + 9 + 12 + k * 16, F(12, k === 0 ? 'bold' : ''), '#1d2733'));
-    pr.forEach((l, k) => txt(l, X3 - 8, y + 9 + 12 + k * 16, F(12, 'bold'), '#1d2733', 'right'));
+    txt(String(i + 1), X0 + 15, y + v(21), F(12), GREY, 'center');
+    ls.forEach((l, j) => txt(l, XN + 6, y + v(21) + j * LH, F(12, j === 0 ? 'bold' : ''), '#1d2733'));
+    pr.forEach((l, j) => txt(l, X3 - 8, y + v(21) + j * LH, F(12, 'bold'), '#1d2733', 'right'));
     y += h; hline(X0, X3, y, '#E6EBF1', 0.8);
   });
 
   // итог и НДС
-  if (y + 120 > PDF.BOTTOM) newPage();
-  y += 14;
-  txt('Итого к оплате:  ' + (model.total || '—'), X3 - 8, y + 18, F(16, 'bold'), BLUE, 'right'); y += 34;
+  if (y + v(120) > PDF.BOTTOM) newPage();
+  y += v(14);
+  txt('Итого к оплате:  ' + (model.total || '—'), X3 - 8, y + v(18), F(16, 'bold'), BLUE, 'right'); y += v(34);
   hline(X0, X3, y, '#6B7580', 0.8);
-  ctx.font = F(8.5); pdfWrap(ctx, KP_TXT.nds, CW).forEach(l => { y += 12; txt(l, X3 - 8, y + 2, F(8.5), GREY, 'right'); }); y += 20;
+  ctx.font = F(8.5); pdfWrap(ctx, KP_TXT.nds, CW).forEach(l => { y += v(12); txt(l, X3 - 8, y + 2, F(8.5), GREY, 'right'); }); y += v(20);
 
   // условия
   ctx.font = F(11);
   const nl = pdfWrap(ctx, model.note.join('\n'), CW);
-  if (y + nl.length * 16 > PDF.BOTTOM) newPage();
-  nl.forEach(l => { txt(l, MX, y + 11, F(11), DARK); y += 16; });
-  y += 14;
+  if (y + nl.length * v(16) > PDF.BOTTOM) newPage();
+  nl.forEach(l => { txt(l, MX, y + v(11), F(11), DARK); y += v(16); });
+  y += v(14);
 
-  // QR-карточки, подпись и печать
-  const CARD_H = 98, SIGN_H = 120;
-  if (y + CARD_H + 14 + SIGN_H > PDF.H - 22) newPage();
-  const cw = (CW - 14) / 2, imgs = [A.qr1, A.qr2];
+  // QR-карточки, подпись и печать (блок не разрывается)
+  const CARD_H = v(98), sw = v(310), sh = sw * 316 / 899, SIGN_H = Math.max(v(18 + 3 * 21 + 6), sh - v(8));
+  if (y + CARD_H + v(22) + SIGN_H > PDF.H - 10) newPage();
+  const cw = (CW - 14) / 2, imgs = [A.qr1, A.qr2], q = v(76);
   KP_TXT.cards.forEach((c, i) => {
     const bx = MX + i * (cw + 14);
     pdfRoundRect(ctx, bx, y, cw, CARD_H, 9); ctx.fillStyle = '#F8FAFD'; ctx.fill(); ctx.strokeStyle = '#DFE6EF'; ctx.lineWidth = 0.8; ctx.stroke();
-    ctx.drawImage(imgs[i], bx + 10, y + 11, 76, 76);
-    txt(c.title, bx + 98, y + 24, F(11.5, 'bold'), '#C0392B');
-    ctx.font = F(10); let ty = y + 40;
-    pdfWrap(ctx, c.text, cw - 110).forEach(l => { txt(l, bx + 98, ty, F(10), DARK); ty += 13; });
-    if (c.num) txt(c.num, bx + 98, ty + 3, F(10.5, 'bold'), '#1d2733');
+    ctx.drawImage(imgs[i], bx + 10, y + (CARD_H - q) / 2, q, q);
+    const tx = bx + 20 + q;
+    txt(c.title, tx, y + v(24), F(11.5, 'bold'), '#C0392B');
+    ctx.font = F(10); let ty = y + v(40);
+    pdfWrap(ctx, c.text, bx + cw - tx - 10).forEach(l => { txt(l, tx, ty, F(10), DARK); ty += v(13); });
+    if (c.num) txt(c.num, tx, ty + v(3), F(10.5, 'bold'), '#1d2733');
   });
-  y += CARD_H + 22;
-  KP_TXT.sign.forEach((l, i) => txt(l, MX, y + 18 + i * 21, F(12.5, i === 1 ? 'bold' : ''), '#1d2733'));
-  const sw = 310, sh = sw * 316 / 899;
-  ctx.drawImage(A.sign, PDF.W - MX - sw + 10, y - 8, sw, sh);
+  y += CARD_H + v(22);
+  KP_TXT.sign.forEach((l, i) => txt(l, MX, y + v(18) + i * v(21), F(12.5, i === 1 ? 'bold' : ''), '#1d2733'));
+  ctx.drawImage(A.sign, PDF.W - MX - sw + 10, y - v(8), sw, sh);
   return pages;
 }
 function pdfFromJpegs(pages) {
@@ -1914,7 +1918,13 @@ function pdfFromJpegs(pages) {
 async function buildPdf(state) {
   const check = validate(state);
   if (!check.ok) throw new Error('Есть незаполненные или неверные поля: ' + check.errors.map(e => e.msg).join(' '));
-  const canvases = await renderKpPages(buildModel(state, false));
+  const model = buildModel(state, false);
+  let canvases = null;
+  for (const k of [1, 0.94, 0.88, 0.82]) {                    // сначала обычная вёрстка; не влезла в лист — плотнее (до −18 %)
+    canvases = await renderKpPages(model, k);
+    if (canvases.length === 1) break;
+  }
+  if (canvases.length > 1) canvases = await renderKpPages(model, 1);   // длинное КП — обычным размером на нескольких листах
   const pages = canvases.map(cv => {
     const bin = atob(cv.toDataURL('image/jpeg', 0.92).split(',')[1]);
     const bytes = new Uint8Array(bin.length);
@@ -2483,7 +2493,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261029d"></script>
+<script src="chat.js?v=20261029f"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2514,7 +2524,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   /* Телефон и планшет: нижнее меню не перекрывает чаты; когда открыта клавиатура — меню прячется (body.kb-open).
      --vvh/--vvtop — видимая часть экрана над клавиатурой (iPhone не уменьшает страницу сам), --chat-h — высота окна чатов на планшете. */
   (function(){
-    var root = document.documentElement, vv = window.visualViewport, touch = matchMedia("(hover:none)"), narrow = matchMedia("(max-width:900px)"), tmr = 0;
+    var root = document.documentElement, vv = window.visualViewport, touch = matchMedia("(hover:none)"), narrow = matchMedia("(max-width:900px)"), tmr = 0, lastH = 0;
     function typing(){ var a = document.activeElement; return !!a && (a.tagName === "TEXTAREA" || a.isContentEditable || (a.tagName === "INPUT" && !/^(checkbox|radio|button|submit|reset|file|range|color|date|time|month)$/i.test(a.type))); }
     function upd(){
       tmr = 0;
@@ -2522,7 +2532,13 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
       root.style.setProperty("--vvh", Math.round(h) + "px");
       root.style.setProperty("--vvtop", Math.round(top) + "px");
       var kb = (vv && innerHeight - h > 140) || (touch.matches && narrow.matches && typing());
+      var opened = !!kb && !document.body.classList.contains("kb-open");
       document.body.classList.toggle("kb-open", !!kb);
+      if (opened || lastH !== Math.round(h)) {                // клавиатура открылась / высота окна изменилась — последнее сообщение остаётся на виду
+        var ms = document.querySelector('#chat-app .chat-wrap.has-sel #chatMsgs, #team-app .x-chat.room-open .x-msgs');
+        if (ms && (opened || ms.scrollHeight - ms.scrollTop - ms.clientHeight < 160)) ms.scrollTop = ms.scrollHeight;
+      }
+      lastH = Math.round(h);
       var nav = document.getElementById("bottomnav"), navOn = nav && !kb && getComputedStyle(nav).display !== "none";
       var box = document.querySelector('#team-app:not([style*="none"]) .x-chat, #chat-app:not([style*="none"]) .chat-wrap');
       if (box && innerWidth > 760) {                         // на телефоне окно чата раскладывается само (body.shell в theme-v2.css)
@@ -2530,7 +2546,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
         root.style.setProperty("--chat-h", Math.max(420, Math.round(h + top - t - bottomGap)) + "px");
       }
     }
-    function later(){ if (!tmr) tmr = setTimeout(upd, 30); }
+    function later(){ if (!tmr) tmr = requestAnimationFrame(upd); }      // в том же кадре, что и клавиатура: окно не «скачет»
     if (vv) { vv.addEventListener("resize", later); vv.addEventListener("scroll", later); }
     addEventListener("resize", later); addEventListener("hashchange", function(){ setTimeout(upd, 80); });
     document.addEventListener("focusin", function(){ setTimeout(upd, 60); });
@@ -2542,15 +2558,15 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261029d"></script>
-<script src="extras.js?v=20261029d"></script>
-<script src="team.js?v=20261029d"></script>
-<script src="auto.js?v=20261029d"></script>
-<script src="stages.js?v=20261029d"></script>
-<script src="clients.js?v=20261029d"></script>
-<script src="pay.js?v=20261029d"></script>
-<script src="kpv.js?v=20261029d"></script>
-<script src="chatpanel.js?v=20261029d"></script>
+<script src="crm.js?v=20261029f"></script>
+<script src="extras.js?v=20261029f"></script>
+<script src="team.js?v=20261029f"></script>
+<script src="auto.js?v=20261029f"></script>
+<script src="stages.js?v=20261029f"></script>
+<script src="clients.js?v=20261029f"></script>
+<script src="pay.js?v=20261029f"></script>
+<script src="kpv.js?v=20261029f"></script>
+<script src="chatpanel.js?v=20261029f"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";

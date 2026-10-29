@@ -441,7 +441,7 @@
     el.wrap.classList.toggle("has-sel", !!t);
     var site = !!t && t.channel === "site";                // заявка с сайта: отвечаем по телефону или письмом
     el.text.disabled = el.send.disabled = !t || st.sending || site;
-    el.text.placeholder = site ? "Заявка с сайта — позвоните клиенту или напишите ему письмо («Новый диалог» → Почта)" : "Ответ… (Ctrl+Enter — отправить)";
+    el.text.placeholder = site ? "Заявка с сайта — позвоните клиенту или напишите ему письмо («Новый диалог» → Почта)" : (innerWidth <= 760 ? "Сообщение" : "Ответ… (Ctrl+Enter — отправить)");
     if (!t) {
       if (el.assign) el.assign.innerHTML = "";
       renderInfo(null);
