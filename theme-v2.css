@@ -1675,3 +1675,28 @@ body.kb-open .bottomnav{display:none!important}
   #team-app .x-chat:not(.room-open) .x-dlg .m b{font-size:1rem}
   #team-app .x-chat:not(.room-open) .x-dlg .m span{font-size:.88rem;color:var(--tg-time);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
 }
+
+/* Телефон: нижнее меню и кнопка «Новое сообщение» как в Telegram (29.10) — тонкая панель во всю ширину,
+   серые значки, активный — синий, счётчики красными кружками на значке; «+» стоит над панелью, а не под ней. */
+@media (max-width:900px){
+  html body .bottomnav.bottomnav{left:0!important;right:0!important;bottom:0!important;border-radius:0!important;padding:4px 4px calc(4px + env(safe-area-inset-bottom))!important;
+    background:color-mix(in srgb,var(--card) 92%,transparent)!important;-webkit-backdrop-filter:saturate(180%) blur(18px);backdrop-filter:saturate(180%) blur(18px);
+    border-top:1px solid var(--line)!important;box-shadow:none!important;gap:0;justify-content:space-around}
+  html body .bottomnav.bottomnav button{flex:1 1 0;min-width:0;height:48px;padding:3px 0 0!important;gap:2px!important;border-radius:0!important;background:none!important;
+    color:var(--muted)!important;font-size:10.5px!important;font-weight:600!important;letter-spacing:0;justify-content:flex-start;white-space:nowrap}
+  html body .bottomnav.bottomnav button svg{width:25px!important;height:25px!important;flex:none}
+  html body .bottomnav.bottomnav button.active{color:var(--blue)!important;background:none!important}
+  html body .bottomnav.bottomnav .chat-badge,html body .bottomnav.bottomnav .nav-badge{position:absolute!important;top:0!important;left:calc(50% + 4px)!important;right:auto!important;margin:0!important;
+    min-width:18px;height:18px;box-sizing:border-box;padding:0 5px!important;border-radius:9px!important;background:#e5483c!important;color:#fff!important;font-size:11px!important;font-weight:700;
+    line-height:16px!important;text-align:center;border:1px solid var(--card)}
+  html body.shell #chat-app,html body.shell #team-app{padding-bottom:calc(53px + env(safe-area-inset-bottom))!important}
+  html body.shell.kb-open #chat-app,html body.shell.kb-open #team-app{padding-bottom:0!important}
+  html body .wrap,html body #chat-app{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+}
+@media (max-width:760px){
+  html body #chat-app .chat-new.chat-new{position:fixed!important;right:16px!important;bottom:calc(53px + env(safe-area-inset-bottom) + 16px)!important;width:54px!important;height:54px!important;
+    padding:0!important;border-radius:50%!important;font-size:0!important;z-index:45;display:grid!important;place-items:center;box-shadow:0 4px 14px color-mix(in srgb,var(--blue) 40%,transparent)!important}
+  html body #chat-app .chat-new.chat-new{line-height:0!important;gap:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
+  html body #chat-app .chat-new.chat-new svg{display:block!important;width:26px!important;height:26px!important;margin:0!important;stroke-width:2.2;position:static!important;transform:none!important}
+  body.kb-open #chat-app .chat-new.chat-new,body:has(#chat-app .chat-wrap.has-sel) #chat-app .chat-new.chat-new{display:none!important}
+}
