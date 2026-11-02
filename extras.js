@@ -382,7 +382,7 @@
     });
   };
 
-  var myPrefill = null;
+  var myPrefill = null, myEdit = null;          // myEdit — id задачи, которую сейчас правят в форме сверху
   X.remindTask = function (row, customer) { myPrefill = { task: row, text: "Задача: " + (customer || "") + " — " }; if (location.hash === "#/my") renderMy(); else go("#/my"); };
 
   function renderMy() {
@@ -405,7 +405,7 @@
     return '<div class="x-todo ' + (x.done ? "done" : "") + '" data-id="' + x.id + '"><button class="ck" data-a="ck" title="Выполнено">' + ic("check") + '</button><div class="bx"><div class="tt">' + E(x.t) + '</div><div class="mt">'
       + '<span class="x-pill ' + (over ? "over" : "blue") + '">' + ic("bell") + (d ? when(d) : "без даты") + (x.tm ? ", " + E(x.tm) : "") + " · " + beforeLabel(x.b || 0) + "</span>"
       + (x.rep ? '<span class="x-pill">' + ic("repeat") + repLabel(x.rep) + "</span>" : "")
-      + (x.task ? '<span class="x-pill acc" style="cursor:pointer" data-a="task">' + ic("tasks") + E(x.tl || taskLabel(x.task)) + "</span>" : "") + '</div></div><button class="del" data-a="del" title="Удалить">' + ic("trash") + "</button></div>";
+      + (x.task ? '<span class="x-pill acc" style="cursor:pointer" data-a="task">' + ic("tasks") + E(x.tl || taskLabel(x.task)) + "</span>" : "") + '</div></div><button class="del ed" data-a="edit" title="Изменить">✎</button><button class="del" data-a="del" title="Удалить">' + ic("trash") + "</button></div>";
   }
   function paintMy() {
     var body = $("myBody"); if (!body) return;
@@ -443,11 +443,45 @@
     $("myText").value = keepText || ""; $("myDate").value = kd || tdyIso; $("myTime").value = kt || "16:00"; $("myBefore").value = kb || "60"; $("myRep").value = kr || "";
     fillTaskSelect(); if (kk && $("myTask")) $("myTask").value = kk;
     if (myPrefill) { if (myPrefill.text) $("myText").value = myPrefill.text; if (myPrefill.task && $("myTask")) $("myTask").value = String(myPrefill.task); $("myText").focus(); myPrefill = null; }
+    if (myEdit) {                                   // режим правки: «Сохранить» и «Отмена», строка в списке подсвечена
+      $("myAdd").innerHTML = ic("check") + "Сохранить";
+      var qa = body.querySelector(".x-qadd"); if (qa) qa.classList.add("editing");
+      var cn = document.createElement("button"); cn.type = "button"; cn.className = "x-btn ghost"; cn.id = "myCancel"; cn.textContent = "Отмена";
+      $("myAdd").parentNode.insertBefore(cn, $("myAdd").nextSibling);
+      cn.onclick = function () { myEdit = null; $("myText").value = ""; paintMy(); };
+      var er = body.querySelector('.x-todo[data-id="' + myEdit + '"]'); if (er) er.classList.add("editing");
+    }
+    function startEdit(x) {
+      myEdit = x.id; paintMy();
+      $("myText").value = x.t; $("myDate").value = x.d || tdyIso; $("myTime").value = x.tm || "09:00"; $("myBefore").value = String(x.b || 0); $("myRep").value = x.rep || "";
+      var sel = $("myTask");
+      if (sel) {
+        if (x.task && !sel.querySelector('option[value="' + x.task + '"]')) { var o = document.createElement("option"); o.value = x.task; o.textContent = x.tl || "Задача"; sel.appendChild(o); }
+        sel.value = x.task ? String(x.task) : "";
+      }
+      var qa = body.querySelector(".x-qadd"); if (qa && qa.scrollIntoView) qa.scrollIntoView({ block: "center", behavior: "smooth" });
+      $("myText").focus();
+    }
+    function saveEdit(it, f) {
+      var x = myList().filter(function (z) { return z.id === myEdit; })[0];
+      if (!x) { myEdit = null; paintMy(); return; }
+      if (it.task && it.task === x.task) it.tl = x.tl || it.tl;              // закрытая задача: подпись не теряем
+      if (x.server) {
+        $("myAdd").disabled = true;
+        MPBC.call("/reminders/" + x.id + "/edit", { body: { title: it.t, d: it.d, tm: it.tm, before: it.b, fire_ts: f / 1000, rep: it.rep, task_row: it.task, task_label: it.tl } })
+          .then(function () { myEdit = null; return myLoad(); }).then(function () { $("myText").value = ""; paintMy(); X.badge(); toast("Изменения сохранены"); tick(); })
+          .catch(function (e) { $("myAdd").disabled = false; toast(String(e)); });
+        return;
+      }
+      x.t = it.t; x.d = it.d; x.tm = it.tm; x.b = it.b; x.rep = it.rep; x.task = it.task; x.tl = it.tl; x.fired = false; x.snoozeTo = null;
+      myEdit = null; mySave(); $("myText").value = ""; paintMy(); toast("Изменения сохранены"); tick();
+    }
     function add() {
       var tx = $("myText").value.trim(); if (!tx) { $("myText").focus(); return; }
       var row = +$("myTask").value || 0;
       var it = { id: myNext++, t: tx, d: $("myDate").value || tdyIso, tm: $("myTime").value || "09:00", b: +$("myBefore").value || 0, rep: $("myRep").value, task: row, tl: row ? taskLabel(row) : "", done: false, fired: false };
       var f = fireAtLocal(it), soon = f && f <= Date.now();
+      if (myEdit) { saveEdit(it, f); return; }
       if (srv()) {
         $("myAdd").disabled = true;
         MPBC.call("/reminders", { body: { title: it.t, d: it.d, tm: it.tm, before: it.b, fire_ts: f / 1000, rep: it.rep, task_row: it.task, task_label: it.tl } })
@@ -475,6 +509,8 @@
         var ix = MY.indexOf(x); MY.splice(ix, 1); mySave(); paintMy(); toast("Напоминание удалено", function () { MY.splice(ix, 0, x); mySave(); paintMy(); });
       };
       var tl = r.querySelector('[data-a="task"]'); if (tl) tl.onclick = function () { go("#/task/" + x.task); };
+      r.querySelector('[data-a="edit"]').onclick = function () { startEdit(x); };
+      r.querySelector(".tt").onclick = function () { startEdit(x); };
     });
   }
 

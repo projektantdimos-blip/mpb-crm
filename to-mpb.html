@@ -140,7 +140,7 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-to.css?v=20261022f">
+<link rel="stylesheet" href="theme-to.css?v=20261102b">
 <script>
 (function(){function pt(){try{return window.parent!==window&&parent.document.documentElement.getAttribute("data-theme")}catch(e){return null}}
 function ap(){var t=pt();if(!t){try{t=localStorage.getItem("mpb_theme")}catch(e){}}if(t)document.documentElement.setAttribute("data-theme",t);else document.documentElement.removeAttribute("data-theme")}
@@ -165,6 +165,7 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
 
   <div class="toolbar">
     <div class="tabs" id="tabs">
+      <button class="tab" data-v="req">Заявки</button>
       <button class="tab" data-v="month">Этот месяц</button>
       <button class="tab" data-v="control">График на год</button>
       <button class="tab" data-v="acc">Бухгалтерия</button>
@@ -245,7 +246,7 @@ var data={objects:[],specialists:[],nextId:1}, me=null, pins={}, accPin=false;
 var photos=[], photoOn=false;      // фото журнала ТО — только когда ТО в CRM (мост); в таблицу фото не пишутся
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 var view=ls("mpb_to_view")||"month", year=new Date().getFullYear();
-var TABS_BY_ROLE={admin:["month","control","acc","obj","spec"],eng:["month","control","acc","obj","spec"],spec:["month","control"],acc:["acc"]};
+var TABS_BY_ROLE={admin:["month","control","acc","obj","spec","req"],eng:["month","control","acc","obj","spec","req"],spec:["month","control","req"],acc:["acc","req"]};   // «Заявки» — только когда ТО в CRM
 var fullYear=ls("mpb_to_full")==="1", selM=0;          // таблица: 3 месяца вокруг текущего или весь год; «Этот месяц»: выбранный месяц
 
 function Y(o){return o.years[year]||(o.years[year]=emptyYear())}
@@ -545,12 +546,198 @@ function renderSpec(){
 }
 
 /* высота окна в CRM — по содержимому (одна прокрутка у страницы) */
+/* ====== Заявки по ТО (только когда ТО в CRM): объект, специалист, что сделать, даты, фото, переписка ====== */
+var reqs=[],reqSel=0,reqF=ls("mpb_to_reqf")||"open",reqForm=null,reqDraft="",reqUrls={},reqPick=null,reqHash="";
+var RQ_ST={"new":["Новая","rq-new"],work:["В работе","rq-work"],done:["Выполнена","rq-done"]};
+var rqFile=document.createElement("input");rqFile.type="file";rqFile.accept="image/*,application/pdf";rqFile.multiple=true;rqFile.hidden=true;document.body.appendChild(rqFile);
+function p2(n){return (n<10?"0":"")+n}
+function isoD(d){return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())}
+function todayIso(){return isoD(new Date())}
+function plusDays(n){var d=new Date();d.setDate(d.getDate()+n);return isoD(d)}
+function dm(s){return s?s.slice(8,10)+"."+s.slice(5,7):""}
+function dmy(s){return s?s.slice(8,10)+"."+s.slice(5,7)+"."+s.slice(0,4):"—"}
+function dt(ts){var d=new Date(ts*1000);return p2(d.getDate())+"."+p2(d.getMonth()+1)+" "+p2(d.getHours())+":"+p2(d.getMinutes())}
+function rqLate(r){return r.status!=="done"&&r.due_d&&r.due_d<todayIso()}
+function rqBadge(r){var s=rqLate(r)?["Просрочена","rq-late"]:RQ_ST[r.status]||RQ_ST["new"];return '<span class="rq-b '+s[1]+'">'+s[0]+'</span>'}
+function rqMine(r){return boss()||r.spec===me.name}
+function rqCanWrite(){return me&&me.role!=="acc"}
+function rqCanNew(){return rqCanWrite()&&(boss()||data.objects.some(function(o){return o.spec===me.name}))}
+function rqTitle(r){                                   // заголовок — первое предложение, не длиннее ~80 знаков
+  var t=r.text.split("\n")[0],m=/^(.{8,90}?[.!?])(\s|$)/.exec(t);t=m?m[1]:t;
+  return t.length>80?t.slice(0,78).replace(/\s+\S*$/,"")+"…":t;
+}
+function rqTabN(){
+  var b=document.querySelector('.tab[data-v="req"]');if(!b||!me)return;
+  var n=reqs.filter(function(r){return r.status!=="done"&&rqMine(r)}).length;
+  b.innerHTML="Заявки"+(n?' <b class="rq-n">'+n+'</b>':"");
+}
+function rqList(){
+  var q=($("q").value||"").trim().toLowerCase(),sf=$("specf").value;
+  function rank(r){return rqLate(r)?0:r.status==="new"?1:r.status==="work"?2:3}
+  return reqs.filter(function(r){
+    if(reqF==="open"&&r.status==="done")return false;
+    if(reqF==="done"&&r.status!=="done")return false;
+    if(reqF==="mine"&&r.spec!==me.name&&r.by_name!==me.name)return false;
+    if(sf&&r.spec!==sf)return false;
+    return !q||(r.obj_name+" "+r.obj_addr+" "+r.text+" "+r.spec).toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){return rank(a)-rank(b)||b.id-a.id});
+}
+function rqThumbs(fs){return fs.map(function(f){return '<button class="rq-th" data-rqfile="'+f.id+'" title="'+esc(f.filename)+'">'+(/^image\//.test(f.mime)?'<img alt="">':'PDF')+'</button>'}).join("")}
+function rqItem(r){
+  var n=r.msgs.filter(function(m){return m.kind!=="sys"}).length;
+  return '<div class="rq-it'+(r.id===reqSel?" on":"")+'" data-rqo="'+r.id+'"><div class="rq-r1"><b>№ '+r.id+' · '+esc(r.obj_name)+'</b>'+rqBadge(r)+'</div>'
+    +'<div class="rq-r2">'+esc(rqTitle(r))+' · '+esc(r.spec)+'</div>'
+    +'<div class="rq-r3">рег. '+dm(r.reg_d)+(r.due_d?' · срок '+dm(r.due_d):"")+(r.files.length?' · фото '+r.files.length:"")+(n?' · сообщений '+n:"")+'</div></div>';
+}
+function rqCard(r){
+  var act=rqCanWrite()&&rqMine(r),ph=specPhone(r.spec),first=r.files.filter(function(f){return !f.msg});
+  var msgs=r.msgs.map(function(m){
+    if(m.kind==="sys")return '<div class="rq-sys">'+esc(m.by_name)+': '+esc(m.text)+' · '+dt(m.ts)+'</div>';
+    var fs=r.files.filter(function(f){return f.msg===m.id});
+    return '<div class="rq-m'+(m.by_name===me.name?" me":"")+'"><small>'+esc(m.by_name)+' · '+dt(m.ts)+'</small>'
+      +(m.text&&!(m.text==="Фото"&&fs.length)?'<div>'+esc(m.text)+'</div>':"")+(fs.length?'<div class="rq-ph">'+rqThumbs(fs)+'</div>':"")+'</div>';
+  }).join("");
+  var btns="";
+  if(act)btns+=(r.status==="new"?'<button class="tbtn sm" data-rqs="work">Взять в работу</button>':"")
+    +(r.status!=="done"?'<button class="tbtn sm yes on" data-rqs="done">Выполнено</button>':'<button class="tbtn sm" data-rqs="new">Открыть снова</button>');
+  if(boss()&&rqCanWrite())btns+='<button class="tbtn sm clr" data-rq="edit">Изменить</button><button class="tbtn sm clr" data-rq="del">Удалить</button>';
+  return '<div class="rq-card"><button class="rq-back" data-rq="back">← Заявки</button>'
+    +'<div class="rq-h"><h3>№ '+r.id+' · '+esc(rqTitle(r))+'</h3>'+rqBadge(r)+'</div>'
+    +'<div class="rq-grid"><div><span>Объект</span>'+esc(r.obj_name)+(r.obj_addr?'<small>'+esc(r.obj_addr)+'</small>':"")+'</div>'
+    +'<div><span>Специалист</span>'+esc(r.spec)+(ph?'<small><a href="tel:'+esc(String(ph).replace(/[^\d+]/g,""))+'">'+esc(ph)+'</a></small>':"")+'</div>'
+    +'<div><span>Дата регистрации</span>'+dmy(r.reg_d)+'<small>'+esc(r.by_name)+'</small></div>'
+    +'<div><span>Срок</span>'+dmy(r.due_d)+(r.status==="done"&&r.done_ts?'<small>выполнено '+dt(r.done_ts)+'</small>':"")+'</div></div>'
+    +'<div class="rq-lbl">Что нужно сделать</div><div class="rq-text">'+esc(r.text)+'</div>'
+    +((first.length||act)?'<div class="rq-ph">'+rqThumbs(first)+(act?'<button class="rq-add" data-rq="photo" title="Добавить фото">+ фото</button>':"")+'</div>':"")
+    +(msgs?'<div class="rq-msgs">'+msgs+'</div>':"")
+    +(act?'<div class="rq-comp"><textarea id="rqIn" rows="1" placeholder="'+(boss()?"Написать специалисту":"Написать руководителю")+'"></textarea><button class="tbtn sm" data-rq="photo" title="Приложить фото" aria-label="Фото">📷</button><button class="tbtn sm rq-send" data-rq="send">Отправить</button></div>':"")
+    +(btns?'<div class="rq-acts">'+btns+'</div>':"")+'</div>';
+}
+function rqFormHtml(){
+  var f=reqForm,objs=data.objects.filter(function(o){return boss()||o.spec===me.name}).slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),"ru")});
+  return '<div class="rq-card rq-form"><button class="rq-back" data-rq="cancel">← Заявки</button><h3>'+(f.id?"Заявка № "+f.id:"Новая заявка")+'</h3>'
+    +'<div class="rq-fgrid"><label>Объект<select id="rqObj"><option value="">— выберите объект —</option>'
+    +objs.map(function(o){return '<option value="'+esc(o.id)+'"'+(String(o.id)===String(f.obj)?" selected":"")+'>'+esc(o.name)+(o.address?" · "+esc(o.address):"")+'</option>'}).join("")+'</select></label>'
+    +(boss()?'<label>Специалист<select id="rqSpec"><option value="">— выберите —</option>'+data.specialists.map(function(s){return '<option'+(s.name===f.spec?" selected":"")+'>'+esc(s.name)+'</option>'}).join("")+'</select></label>':"")
+    +'<label>Дата регистрации<input type="date" id="rqReg" value="'+esc(f.reg_d)+'"></label><label>Срок<input type="date" id="rqDue" value="'+esc(f.due_d)+'"></label></div>'
+    +'<label class="rq-wide">Что нужно сделать<textarea id="rqText" rows="4" placeholder="Например: ложные сработки ИП 212 в 3-м зале — проверить, при необходимости заменить, записать в журнал ТО">'+esc(f.text)+'</textarea></label>'
+    +'<div class="rq-acts"><button class="tbtn sm" data-rq="fphoto">📷 Фото'+(f.files.length?" · "+f.files.length:"")+'</button><span class="spacer"></span><button class="tbtn sm clr" data-rq="cancel">Отмена</button>'
+    +'<button class="primary" data-rq="save">'+(f.id?"Сохранить":boss()?"Создать и отправить специалисту":"Создать заявку")+'</button></div><div id="rqErr" class="rq-err"></div></div>';
+}
+function rqSync(){                                         // поля формы → reqForm (перерисовка не теряет введённое)
+  if(!reqForm||!$("rqText"))return;
+  reqForm.obj=$("rqObj").value;if($("rqSpec"))reqForm.spec=$("rqSpec").value;
+  reqForm.reg_d=$("rqReg").value;reqForm.due_d=$("rqDue").value;reqForm.text=$("rqText").value;
+}
+function renderReq(){
+  rqSync();
+  if($("rqIn"))reqDraft=$("rqIn").value;
+  var list=rqList(),cur=reqs.filter(function(r){return r.id===reqSel})[0];
+  if(reqSel&&!cur)reqSel=0;
+  var chips=[["open","Открытые"]].concat(boss()?[["mine","Мои"]]:[]).concat([["done","Выполнены"],["all","Все"]]);
+  var left='<div class="rq-list">'+(rqCanNew()?'<button class="primary rq-newbtn" data-rq="new">+ Новая заявка</button>':"")
+    +'<div class="rq-chips">'+chips.map(function(c){return '<button class="'+(reqF===c[0]?"on":"")+'" data-rqf="'+c[0]+'">'+c[1]+'</button>'}).join("")+'</div>'
+    +(list.length?list.map(rqItem).join(""):'<div class="empty-msg">'+(reqF==="done"?"Выполненных заявок нет":"Заявок нет")+'</div>')+'</div>';
+  var right=reqForm?rqFormHtml():cur?rqCard(cur):'<div class="rq-card rq-empty">'+(reqs.length?"Выберите заявку в списке":"Здесь будут заявки по ТО: объект, специалист, что сделать, срок, фото и переписка со специалистом")+'</div>';
+  return '<div class="rq-root'+(reqForm||cur?" rq-has":"")+'">'+left+right+'</div>';
+}
+function rqAfter(){
+  if($("rqIn")){$("rqIn").value=reqDraft;$("rqIn").oninput=function(){reqDraft=this.value}}
+  var els=document.querySelectorAll("#view [data-rqfile]");if(!els.length)return;
+  where().then(function(b){if(!b)return;
+    [].forEach.call(els,function(el){
+      var fid=el.dataset.rqfile,img=el.querySelector("img");if(!img)return;
+      if(reqUrls[fid]){img.src=reqUrls[fid];return}
+      fetch(b.url+"/api/crm/to/reqfile/"+fid,{method:"POST",headers:{"X-Api-Key":b.key,"Content-Type":"application/json"},body:JSON.stringify({pin:getPin()})})
+        .then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(bl){reqUrls[fid]=URL.createObjectURL(bl);img.src=reqUrls[fid];img.onload=fitParent}).catch(function(){});
+    });
+  });
+}
+function rqCall(fn){
+  var args=[].slice.call(arguments,1);
+  return api.apply(null,[fn,getPin()].concat(args)).then(function(list){reqs=list||[];render();return reqs},function(e){toast(e.message||String(e));throw e});
+}
+function rqOpenFile(fid){
+  var w=window.open("","_blank");
+  function go(u){if(w)w.location.href=u;else window.open(u,"_blank")}
+  if(reqUrls[fid])return go(reqUrls[fid]);
+  where().then(function(b){return fetch(b.url+"/api/crm/to/reqfile/"+fid,{method:"POST",headers:{"X-Api-Key":b.key,"Content-Type":"application/json"},body:JSON.stringify({pin:getPin()})})})
+    .then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(bl){reqUrls[fid]=URL.createObjectURL(bl);go(reqUrls[fid])}).catch(function(){if(w)w.close();toast("Файл не открылся")});
+}
+function rqPickFor(id){reqPick={id:id};rqFile.value="";rqFile.click()}
+rqFile.addEventListener("change",function(){
+  var fs=[].slice.call(this.files||[]),t=reqPick;if(!fs.length||!t)return;
+  if(fs.length>10){toast("Не больше 10 фото за раз");return}
+  toast("Загружаю фото…");
+  Promise.all(fs.map(function(f){return shrink(f).then(function(s){return b64(s).then(function(d){return {filename:s.name||"фото.jpg",mime:s.type||"image/jpeg",data:d}})})}))
+    .then(function(arr){
+      if(t.form){if(reqForm){reqForm.files=reqForm.files.concat(arr);render()}return}
+      return rqCall("to_reqMsg",t.id,"",arr).then(function(){toast("Фото добавлено ✓")});
+    }).catch(function(){});
+});
+function rqSave(btn){
+  rqSync();var f=reqForm,err=$("rqErr");
+  if(!f.obj){err.textContent="Выберите объект";return}
+  if(boss()&&!f.spec){err.textContent="Выберите специалиста";return}
+  if(!f.text.trim()){err.textContent="Напишите, что нужно сделать";$("rqText").focus();return}
+  btn.disabled=true;err.textContent="";
+  rqCall("to_reqSave",{id:f.id||0,obj:f.obj,spec:f.spec,text:f.text,reg_d:f.reg_d,due_d:f.due_d,files:f.files}).then(function(list){
+    var id=f.id||Math.max.apply(null,list.map(function(r){return r.id}).concat([0]));
+    reqForm=null;reqSel=id;render();
+    toast(f.id?"Сохранено":boss()?"Заявка создана — специалист получит уведомление":"Заявка создана — руководитель получит уведомление");
+  },function(){btn.disabled=false});
+}
+$("view").addEventListener("click",function(e){
+  if(view!=="req")return;
+  var t=e.target.closest("[data-rq],[data-rqf],[data-rqo],[data-rqs],[data-rqfile]");if(!t)return;
+  if(t.dataset.rqf){reqF=t.dataset.rqf;ls("mpb_to_reqf",reqF);render();return}
+  if(t.dataset.rqo){reqSel=+t.dataset.rqo;reqForm=null;reqDraft="";render();try{$("view").scrollIntoView({block:"start"})}catch(x){}return}
+  if(t.dataset.rqfile){rqOpenFile(t.dataset.rqfile);return}
+  var cur=reqs.filter(function(r){return r.id===reqSel})[0];
+  if(t.dataset.rqs){
+    if(!cur)return;var st=t.dataset.rqs;
+    rqCall("to_reqStatus",cur.id,st).then(function(){if(st==="done"){toast("Выполнено. Приложите фото результата или журнала ТО");rqPickFor(cur.id)}});
+    return;
+  }
+  var a=t.dataset.rq;
+  if(a==="new"){reqForm={id:0,obj:"",spec:"",reg_d:todayIso(),due_d:plusDays(2),text:"",files:[]};reqSel=0;render();return}
+  if(a==="cancel"){reqForm=null;render();return}
+  if(a==="back"){reqSel=0;render();return}
+  if(a==="save"){rqSave(t);return}
+  if(a==="fphoto"){rqSync();reqPick={form:true};rqFile.value="";rqFile.click();return}
+  if(!cur)return;
+  if(a==="edit"){reqForm={id:cur.id,obj:cur.obj,spec:cur.spec,reg_d:cur.reg_d,due_d:cur.due_d,text:cur.text,files:[]};render();return}
+  if(a==="del"){if(confirm("Удалить заявку № "+cur.id+"?"))rqCall("to_reqDel",cur.id).then(function(){reqSel=0;render();toast("Заявка удалена")});return}
+  if(a==="photo"){rqPickFor(cur.id);return}
+  if(a==="send"){
+    var tx=$("rqIn").value.trim();if(!tx){$("rqIn").focus();return}
+    t.disabled=true;rqCall("to_reqMsg",cur.id,tx,[]).then(function(){reqDraft="";render()},function(){t.disabled=false});
+  }
+});
+$("view").addEventListener("change",function(e){
+  if(view!=="req"||e.target.id!=="rqObj"||!$("rqSpec"))return;      // объект выбран — специалист по умолчанию его
+  var o=data.objects.filter(function(x){return String(x.id)===e.target.value})[0];
+  if(o&&o.spec)$("rqSpec").value=o.spec;
+});
+$("view").addEventListener("keydown",function(e){
+  if(view==="req"&&e.target.id==="rqIn"&&e.key==="Enter"&&(e.ctrlKey||e.metaKey)){var b=document.querySelector('#view [data-rq="send"]');if(b)b.click()}
+});
+function rqFromHash(){                                     // ссылка из уведомления: …#/to?req=12
+  try{var m=/[?&]req=(\d+)/.exec(parent.location.hash||""),k=m?m[1]:"";
+    if(k&&k!==reqHash&&photoOn){reqHash=k;view="req";reqSel=+k;reqForm=null;return true}
+    if(!k)reqHash="";
+  }catch(x){}
+  return false;
+}
+try{parent.addEventListener("hashchange",function(){if(me&&rqFromHash()){applyRole();render()}})}catch(x){}
+
 function fitParent(){try{if(window.frameElement&&parent.toFrameFit)parent.toFrameFit(window.frameElement)}catch(e){}}
 document.addEventListener("toggle",fitParent,true);window.addEventListener("resize",fitParent);window.addEventListener("load",fitParent);try{document.fonts.ready.then(fitParent)}catch(e){}
 function render(){
   fillYears();
-  $("view").innerHTML=view==="month"?renderMonth():view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
+  $("view").innerHTML=view==="req"?renderReq():view==="month"?renderMonth():view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
   labelize();
+  rqTabN();if(view==="req")rqAfter();
   fitParent();
 }
 /* подписи ячеек для карточек на телефоне */
@@ -570,7 +757,7 @@ function labelize(){
 
 /* ====== Загрузка данных и роли ====== */
 function applyRole(){
-  var allowed=TABS_BY_ROLE[me.role]||[];
+  var allowed=(TABS_BY_ROLE[me.role]||[]).filter(function(v){return v!=="req"||photoOn});
   [].forEach.call($("tabs").children,function(b){b.style.display=allowed.indexOf(b.dataset.v)>=0?"":"none"});
   if(allowed.indexOf(view)<0)view=allowed[0];
   [].forEach.call($("tabs").children,function(b){b.classList.toggle("active",b.dataset.v===view)});
@@ -579,13 +766,14 @@ function applyRole(){
   $("exp").style.display=$("csv").style.display=full?"":"none";$("imp").style.display=adm?"":"none";
   $("me").textContent=me.name+(adm?" (руководитель)":me.role==="eng"?" (полный доступ)":me.role==="acc"?" (бухгалтерия)":"");
 }
-function typingNow(){var a=document.activeElement;return a&&$("view").contains(a)&&(a.tagName==="INPUT"||a.tagName==="SELECT")}
+function typingNow(){var a=document.activeElement;return a&&$("view").contains(a)&&(a.tagName==="INPUT"||a.tagName==="SELECT"||a.tagName==="TEXTAREA")}
 function loadData(silent){
   return api("to_load",getPin()).then(function(r){
     if(r.empty&&r.role==="admin"){
       return api("to_import",getPin(),SEED).then(function(){return loadData(silent)});
     }
-    me={role:r.role,name:r.name};pins=r.pins||{};accPin=!!r.accPin;photos=r.photos||[];photoOn=!!r.photos;
+    me={role:r.role,name:r.name};pins=r.pins||{};accPin=!!r.accPin;photos=r.photos||[];photoOn=!!r.photos;reqs=r.requests||[];
+    rqFromHash();
     data=migrate({objects:r.objects,specialists:r.specialists,nextId:r.nextId});
     $("login").style.display="none";
     applyRole();fillSpecs();render();setSync("Сохранено ✓");
@@ -604,7 +792,7 @@ $("pinBtn").onclick=doLogin;
 $("pinIn").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin()});
 $("logout").onclick=function(){setPin("");pending=[];data={objects:[],specialists:[],nextId:1};$("view").innerHTML="";showLogin()};
 setInterval(function(){ // подтягиваем изменения других пользователей
-  if(me&&!pending.length&&!busy&&!typingNow())loadData(true).catch(function(){});
+  if(me&&!pending.length&&!busy&&!typingNow()&&!reqForm)loadData(true).catch(function(){});
 },60000);
 
 /* ====== События (без перерисовки таблицы при выборе статусов) ====== */

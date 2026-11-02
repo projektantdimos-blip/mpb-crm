@@ -1751,3 +1751,37 @@ body.kb-open .bottomnav{display:none!important}
   #chat-app .chat-wrap.has-sel.has-sel .cm.out .rq b{color:#3c8a47}
   :root[data-theme="dark"] #chat-app .chat-wrap.has-sel.has-sel .cm.out .rq b{color:#9fd3a6}
 }
+
+/* «Команда»: группа «Новые сообщения» сверху, «Убрать срочное», «снять» срочность (02.11) */
+.x-grp.new{color:var(--blue)}
+.x-grp.red{display:flex;align-items:center;gap:6px}
+.x-grp .x-urgclr{margin-left:auto;border:0;background:none;color:var(--muted);font:inherit;font-size:.72rem;font-weight:700;text-transform:none;letter-spacing:0;cursor:pointer;padding:2px 4px}
+.x-grp .x-urgclr:hover{color:var(--bad,#e5483c)}
+.x-dlg .x-urgx{margin-left:auto;flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:1.15rem;line-height:1;cursor:pointer}
+.x-dlg .x-urgx:hover{background:var(--surface-2);color:var(--bad,#e5483c)}
+.x-urgtag .x-unurg{margin-left:8px;border:0;background:none;padding:0;color:inherit;opacity:.75;font:inherit;font-size:.72rem;font-weight:700;text-decoration:underline;cursor:pointer}
+
+/* «Мои задачи»: правка задачи (02.11) */
+.x-todo .ed{font-size:1.05rem;line-height:1}
+.x-todo .tt{cursor:pointer}
+.x-todo.editing{background:color-mix(in srgb,var(--blue) 9%,transparent)}
+.x-qadd.editing{outline:2px solid var(--blue);outline-offset:-2px}
+.x-qadd #myCancel{margin-left:8px}
+
+@media (hover:none){.x-todo .del{opacity:.8}}
+
+/* Заявка с сайта: «Итог разговора» вместо ответа клиенту (02.11) */
+#chat-app .chat-notebar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:7px 16px;background:color-mix(in srgb,#f2b33d 14%,var(--card));border-top:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+#chat-app .chat-notebar[hidden]{display:none!important}
+#chat-app .chat-notebar label{display:flex;align-items:center;gap:6px;margin-left:auto;color:var(--text);font-weight:600}
+#chat-app .chat-notebar select{height:30px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:0 6px;font:inherit}
+#chat-app .cm.note{align-self:center;max-width:min(560px,92%);background:color-mix(in srgb,#f2b33d 16%,var(--card));border:1px solid color-mix(in srgb,#f2b33d 45%,transparent);color:var(--text);border-radius:12px}
+#chat-app .cm.note .nh{font-size:.74rem;font-weight:700;color:#a8740f;margin-bottom:3px}
+:root[data-theme="dark"] #chat-app .cm.note .nh{color:#f2c46b}
+@media (max-width:760px){
+  #chat-app .chat-wrap.has-sel.has-sel .chat-notebar{flex:none;padding:6px 12px;font-size:.78rem}
+  #chat-app .chat-wrap.has-sel.has-sel .chat-notebar>span{display:none}
+  #chat-app .chat-wrap.has-sel.has-sel .chat-notebar label{margin-left:0}
+  html body #chat-app .chat-wrap.has-sel.has-sel .cm.note{align-self:center!important;background:#fff6dc!important;border:1px solid #f0d58a!important}
+  :root[data-theme="dark"] body #chat-app .chat-wrap.has-sel.has-sel .cm.note{background:#3b3220!important;border-color:#6b5a2c!important}
+}

@@ -254,6 +254,8 @@
         '<button type="button" id="chatRefresh" class="ibtn" title="Обновить сейчас">' + IC.refresh + '</button></span></div></div>' +
         '<div id="chatThreads"></div></aside>' +
         '<section class="chat-thread"><div id="chatHead"></div><div id="chatAssign"></div><div id="chatMsgs"></div>' +
+        '<div id="chatNote" class="chat-notebar" hidden><span>📝 Итог разговора — клиенту не уходит, видно в CRM.</span><label>Напомнить исполнителю <select id="chatNoteRem">' +
+        '<option value="h2">через 2 часа</option><option value="d1" selected>завтра в 10:00</option><option value="d3">через 3 дня</option><option value="d7">через неделю</option><option value="0">не напоминать</option></select></label></div>' +
         '<div id="chatReply" class="chat-replybar" hidden></div><div id="chatComposer"><div id="chatFileBar" class="chat-filebar" hidden></div><button type="button" id="chatAttach" class="chat-attach" title="Прикрепить файл (до 10 МБ)">' + IC.clip + '</button><input type="file" id="chatFile" hidden><textarea id="chatText" placeholder="Ответ… (Ctrl+Enter — отправить)"></textarea><button id="chatSend">Отправить</button></div></section>' +
         '<aside class="chat-info" id="chatInfoPane"></aside>' +
       '</div>';
@@ -266,6 +268,7 @@
     el.info = document.getElementById("chatInfoPane");
     el.msgs = document.getElementById("chatMsgs");
     el.reply = document.getElementById("chatReply");
+    el.note = document.getElementById("chatNote"); el.noteRem = document.getElementById("chatNoteRem");
     el.text = document.getElementById("chatText");
     if (window.innerWidth <= 760) el.text.placeholder = "Сообщение…";
     el.send = document.getElementById("chatSend");
@@ -444,9 +447,12 @@
   function renderThread(keepScroll) {
     var t = curThread();
     el.wrap.classList.toggle("has-sel", !!t);
-    var site = !!t && t.channel === "site";                // заявка с сайта: отвечаем по телефону или письмом
-    el.text.disabled = el.send.disabled = !t || st.sending || site;
-    el.text.placeholder = site ? "Заявка с сайта — позвоните клиенту или напишите ему письмо («Новый диалог» → Почта)" : (innerWidth <= 760 ? "Сообщение" : "Ответ… (Ctrl+Enter — отправить)");
+    var site = !!t && t.channel === "site";                // заявка с сайта: клиенту отсюда не пишем — сюда пишут итог разговора
+    el.text.disabled = el.send.disabled = !t || st.sending;
+    el.text.placeholder = site ? "Итог разговора: кто ответил клиенту и что решили" : (innerWidth <= 760 ? "Сообщение" : "Ответ… (Ctrl+Enter — отправить)");
+    if (el.note) el.note.hidden = !site;
+    if (!st.sending) el.send.textContent = site ? "Записать" : "Отправить";
+    var att = document.getElementById("chatAttach"); if (att) att.disabled = site;     // в заявку с сайта файлы не прикладываются
     if (!t) {
       if (el.assign) el.assign.innerHTML = "";
       renderInfo(null);
@@ -477,12 +483,14 @@
     document.getElementById("chatAvFile").onchange = function () { if (this.files[0]) uploadAvatar(t.id, this.files[0]); this.value = ""; };
     var del = document.getElementById("chatAvDel");
     if (del) del.onclick = function () { if (confirm("Убрать фото у «" + (t.title || t.peer) + "»?")) removeAvatar(t.id); };
-    var atBottom = el.msgs.scrollHeight - el.msgs.scrollTop - el.msgs.clientHeight < 60;
+    var atBottom = el.msgs.clientHeight ? el.msgs.scrollHeight - el.msgs.scrollTop - el.msgs.clientHeight < 60 : el.msgs.__stick !== false;   // скрытый чат: как было
     var flip = flipOn() && t.channel === "mail";
     var mail = t.channel === "mail", byId = {};
     st.msgs.forEach(function (m) { byId[m.id] = m; });
     el.msgs.innerHTML = st.msgs.map(function (m) {
       var subj = m.subject ? '<div class="sj' + (flip && m.direction === "in" ? " sj-b" : "") + '">' + esc(m.subject) + "</div>" : "";
+      if (m.direction === "note") return '<div class="cm note"><div class="nh">📝 Итог разговора' + (m.sender ? " · " + esc(m.sender) : "") + "</div>" + esc(m.text) +
+        '<div class="mt">' + fmtFull(m.ts) + delBtn(m) + "</div></div>";
       if (mail && !flip && m.direction === "in") return mailIn(m);
       if (mail && m.direction === "out" && m.reply_to && byId[m.reply_to]) {
         var q = byId[m.reply_to];
@@ -510,7 +518,7 @@
     });
     loadChatImages();
     paintReply();
-    if (!keepScroll || atBottom) el.msgs.scrollTop = el.msgs.scrollHeight;
+    if (!keepScroll || atBottom) { if (window.mpbStick) mpbStick(el.msgs); else el.msgs.scrollTop = el.msgs.scrollHeight; }
   }
 
   /* Письмо: тема сверху, основной текст, подпись и прошлые письма свёрнуты («··· показать»), «↩ Ответить» */
@@ -924,9 +932,36 @@
     });
   }
 
+  /* Заявка с сайта: заметка «итог разговора» (кто ответил, что решили) + напоминание тому, кому передан диалог */
+  function sendNote(t, text) {
+    if (!crmOn()) {
+      if (window.MPBC && MPBC.requireLogin) MPBC.requireLogin().then(function () { sendNote(t, text); }, function () {});
+      else setErr("Войдите в CRM, чтобы записать итог разговора");
+      return;
+    }
+    var v = el.noteRem ? el.noteRem.value : "d1", body = { thread_id: t.id, text: text };
+    if (v !== "0") {
+      var d = new Date();
+      if (v === "h2") d = new Date(d.getTime() + 2 * 3600e3); else { d.setDate(d.getDate() + (+v.slice(1))); d.setHours(10, 0, 0, 0); }
+      var p2 = function (n) { return (n < 10 ? "0" : "") + n; };
+      body.d = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()); body.tm = p2(d.getHours()) + ":" + p2(d.getMinutes()); body.fire_ts = d.getTime() / 1000;
+    }
+    st.sending = true; el.send.disabled = true; el.send.textContent = "Сохраняю…";
+    MPBC.call("/mail/note", { body: body }).then(function (r) {
+      el.text.value = ""; growText();
+      setErr("");
+      var U = window.MPBT && MPBT.util;
+      if (U && U.toast) U.toast(r.remind && r.remind.length ? "Записано. Напомню: " + r.remind.join(", ") + " — " + body.d.split("-").reverse().join(".") + " " + body.tm : "Записано");
+      return Promise.all([loadMessages(false), loadThreads()]);
+    }).then(null, function (e) { setErr(String(e)); }).then(function () {
+      st.sending = false; el.send.disabled = !curThread(); renderThread(true);
+    });
+  }
+
   function sendMsg() {
     var t = curThread(), text = el.text.value.trim(), fs = st.files.slice();
     if (!t || (!text && !fs.length) || st.sending) return;
+    if (t.channel === "site") { if (text) sendNote(t, text); return; }
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
     var pend = { t0: Date.now() / 1000, text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" }, rid = replyId(t);
     (st.pending[t.id] = st.pending[t.id] || []).push(pend);
