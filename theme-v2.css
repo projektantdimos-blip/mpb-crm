@@ -1785,3 +1785,7 @@ body.kb-open .bottomnav{display:none!important}
   html body #chat-app .chat-wrap.has-sel.has-sel .cm.note{align-self:center!important;background:#fff6dc!important;border:1px solid #f0d58a!important}
   :root[data-theme="dark"] body #chat-app .chat-wrap.has-sel.has-sel .cm.note{background:#3b3220!important;border-color:#6b5a2c!important}
 }
+
+/* Полоска «Нет связи»: поверх всего, вёрстку не сдвигает (07.11) */
+#netBar{position:fixed;top:calc(env(safe-area-inset-top,0px) + 6px);left:50%;transform:translate(-50%,-140%);z-index:9999;padding:5px 14px;border-radius:14px;background:#b3392e;color:#fff;font-size:13px;font-weight:600;white-space:nowrap;pointer-events:none;opacity:0;transition:transform .2s,opacity .2s}
+#netBar.on{transform:translate(-50%,0);opacity:1}

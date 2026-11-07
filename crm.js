@@ -68,7 +68,7 @@
     if (!c.url || !c.key) return Promise.reject("Мост не подключён: адрес и ключ — в ⚙ (как для «Общения»)");
     var h = { "X-Api-Key": c.key, "Content-Type": "application/json" };
     if (opts.auth !== false && tok()) h["X-Session"] = tok();
-    return fetch(c.url + "/api/crm" + path, {
+    return (window.mpbFetch || fetch)(c.url + "/api/crm" + path, {
       method: opts.method || (opts.body ? "POST" : "GET"), cache: "no-store", headers: h,
       body: opts.body ? JSON.stringify(opts.body) : undefined
     }).then(function (r) {
@@ -165,9 +165,20 @@
   };
 
   /* ---------- опрос состояния, срочные и уведомления ---------- */
-  var timer = null, shownUrgent = {};
-  function startPolling() { stopPolling(); C.refresh(); timer = setInterval(C.refresh, 15000); }
-  function stopPolling() { if (timer) { clearInterval(timer); timer = null; } }
+  var timer = null, shownUrgent = {}, pollGen = 0, fastUntil = 0;
+  function pollDelay() {                               // в «Команде» чаще, а сразу после переписки — ещё чаще
+    if (!window.sectionForHash || sectionForHash(location.hash) !== "team") return 15000;
+    return Date.now() < fastUntil ? 5000 : 10000;
+  }
+  function nextPoll(g) {
+    timer = setTimeout(function () {
+      function again() { if (g === pollGen) nextPoll(g); }
+      Promise.resolve(C.refresh()).then(again, again);
+    }, pollDelay());
+  }
+  function startPolling() { stopPolling(); C.refresh(); nextPoll(pollGen); }
+  function stopPolling() { pollGen++; if (timer) { clearTimeout(timer); timer = null; } }
+  C.fast = function () { fastUntil = Date.now() + 60000; };
   C.refresh = function () {
     if (!C.loggedIn() || document.hidden) return Promise.resolve();
     return C.call("/sync").then(function (s) {

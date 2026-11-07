@@ -107,6 +107,7 @@
     site: { label: "Сайт",     color: "#d8453a" },
     avito: { label: "Авито",   color: "#00aaff" }
   };
+  var PAGE = 60;                                         // сообщений диалога за раз; старые — при прокрутке вверх
   var st = { threads: [], sel: null, msgs: [], filter: "all", q: "", err: "", built: false, sending: false, tick: 0, reply: null, openTail: {} };
   var el = {};
 
@@ -159,7 +160,7 @@
     var c = cfg();
     if (!c.url || !c.key) return Promise.reject("NOCFG");
     opts = opts || {};
-    return fetch(c.url + path, {
+    return (window.mpbFetch || fetch)(c.url + path, {
       method: opts.method || "GET", cache: "no-store",
       headers: { "X-Api-Key": c.key, "Content-Type": "application/json" },
       body: opts.body ? JSON.stringify(opts.body) : undefined
@@ -331,7 +332,8 @@
       if (b && b.classList.contains("cimg") && imgCache[b.getAttribute("data-fid")] && imgCache[b.getAttribute("data-fid")] !== "pending") { lightbox(imgCache[b.getAttribute("data-fid")], b.getAttribute("data-name")); return; }
       if (b) openFile(b.getAttribute("data-fid"), b.getAttribute("data-name"), b.getAttribute("data-mime"));
     };
-    el.text.addEventListener("input", growText);
+    el.text.addEventListener("input", function () { growText(); if (st.sel) draftSet(st.sel, el.text.value); });
+    el.msgs.addEventListener("scroll", function () { if (el.msgs.scrollTop < 120 && st.more && !st.loadingOld && st.sel) loadOlder(); }, { passive: true });
     el.text.onkeydown = function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMsg(); } };
     st.built = true;
     renderChips(); renderThreads(); renderThread();
@@ -448,7 +450,7 @@
     var t = curThread();
     el.wrap.classList.toggle("has-sel", !!t);
     var site = !!t && t.channel === "site";                // заявка с сайта: клиенту отсюда не пишем — сюда пишут итог разговора
-    el.text.disabled = el.send.disabled = !t || st.sending;
+    el.text.disabled = !t; el.send.disabled = !t || st.sending;      // поле на время отправки не блокируем: иначе закроется клавиатура
     el.text.placeholder = site ? "Итог разговора: кто ответил клиенту и что решили" : (innerWidth <= 760 ? "Сообщение" : "Ответ… (Ctrl+Enter — отправить)");
     if (el.note) el.note.hidden = !site;
     if (!st.sending) el.send.textContent = site ? "Записать" : "Отправить";
@@ -472,7 +474,7 @@
       '<button class="hbtn chat-infobtn" id="chatInfoBtn" title="Клиент, создание клиента и КП">Клиент · КП</button>' +
       '<span class="chat-pill" style="background:' + ci.color + '">' + esc(ci.label) + "</span>" +
       '<input type="file" id="chatAvFile" accept="image/*" hidden>';
-    document.getElementById("chatBack").onclick = function () { st.sel = null; renderThreads(); renderThread(); };
+    document.getElementById("chatBack").onclick = closeDlg;
     document.getElementById("chatDone").onclick = function () { toggleDone(t.id); };
     var flipBtn = document.getElementById("chatFlip");
     if (flipBtn) flipBtn.onclick = function () { setFlip(!flipOn()); renderThread(false); };
@@ -779,27 +781,69 @@
   }
 
   function loadThreads() {
-    return api("/api/threads").then(function (list) {
-      var uq = 0; list.forEach(function (x) { uq += x.unread || 0; });
-      if (st.unreadSum != null && uq > st.unreadSum) MPBSound.play();      // появились новые входящие
-      st.unreadSum = uq;
-      st.threads = list; setErr("");
-      st.synced = new Date(); showSync();
-      if (st.built) renderThreads();
-      applyBadge();
-      loadAvatars();
-      loadAssign();
-    }, function (e) { if (e !== "NOCFG") setErr(String(e)); });
+    return api("/api/threads").then(applyThreads, function (e) { if (e !== "NOCFG") setErr(String(e)); });
+  }
+  function applyThreads(list) {
+    var uq = 0; list.forEach(function (x) { uq += x.unread || 0; });
+    if (st.unreadSum != null && uq > st.unreadSum) MPBSound.play();      // появились новые входящие
+    st.unreadSum = uq;
+    st.threads = list; setErr("");
+    st.synced = new Date(); showSync();
+    if (st.built) renderThreads();
+    applyBadge();
+    loadAvatars();
+    loadAssign();
+  }
+  /* Лёгкий опрос: мост присылает список диалогов, только если он изменился, а по открытому диалогу — только новое */
+  function pollNow() {
+    var sel = inChat() ? st.sel : null, after = 0;
+    st.msgs.forEach(function (m) { if (m.id > after) after = m.id; });
+    var q = "/api/poll?v=" + encodeURIComponent(st.v || "") + (sel ? "&tid=" + encodeURIComponent(sel) + "&after=" + after : "");
+    return api(q).then(function (r) {
+      st.v = r.v;
+      if (r.threads) applyThreads(r.threads);
+      else { st.synced = new Date(); showSync(); if (st.pollErr) setErr(""); }
+      st.pollErr = false;
+      if (sel && sel === st.sel && r.msgs) return applyNew(r);
+    }, function (e) { if (e !== "NOCFG") { st.pollErr = true; setErr(String(e)); } });
+  }
+  function applyNew(r) {
+    if (st.n != null && r.n < st.n) { st.n = r.n; return loadMessages(true); }      // что-то удалили — перечитываем
+    st.n = r.n;
+    var at = {}, changed = false;
+    st.msgs.forEach(function (m, i) { at[m.id] = i; });
+    r.msgs.forEach(function (m) {
+      if (at[m.id] == null) { st.msgs.push(m); changed = true; }
+      else if (JSON.stringify(st.msgs[at[m.id]]) !== JSON.stringify(m)) { st.msgs[at[m.id]] = m; changed = true; }  // догрузились вложения
+    });
+    if (!changed) return;
+    st.msgs.sort(function (a, b) { return a.ts - b.ts || a.id - b.id; });
+    renderThread(true);
   }
 
   function loadMessages(keepScroll) {
     var id = st.sel; if (!id) return Promise.resolve();
-    return api("/api/threads/" + encodeURIComponent(id) + "/messages").then(function (list) {
+    var limit = Math.min(300, Math.max(PAGE, st.msgs.length));
+    return api("/api/threads/" + encodeURIComponent(id) + "/messages?limit=" + limit).then(function (list) {
       if (id !== st.sel) return;
       var changed = list.length !== st.msgs.length || (list.length && list[list.length - 1].id !== st.msgs[st.msgs.length - 1].id);
-      st.msgs = list;
+      st.msgs = list; st.more = list.length >= limit;
       if (changed || !keepScroll) renderThread(keepScroll);
     }, function (e) { setErr(String(e)); });
+  }
+  function loadOlder() {
+    var id = st.sel, first = st.msgs[0]; if (!first) return;
+    st.loadingOld = true;
+    api("/api/threads/" + encodeURIComponent(id) + "/messages?limit=" + PAGE + "&before=" + first.id).then(function (list) {
+      st.loadingOld = false;
+      if (id !== st.sel) return;
+      st.more = list.length >= PAGE;
+      if (!list.length) return;
+      var h = el.msgs.scrollHeight, top = el.msgs.scrollTop;
+      st.msgs = list.concat(st.msgs);
+      renderThread(true);
+      el.msgs.scrollTop = top + el.msgs.scrollHeight - h;                  // читаемое место остаётся на экране
+    }, function () { st.loadingOld = false; });
   }
 
   /* ---------- новое сообщение тому, кого ещё нет в переписке ---------- */
@@ -879,11 +923,27 @@
     }, function (e) { setErr(String(e)); });
   }
 
+  function draftGet(id) { try { return localStorage.getItem("mpb_draft_c_" + id) || ""; } catch (e) { return ""; } }
+  function draftSet(id, v) { try { if (v) localStorage.setItem("mpb_draft_c_" + id, v); else localStorage.removeItem("mpb_draft_c_" + id); } catch (e) {} }
+  function phone() { return window.innerWidth <= 760; }
+  function trackDlg(id) {                                // на телефоне открытый диалог — отдельный шаг истории: жест «назад» ведёт к списку
+    if (!phone()) return;
+    var h = "#/chat?t=" + encodeURIComponent(id);
+    try {
+      if (history.state && history.state.dlg) { history.replaceState({ dlg: 1 }, "", h); return; }
+      if (/[?&]t=/.test(location.hash)) history.replaceState(null, "", "#/chat");    // пришли по ссылке из уведомления
+      history.pushState({ dlg: 1 }, "", h);
+    } catch (e) {}
+  }
+  function closeThread() { st.sel = null; el.wrap.classList.remove("show-info"); renderThreads(); renderThread(); }
+  function closeDlg() { if (phone() && history.state && history.state.dlg) history.back(); else closeThread(); }
   function openThread(id) {
-    st.sel = id; st.msgs = [];
+    st.sel = id; st.msgs = []; st.more = false; st.n = null;
     if (st.files && st.files.length) { st.files = []; showFileBar(); }     // вложения не должны уйти другому клиенту
+    el.text.value = draftGet(id); growText();              // у каждого диалога свой черновик
+    trackDlg(id);
     renderThreads(); renderThread();
-    loadMessages(false).then(function () { el.text.focus(); });
+    loadMessages(false).then(function () { if (!matchMedia("(hover:none)").matches) el.text.focus(); });   // на телефоне клавиатура — только по нажатию
     var t = curThread();
     if (t && t.unread) {
       t.unread = 0; renderThreads(); applyBadge();
@@ -948,7 +1008,8 @@
     }
     st.sending = true; el.send.disabled = true; el.send.textContent = "Сохраняю…";
     MPBC.call("/mail/note", { body: body }).then(function (r) {
-      el.text.value = ""; growText();
+      draftSet(t.id, "");
+      if (st.sel === t.id) { el.text.value = ""; growText(); }
       setErr("");
       var U = window.MPBT && MPBT.util;
       if (U && U.toast) U.toast(r.remind && r.remind.length ? "Записано. Напомню: " + r.remind.join(", ") + " — " + body.d.split("-").reverse().join(".") + " " + body.tm : "Записано");
@@ -965,7 +1026,7 @@
     st.sending = true; el.send.disabled = true; el.send.textContent = "Отправка…";
     var pend = { t0: Date.now() / 1000, text: text, files: fs.map(function (f) { return f.name; }).join(", "), state: "sending", err: "" }, rid = replyId(t);
     (st.pending[t.id] = st.pending[t.id] || []).push(pend);
-    el.text.value = ""; growText(); st.files = []; showFileBar();            // сообщение сразу уходит из поля, как в мессенджере
+    el.text.value = ""; growText(); draftSet(t.id, ""); st.files = []; showFileBar();   // сообщение сразу уходит из поля, как в мессенджере
     renderThread(false);
     var job = fs.length
       ? Promise.all(fs.map(readB64)).then(function (d) {
@@ -982,7 +1043,8 @@
       return Promise.all([loadMessages(false), loadThreads()]);
     }).then(null, function (e) {
       pend.state = "failed"; pend.err = String(e); setErr(String(e));
-      if (!el.text.value) { el.text.value = text; growText(); }                // не ушло — возвращаем текст в поле
+      if (st.sel !== t.id) draftSet(t.id, text);                               // не ушло — возвращаем текст в поле
+      else if (!el.text.value) { el.text.value = text; growText(); draftSet(t.id, text); }
       if (!st.files.length) { st.files = fs; showFileBar(); }
       if (st.sel === t.id) renderThread(true);
     }).then(function () {
@@ -1007,6 +1069,7 @@
     var c = cfg();
     if (!c.url || !c.key) { buildSetup(); return; }
     if (!st.built) build();
+    if (phone() && st.sel && !/[?&]t=/.test(location.hash)) closeThread();   // жест «назад» из открытого диалога
     loadThreads().then(function () {
       var m = location.hash.match(/[?&]t=([^&]+)/);
       if (m) { var tid = decodeURIComponent(m[1]); if (st.sel !== tid && st.threads.some(function (x) { return x.id === tid; })) openThread(tid); }
@@ -1022,13 +1085,12 @@
     if (document.hidden) return;
     var c = cfg(); if (!c.url || !c.key) return;
     st.tick++;
-    if (inChat()) refreshNow();
-    else if (st.tick % 6 === 0) loadThreads();      // вне вкладки — раз в минуту, только для значка
+    if (inChat() || st.tick % 6 === 0) pollNow();   // вне вкладки — раз в минуту, только для значка
   }, 10000);
   // вернулись на вкладку / появилась сеть — обновляем сразу, не дожидаясь таймера
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && inChat()) refreshNow(); });
-  window.addEventListener("focus", function () { if (inChat()) refreshNow(); });
-  window.addEventListener("online", function () { if (inChat()) refreshNow(); });
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && inChat()) pollNow(); });
+  window.addEventListener("focus", function () { if (inChat()) pollNow(); });
+  window.addEventListener("online", function () { if (inChat()) pollNow(); });
   window.__ptr.chat = function () { return refreshNow(); };
 
   window.addEventListener("hashchange", function () { setTimeout(applyBadge, 0); });

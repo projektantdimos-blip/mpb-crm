@@ -67,7 +67,9 @@
 
   function renderTeam() {
     var el = $("team-app"), sub = "Внутренние чаты МПБ: общие вопросы, закупки, расчёты, КП, бухгалтерия и отдельный диалог по каждой задаче";
-    if (!gate(el, "Команда", sub, renderTeam)) { stopTimer(); return; }
+    if (S.softBack) { S.softBack = false; return; }   // жест «назад» уже вернул к списку — перерисовка не нужна
+    if (!gate(el, "Команда", sub, renderTeam)) return;
+    S.roomsJ = "";
     var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
     el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
       + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs"></div><div class="hd"><button class="x-btn primary" id="tTopic" style="justify-content:center">' + ic("plus") + 'Новый чат</button><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("tasks") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
@@ -77,28 +79,33 @@
     $("tUrgChip").onclick = function () { var r = S.rooms.filter(function (x) { return x.urgent_open > 0; })[0]; if (r) openRoom(r.id); };
     loadRooms().then(function () { if (!S.rooms.some(function (r) { return r.id === S.cur; })) S.cur = S.rooms.some(function (r) { return r.id === "general"; }) ? "general" : ((S.rooms[0] || {}).id || "general"); openRoom(S.cur, true); }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
     C.call("/auth/users", { auth: false }).then(function (n) { S.users = n; paintInfo(); }).catch(function () {});
-    startTimer();
   }
-  function stopTimer() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
-  function startTimer() {
-    stopTimer();
-    S.timer = setInterval(function () {
-      if (cur() !== "team") { stopTimer(); return; }
-      if (document.hidden || !C.loggedIn()) return;
-      S.tick++;
-      C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages?after=" + S.lastId).then(function (ms) {
-        if (ms.length) { mergeMsgs(ms); paintThread(true); C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/read", { body: {} }).then(function () { return loadRooms(); }); }
-        else if (S.tick % 4 === 0) loadRooms();
-        return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/reactions");
-      }).then(function (rx) {
-        if (!rx) return;
-        var changed = false;
-        S.msgs.forEach(function (m) { var n = rx[String(m.id)] || [], a = JSON.stringify(m.reactions || []), b = JSON.stringify(n); if (a !== b) { m.reactions = n; changed = true; } });
-        if (changed) paintThread(true);
-        return loadAiTasks();
-      }).catch(function () {});
-    }, 4000);
+  /* Новые события приходят через общий опрос /sync: изменилась версия «Команды» — один запрос за открытым чатом */
+  function pollRoom(v) {
+    if (S.polling) return;
+    var rid = S.cur; S.polling = true;
+    C.call("/team/rooms/" + encodeURIComponent(rid) + "/poll?after=" + S.lastId).then(function (r) {
+      S.polling = false; S.teamV = v;
+      if (S.cur === rid && $("tIn")) applyPoll(r, rid);
+    }, function () { S.polling = false; });
   }
+  function applyPoll(r, rid) {
+    var me = C.me && C.me.id, others = r.msgs.some(function (m) { return m.user_id !== me; }), ids = {}, first = r.ids.length ? r.ids[0] : Infinity;
+    mergeMsgs(r.msgs);
+    r.ids.forEach(function (i) { ids[i] = 1; });
+    S.msgs = r.ids.length ? S.msgs.filter(function (m) { return m.id < first || ids[m.id]; }) : [];     // удалённые другими
+    S.msgs.forEach(function (m) {
+      if (!ids[m.id]) return;
+      var st = r.state[String(m.id)] || {};
+      m.urgent = !!st.urgent; m.acks = st.acks || []; m.reactions = st.reactions || [];
+    });
+    S.aiTasks = r.tasks || {};
+    setRooms(r.rooms);
+    paintThread(true);
+    if (r.msgs.length && C.fast) C.fast();
+    if (others && roomVisible()) C.call("/team/rooms/" + encodeURIComponent(rid) + "/read", { body: {} }).then(loadRooms).then(function () { C.refresh(); }).catch(function () {});
+  }
+  C.on("sync", function (s) { if (s && s.team_v !== S.teamV && cur() === "team" && C.loggedIn() && $("tIn")) pollRoom(s.team_v); });
   /* ИИ: подсказки «Поручение» под сообщениями (мост ищет их в фоне после отправки) */
   S.aiTasks = {};
   function loadAiTasks() {
@@ -170,8 +177,10 @@
         .then(function () { go.disabled = false; go.innerHTML = ic("zap") + "Обновить"; });
     };
   }
-  function loadRooms() {
-    return C.call("/team/rooms").then(function (rs) { S.rooms = rs; paintRooms(); });
+  function loadRooms() { return C.call("/team/rooms").then(setRooms); }
+  function setRooms(rs) {                             // список перерисовываем, только если что-то изменилось
+    var j = JSON.stringify(rs); if (j === S.roomsJ) return;
+    S.roomsJ = j; S.rooms = rs; paintRooms();
   }
   /* ---------- картинки чатов: значок + цвет или своё фото ---------- */
   var ICON_SET = ["hash", "team", "wallet", "calc", "file", "briefcase", "tasks", "flame", "chat", "wrench", "zap", "layers"];
@@ -225,15 +234,38 @@
     });
     if (C.sync) { /* бейдж меню обновится при следующем опросе */ }
   }
+  function phone() { return window.innerWidth <= 760; }
+  function roomVisible() { var c = document.querySelector(".x-chat"); return !phone() || (!!c && c.classList.contains("room-open")); }
+  function trackRoom(id, first) {                     // на телефоне открытый чат — отдельный шаг истории: жест «назад» ведёт к списку
+    var h = "#/team?room=" + encodeURIComponent(id), dlg = history.state && history.state.dlg;
+    try {
+      if (!phone()) { if (!first) history.replaceState(null, "", h); return; }
+      if (first && !S.deep) return;
+      if (dlg) { history.replaceState({ dlg: 1 }, "", h); return; }
+      if (first) history.replaceState(null, "", "#/team");
+      history.pushState({ dlg: 1 }, "", h);
+    } catch (e) {}
+  }
+  function closeRoom() {
+    if (phone() && history.state && history.state.dlg) { history.back(); return; }
+    var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms();
+  }
+  window.addEventListener("popstate", function () {
+    var c = document.querySelector(".x-chat");
+    if (cur() !== "team" || !c || !c.classList.contains("room-open") || /[?&]room=/.test(location.hash)) return;
+    c.classList.remove("room-open"); paintRooms();
+    S.softBack = true; setTimeout(function () { S.softBack = false; }, 400);
+  });
   function openRoom(id, first) {
     S.cur = id; S.msgs = []; S.lastId = 0; S.urg = false; S.reply = null; closePop();
     var chatBox = document.querySelector(".x-chat");
     if (chatBox) { if (first && !S.deep) chatBox.classList.remove("room-open"); else chatBox.classList.add("room-open"); }
-    if (!first) { try { history.replaceState(null, "", "#/team?room=" + encodeURIComponent(id)); } catch (e) {} }
+    trackRoom(id, first);
     paintRooms();
     $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">Загрузка…</div>';
     return C.call("/team/rooms/" + encodeURIComponent(id) + "/messages").then(function (ms) {
-      S.msgs = ms; S.lastId = ms.length ? ms[ms.length - 1].id : 0; S.aiTasks = {}; paintThread(); paintInfo(); loadAiTasks();
+      S.msgs = ms; S.lastId = ms.length ? ms[ms.length - 1].id : 0; S.aiTasks = {}; S.teamV = (C.sync || {}).team_v; paintThread(); paintInfo(); loadAiTasks();
+      if (!roomVisible()) return;                     // на телефоне открыт список — сообщения ещё никто не видел
       return C.call("/team/rooms/" + encodeURIComponent(id) + "/read", { body: {} }).then(loadRooms).then(function () { C.refresh(); });
     }).catch(function (e) { $("tThread").innerHTML = '<div class="x-empty" style="padding:40px">' + E(e) + "</div>"; });
   }
@@ -357,7 +389,7 @@
   function loadImages(el) {
     el.querySelectorAll("[data-timg]").forEach(function (b) {
       var id = b.dataset.timg, img = b.querySelector("img");
-      function put(url) { img.src = url; b.classList.add("ok"); }
+      function put(url) { if (img.src !== url) img.src = url; b.classList.add("ok"); }
       if (S.imgc[id] && S.imgc[id] !== "pending") { put(S.imgc[id]); return; }
       if (S.imgc[id] === "pending") return;
       S.imgc[id] = "pending";
@@ -463,36 +495,8 @@
       };
     });
   }
-  function paintThread(keep) {
-    var el = $("tThread"); if (!el) return;
-    var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0] || { name: "Чат", descr: "", kind: "chan", id: S.cur };
-    var ai = room.kind === "ai";
-    var pin = S.msgs.filter(function (m) { return m.urgent; }).slice(-1)[0];
-    var prevDay = "", body = S.msgs.map(function (m) { var d = dayLabel(m.ts), h = (d !== prevDay ? '<span class="x-day">' + d + "</span>" : "") + msgHtml(m); prevDay = d; return h; }).join("");
-    if (ai && S.aiBusy === room.id) body += '<div class="x-msg bot">' + botAva() + '<div class="bd"><div class="nm">ИИ-помощник КП</div><div class="tx x-aiwait">Собираю КП…</div></div></div>';
-    if (ai && !body) body = '<div class="x-aihello">' + botAva() + "<div><b>Здравствуйте! Я соберу КП по вашему описанию.</b><p>Напишите услуги, объект, адрес, цену и срок — заполню конструктор, внесу КП в реестр и пришлю сюда PDF (или Word — просто попросите).</p>"
-      + AI_EX.map(function (x) { return '<button type="button" class="x-aiex">' + E(x) + "</button>"; }).join("") + "<p>Потом можно уточнять: «цена 60 000», «добавь адрес …», «пришли в ворде».</p></div></div>";
-    var wasBottom = true, old = el.querySelector(".x-msgs"), val = $("tIn") ? $("tIn").value : "";
-    if (old && keep) wasBottom = old.clientHeight ? old.scrollHeight - old.scrollTop - old.clientHeight < 80 : old.__stick !== false;   // скрытый чат: как было
-    el.innerHTML = '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : ai ? "ai" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (ai ? '<button type="button" class="x-btn ghost x-ainew" id="tAiNew" title="Следующее сообщение начнёт новое КП">Новое КП</button>' : "") + (!ai && !S.aiOff ? '<button type="button" class="x-hbtn x-sumbtn" id="tSum" title="ИИ: кратко — что решили, кому что поручили" aria-label="Кратко: что решили">' + ic("zap") + "<span>Кратко</span></button>" : "") + (C.me && C.me.role === "admin" && !ai ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>"
-      + (pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : "")
-      + '<div class="x-msgs">' + (body || '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>') + "</div>"
-      + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (ai ? "Какое КП сделать? Услуги, объект, адрес, цена, срок" : window.innerWidth <= 760 ? "Сообщение" : window.innerWidth <= 1180 ? "Сообщение… (@Имя — упомянуть)" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea>' + (ai ? "" : '<button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + "Срочное</button>") + '<button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
-    var m = el.querySelector(".x-msgs"); if (!keep || wasBottom) { if (window.mpbStick) mpbStick(m); else m.scrollTop = 1e6; }
-    $("tIn").value = val;
-    $("tSend").onclick = send;
-    paintReply(); wireMessages(el); loadImages(el); wireAiTasks(el);
-    if ($("tStyle")) $("tStyle").onclick = function () { styleDialog(room); };
-    if ($("tSum")) $("tSum").onclick = function () { summaryDialog(room); };
-    $("tBack").onclick = function () { var c = document.querySelector(".x-chat"); if (c) c.classList.remove("room-open"); paintRooms(); };
-    $("tAttach").onclick = function () { $("tFile").click(); };
-    $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
-    paintFiles();
-    var th = el;
-    th.ondragover = function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0) { e.preventDefault(); th.classList.add("drop"); } };
-    th.ondragleave = function (e) { if (!th.contains(e.relatedTarget)) th.classList.remove("drop"); };
-    th.ondrop = function (e) { th.classList.remove("drop"); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } };
-    $("tIn").onpaste = function (e) { var fl = e.clipboardData && e.clipboardData.files; if (fl && fl.length) { e.preventDefault(); addFiles(fl); } };
+  function wireFeed(el) {                             // обработчики сообщений; повторный вызов безопасен
+    wireMessages(el); loadImages(el); wireAiTasks(el);
     el.querySelectorAll("[data-tf]").forEach(function (b) {
       b.onclick = function () {
         C.blob("/team/files/" + b.dataset.tf).then(function (bl) {
@@ -501,13 +505,6 @@
         }).catch(function (e) { toast(String(e)); });
       };
     });
-    mentionBox($("tIn"));
-    var tin = $("tIn");
-    function grow() { tin.style.height = "auto"; tin.style.height = Math.min(tin.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px"; }
-    tin.addEventListener("input", grow); setTimeout(grow, 0);
-    tin.onkeydown = function (e) {
-      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) { e.preventDefault(); send(); }
-    };
     el.querySelectorAll("[data-del]").forEach(function (b) {
       b.onclick = function () {
         if (!confirm("Удалить это сообщение у всех?")) return;
@@ -516,10 +513,87 @@
         }).catch(function (e) { toast(String(e)); });
       };
     });
-    if ($("tUrg")) $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
-    if ($("tAiNew")) $("tAiNew").onclick = function () { if (window.MPBP && MPBP.kpReset) MPBP.kpReset(); toast("Следующее сообщение начнёт новое КП"); };
     el.querySelectorAll(".x-aiex").forEach(function (b) { b.onclick = function () { var t = $("tIn"); t.value = b.textContent; t.focus(); t.dispatchEvent(new Event("input")); }; });
     el.querySelectorAll("[data-ack]").forEach(function (b) { b.onclick = function () { C.call("/team/messages/" + b.dataset.ack + "/ack", { body: {} }).then(function () { return C.call("/team/rooms/" + encodeURIComponent(S.cur) + "/messages"); }).then(function (ms) { S.msgs = ms; paintThread(true); loadRooms(); C.refresh(); }); }; });
+  }
+  /* Лента — список [ключ, html]. Обновляются только изменившиеся сообщения: сама лента, её прокрутка и поле ввода
+     (а с ним и клавиатура на телефоне) остаются на месте. */
+  function feedItems(room, ai) {
+    var out = [], prevDay = "";
+    S.msgs.forEach(function (m) { var d = dayLabel(m.ts); if (d !== prevDay) { out.push(["d" + d, '<span class="x-day">' + d + "</span>"]); prevDay = d; } out.push(["m" + m.id, msgHtml(m)]); });
+    if (ai && S.aiBusy === room.id) out.push(["wait", '<div class="x-msg bot">' + botAva() + '<div class="bd"><div class="nm">ИИ-помощник КП</div><div class="tx x-aiwait">Собираю КП…</div></div></div>']);
+    if (!out.length) out.push(ai ? ["hello", '<div class="x-aihello">' + botAva() + "<div><b>Здравствуйте! Я соберу КП по вашему описанию.</b><p>Напишите услуги, объект, адрес, цену и срок — заполню конструктор, внесу КП в реестр и пришлю сюда PDF (или Word — просто попросите).</p>"
+      + AI_EX.map(function (x) { return '<button type="button" class="x-aiex">' + E(x) + "</button>"; }).join("") + "<p>Потом можно уточнять: «цена 60 000», «добавь адрес …», «пришли в ворде».</p></div></div>"] : ["empty", '<span class="x-day">Здесь пока пусто — напишите первое сообщение</span>']);
+    return out;
+  }
+  function patchFeed(box, items) {
+    var old = {}, pos = box.firstChild;
+    Array.prototype.forEach.call(box.children, function (n) { if (n.__k) old[n.__k] = n; });
+    items.forEach(function (it) {
+      var n = old[it[0]];
+      if (n && n.__h === it[1]) { delete old[it[0]]; if (n === pos) pos = pos.nextSibling; else box.insertBefore(n, pos); return; }
+      if (n && n === pos) pos = pos.nextSibling;
+      var t = document.createElement("template"); t.innerHTML = it[1];
+      var fresh = t.content.firstElementChild; fresh.__k = it[0]; fresh.__h = it[1];
+      box.insertBefore(fresh, pos);
+    });
+    Object.keys(old).forEach(function (k) { old[k].remove(); });
+  }
+  function headHtml(room, ai) {
+    return '<div class="x-th-h"><button type="button" class="x-back" id="tBack" aria-label="К списку чатов">←</button>' + roomAv(room, room.kind === "task" ? "task" : ai ? "ai" : "") + "<div><b>" + E(room.name) + "</b><small>" + E(room.descr) + "</small></div>" + (ai ? '<button type="button" class="x-btn ghost x-ainew" id="tAiNew" title="Следующее сообщение начнёт новое КП">Новое КП</button>' : "") + (!ai && !S.aiOff ? '<button type="button" class="x-hbtn x-sumbtn" id="tSum" title="ИИ: кратко — что решили, кому что поручили" aria-label="Кратко: что решили">' + ic("zap") + "<span>Кратко</span></button>" : "") + (C.me && C.me.role === "admin" && !ai ? '<button type="button" class="x-hbtn" id="tStyle" title="Картинка чата" aria-label="Картинка чата">' + ic("layers") + "</button>" : "") + "</div>";
+  }
+  function pinHtml(pin) { return pin ? '<div class="x-pinned">' + ic("flame") + "<span>Срочное: " + E(pin.text) + "</span></div>" : ""; }
+  function wireHead(room) {
+    if ($("tStyle")) $("tStyle").onclick = function () { styleDialog(room); };
+    if ($("tSum")) $("tSum").onclick = function () { summaryDialog(room); };
+    $("tBack").onclick = closeRoom;
+    if ($("tAiNew")) $("tAiNew").onclick = function () { if (window.MPBP && MPBP.kpReset) MPBP.kpReset(); toast("Следующее сообщение начнёт новое КП"); };
+  }
+  function paintTop(el, room, ai, pin) {              // шапка и закреплённое срочное — только если изменились
+    var h = headHtml(room, ai), p = pinHtml(pin), oldPin = el.querySelector(".x-pinned"), box = el.querySelector(".x-msgs");
+    if (el.__head !== h) { el.__head = h; el.querySelector(".x-th-h").outerHTML = h; wireHead(room); }
+    if (el.__pin !== p) {
+      el.__pin = p; if (oldPin) oldPin.remove();
+      if (p) { var t = document.createElement("template"); t.innerHTML = p; el.insertBefore(t.content.firstElementChild, box); }
+    }
+  }
+  function paintThread(keep) {
+    var el = $("tThread"); if (!el) return;
+    var room = S.rooms.filter(function (r) { return r.id === S.cur; })[0] || { name: "Чат", descr: "", kind: "chan", id: S.cur };
+    var ai = room.kind === "ai";
+    var pin = S.msgs.filter(function (m) { return m.urgent; }).slice(-1)[0];
+    var box = el.querySelector(".x-msgs");
+    if (box && $("tIn") && el.__room === room.id) {   // чат уже открыт — трогаем только то, что изменилось
+      var bottom = box.clientHeight ? box.scrollHeight - box.scrollTop - box.clientHeight < 80 : box.__stick !== false;
+      paintTop(el, room, ai, pin); patchFeed(box, feedItems(room, ai)); wireFeed(box);
+      if (!keep || bottom) mpbStick(box);
+      return;
+    }
+    var val = draftGet(room.id);
+    el.__room = room.id; el.__head = headHtml(room, ai); el.__pin = pinHtml(pin);
+    el.innerHTML = el.__head + el.__pin + '<div class="x-msgs"></div>'
+      + '<div class="x-replybar" id="tReply" hidden></div><div class="x-filebar" id="tFiles" hidden></div><div class="x-comp"><input type="file" id="tFile" multiple hidden><button type="button" class="x-attach" id="tAttach" title="Прикрепить файлы (до 10 штук, 10 МБ каждый)" aria-label="Прикрепить файл">' + ic("clip") + '</button><textarea id="tIn" rows="1" placeholder="' + (ai ? "Какое КП сделать? Услуги, объект, адрес, цена, срок" : window.innerWidth <= 760 ? "Сообщение" : window.innerWidth <= 1180 ? "Сообщение… (@Имя — упомянуть)" : "Написать в «" + E(room.name) + "»… (Enter — отправить, Shift+Enter — новая строка, @Имя — упомянуть)") + '" autocomplete="off"></textarea>' + (ai ? "" : '<button class="x-urgbtn ' + (S.urg ? "on" : "") + '" id="tUrg" title="Срочное: придёт всем участникам, даже в тихие часы">' + ic("flame") + "Срочное</button>") + '<button class="x-btn primary" id="tSend" style="padding:12px 14px">' + ic("send") + "</button></div>";
+    var m = el.querySelector(".x-msgs"); patchFeed(m, feedItems(room, ai)); wireFeed(m); mpbStick(m);
+    wireHead(room);
+    $("tIn").value = val;
+    $("tSend").onclick = send;
+    paintReply();
+    $("tAttach").onclick = function () { $("tFile").click(); };
+    $("tFile").onchange = function () { addFiles(this.files); this.value = ""; };
+    paintFiles();
+    var th = el;
+    th.ondragover = function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") >= 0) { e.preventDefault(); th.classList.add("drop"); } };
+    th.ondragleave = function (e) { if (!th.contains(e.relatedTarget)) th.classList.remove("drop"); };
+    th.ondrop = function (e) { th.classList.remove("drop"); if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } };
+    $("tIn").onpaste = function (e) { var fl = e.clipboardData && e.clipboardData.files; if (fl && fl.length) { e.preventDefault(); addFiles(fl); } };
+    mentionBox($("tIn"));
+    var tin = $("tIn");
+    function grow() { tin.style.height = "auto"; tin.style.height = Math.min(tin.scrollHeight, Math.round(window.innerHeight * 0.4)) + "px"; }
+    tin.addEventListener("input", function () { grow(); draftSet(S.cur, tin.value); }); setTimeout(grow, 0);
+    tin.onkeydown = function (e) {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing && !(document.getElementById("tMent") && document.getElementById("tMent").children.length)) { e.preventDefault(); send(); }
+    };
+    if ($("tUrg")) $("tUrg").onclick = function () { S.urg = !S.urg; this.classList.toggle("on", S.urg); };
   }
   /* подсказка имён по «@»: выбираете сотрудника — имя подставляется в сообщение */
   function mentionBox(inp) {
@@ -570,6 +644,8 @@
       }).then(loadRooms).catch(function () {});
     });
   }
+  function draftGet(id) { try { return localStorage.getItem("mpb_draft_t_" + id) || ""; } catch (e) { return ""; } }
+  function draftSet(id, v) { try { if (v) localStorage.setItem("mpb_draft_t_" + id, v); else localStorage.removeItem("mpb_draft_t_" + id); } catch (e) {} }
   function mergeMsgs(ms) {                           // не добавляем уже показанные сообщения (опрос и отправка могут принести одно и то же)
     var have = {}; S.msgs.forEach(function (m) { have[m.id] = 1; });
     ms.forEach(function (m) { if (!have[m.id]) { S.msgs.push(m); have[m.id] = 1; } });
@@ -580,7 +656,7 @@
     if (S.sending) return;
     var urgent = S.urg, rid = S.cur;
     S.sending = true;
-    i.value = ""; i.style.height = "auto"; S.files = []; S.reply = null; S.urg = false; paintFiles(); paintReply();   // сообщение сразу уходит из поля, как в мессенджере
+    i.value = ""; i.style.height = "auto"; draftSet(rid, ""); if (C.fast) C.fast(); S.files = []; S.reply = null; S.urg = false; paintFiles(); paintReply();   // сообщение сразу уходит из поля, как в мессенджере
     var tu = $("tUrg"); if (tu) tu.classList.remove("on");
     Promise.all(fs.map(readB64)).then(function (d) {
       return C.call("/team/rooms/" + encodeURIComponent(rid) + "/send", { body: { text: text, urgent: urgent, reply_to: reply ? reply.id : 0, files: fs.map(function (f, k) { return { filename: f.name, mime: f.type || "application/octet-stream", data: d[k] }; }) } });

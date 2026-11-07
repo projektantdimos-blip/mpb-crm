@@ -227,7 +227,8 @@ function where(){
 function api(fn){
   var args=[].slice.call(arguments,1);
   return where().then(function(b){
-    var req=b?fetch(b.url+"/api/crm/to/rpc",{method:"POST",cache:"no-store",headers:{"X-Api-Key":b.key,"Content-Type":"application/json"},body:JSON.stringify({fn:fn,args:args})})
+    var net=fetch;try{if(window.parent!==window&&parent.mpbFetch)net=parent.mpbFetch}catch(x){}   // таймаут и полоска «Нет связи» — общие с CRM
+    var req=b?net(b.url+"/api/crm/to/rpc",{method:"POST",cache:"no-store",headers:{"X-Api-Key":b.key,"Content-Type":"application/json"},body:JSON.stringify({fn:fn,args:args})})
              :fetch(apiUrl(),{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args})});
     return req.then(function(r){return r.json()},function(){throw new Error("Нет связи с сервером")});
   }).then(function(j){if(!j||!j.ok)throw new Error((j&&j.error)||"Ошибка сервера");return j.data});
