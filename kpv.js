@@ -452,6 +452,24 @@
       });
     });
   }
+  /* КП по описанию для «Ждут решения» (ai.js): ИИ заполняет услуги, цены — из прайса. Ничего не сохраняет и не меняет
+     конструктор: возвращает состояние КП, итог, текст и чего не хватает (например, цены, которой нет в прайсе). */
+  P.kpDraft = function (text) {
+    var kc = K();
+    if (!kc) return Promise.reject("Конструктор КП не загружен — обновите страницу");
+    var notes = [];
+    return C.call("/ai/kp", { body: { text: text, catalog: aiCatalog(), current: null } }).then(function (r) {
+      var d = r.data;
+      return (d.num ? Promise.resolve(d.num) : kc.nextNum().then(function (n) { return n || ""; }, function () { return ""; })).then(function (num) {
+        var saved = aiSaved(d, num, notes), chk = kc.checkSaved(saved), st = kc.fromSaved(saved), total = 0, txt = "";
+        kc.CATALOG.forEach(function (v) { var x = st.services[v.id]; if (x && x.on) total += kc.parseIntStrict(x.price) || 0; });
+        if (st.custom && st.custom.on) st.custom.items.forEach(function (it) { total += kc.parseIntStrict(it.price) || 0; });
+        try { txt = kc.textFor(saved); } catch (e) {}
+        return { saved: saved, total: total, ok: !!chk.ok, missing: chk.ok ? [] : missingOf(chk), warnings: (chk.warnings || []).map(function (w) { return w.msg; }),
+          notes: notes, questions: d.questions || "", text: txt, empty: !d.services.length && !d.custom.length };
+      });
+    });
+  };
   P.kpChat = function (rid, text, replyTo) {                       // вызывает team.js после отправки сообщения в «Разработку КП»
     if (!K()) return Promise.reject("Конструктор КП не загружен — обновите страницу");
     return kpAnswer(text).then(null, function (e) { return { text: "Не получилось: " + (e && e.message || e) }; }).then(function (a) {

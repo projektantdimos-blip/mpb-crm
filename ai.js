@@ -8,7 +8,8 @@
   if (!C || !T || !T.util) return;
   var U = T.util, E = U.E, ic = U.ic;
   var TASK_KEYS = ["customer", "address", "contractNo", "workType", "startDate", "dueDate", "stage", "deadline", "siteContact", "siteContactPhone", "comment", "closed", "manager"];
-  var S = { data: null, people: null, tasks: null, tasksTs: 0, ctx: 0, busy: false, P: null, A: null, counts: null };
+  var S = { data: null, dec: null, people: null, tasks: null, tasksTs: 0, ctx: 0, busy: false, P: null, A: null, counts: null,
+    sel: {}, edit: {}, kp: {}, kpBusy: {}, planBusy: {} };
   var EX = [
     ["Поручить", "Скажи Игорю, чтобы сделал закрывающие по Северу до пятницы"],
     ["Напомнить себе", "Напомни мне позвонить заказчику завтра в 10:00"],
@@ -41,14 +42,15 @@
 
   /* ================================================================ раздел «ИИ-менеджер»: поручения */
   function render() {
-    var el = $("ai-app"), sub = "Поручения сотрудникам и себе — напомню исполнителю и прослежу, чтобы вы не забыли проверить";
+    var el = $("ai-app"), sub = "Письма на решение и поручения — подготовлю ответ и КП, напомню исполнителю и прослежу, чтобы вы не забыли проверить";
     if (!U.gate(el, "ИИ-менеджер", sub, render)) return;
     el.innerHTML = U.head("ИИ-менеджер", sub, '<button class="x-btn primary" data-qt>' + ic("plus") + "Поручить</button>")
       + '<div class="wrap" id="aiBody"><div class="x-panel"><div class="x-empty">Загрузка…</div></div></div>';
     load();
   }
   function load() {
-    return C.call("/orders").then(function (d) { S.data = d; badge(d.counts); paint(); })
+    var dec = C.isEngineer() ? Promise.resolve(null) : C.call("/decisions").catch(function (e) { return { error: String(e), items: [], other: 0 }; });
+    return Promise.all([C.call("/orders"), dec]).then(function (r) { S.data = r[0]; S.dec = r[1]; badge(r[0].counts); paint(); })
       .catch(function (e) { var b = $("aiBody"); if (b) b.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
   }
   function steps(o) {
@@ -79,8 +81,12 @@
   }
   function paint() {
     var d = S.data, b = $("aiBody"); if (!d || !b) return;
+    if (S.dec && S.dec.items && S.dec.items.length && !S.people) people().then(function () { if ($("aiBody")) paint(); });
+    ((S.dec && S.dec.items) || []).forEach(function (it) {           // рекомендовано «КП» — собираем черновик сразу
+      if (it.plan && !it.plan_stale && it.plan.action === "kp" && !S.sel[it.thread_id] && !S.kp[it.thread_id] && !S.kpBusy[it.thread_id]) setTimeout(function () { makeKp(it.thread_id); }, 50);
+    });
     var check = d.by_me.filter(function (o) { return o.status === "done"; }).length;
-    b.innerHTML = '<div class="ai-grid2">'
+    b.innerHTML = decPanel() + '<div class="ai-grid2">'
       + '<div class="x-panel pad"><div class="ai-ph"><h3>Я поручил — жду · ' + d.by_me.length + "</h3>" + (check ? '<span class="x-pill ok">на проверку: ' + check + "</span>" : "") + "</div>"
       + '<p class="x-sub">Слежу за сроком и напоминаю исполнителю. Отметит «Выполнено» — подтвердите здесь</p>'
       + (d.by_me.length ? d.by_me.map(byMeHtml).join("") : '<div class="x-empty">Никому ничего не поручено — нажмите «Поручить»</div>')
@@ -114,10 +120,178 @@
     $("aiNoteOk").onclick = function () { var v = $("aiNote").value.trim(); if (!done && !v) { $("aiNote").focus(); return; } T.closeModal(); act(id, a, v); };
   }
 
+
+  /* ================================================================ «Ждут вашего решения» (письма клиентов) */
+  var KIND_PILL = { new_request: "blue", kp_reply: "acc", question: "acc", invoice_docs: "soon" };
+  var CH = { mail: "почта", tg: "Telegram", max: "Max", site: "сайт", avito: "Авито" };
+  function decById(tid) { return ((S.dec && S.dec.items) || []).filter(function (x) { return x.thread_id === tid; })[0]; }
+  function decPanel() {
+    var d = S.dec; if (!d) return "";
+    var items = d.items || [];
+    return '<div class="x-panel pad ai-decp"><div class="ai-ph"><h3>Ждут вашего решения · ' + items.length + '</h3><a class="ai-lnk" href="#/chat">Вся переписка →</a></div>'
+      + '<p class="x-sub">Письма и сообщения клиентов без ответа: ИИ разобрал, что хотят, и подготовил варианты — ничего не уйдёт без вашей кнопки</p>'
+      + (d.error ? '<div class="x-empty">' + E(d.error) + "</div>" : items.length ? '<div class="ai-decg">' + items.map(decCard).join("") + "</div>" : '<div class="x-empty">Все клиенты получили ответ — решений не ждёт</div>')
+      + (d.other ? '<small class="ai-dother">Ещё без ответа: ' + d.other + " — реклама, поставщики и сообщения, на которые отвечать не нужно</small>" : "")
+      + "</div>";
+  }
+  function decCard(it) {
+    var tr = it.triage || {}, p = it.plan, tid = it.thread_id, opt = S.sel[tid] || (p && p.action) || "reply";
+    var top = '<div class="ai-dtop">' + (tr.kind_label ? '<span class="x-pill ' + (KIND_PILL[tr.kind] || "") + '">' + E(tr.kind_label) + "</span>" : "")
+      + (tr.urgency === "high" ? '<span class="x-pill over">срочно</span>' : "")
+      + "<small>" + E(CH[it.channel] || it.channel) + " · " + E(cut(it.peer, 40)) + " · " + hm(it.ts) + "</small></div>";
+    var title = (tr.org || it.title || it.peer) + (tr.object ? " · " + tr.object : "");
+    var h = '<div class="ai-card ai-dc" data-tid="' + E(tid) + '">' + top + "<b>" + E(cut(title, 110)) + "</b>"
+      + "<p>" + E((p && p.summary) || tr.summary || "ИИ ещё не разобрал сообщение") + "</p>"
+      + ((p && p.context) ? '<small class="ai-dctx">По клиенту: ' + E(p.context) + "</small>" : "")
+      + (it.assigned.length ? '<small class="ai-dctx">Передано: ' + E(it.assigned.join(", ")) + "</small>" : "")
+      + '<details class="ai-det"><summary>' + (it.subject ? E(cut(it.subject, 60)) : "Сообщение клиента") + '</summary><div class="ai-quote">' + E(it.text) + "</div></details>";
+    if (!p || it.plan_stale) {
+      var busy = S.planBusy[tid];
+      h += (it.plan_stale ? '<p class="ai-dwarn">Пришло новое сообщение — решение нужно обновить</p>' : "")
+        + '<div class="ai-acts"><button class="x-btn primary" data-dplan="' + E(tid) + '"' + (busy ? " disabled" : "") + ">" + (busy ? "Готовлю…" : it.plan_stale ? "Обновить решение" : "Подготовить решение") + "</button>"
+        + '<a class="x-btn ghost" href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><button class="x-btn ghost" data-dno="' + E(tid) + '">Не надо</button></div>';
+      return h + "</div>";
+    }
+    h += '<div class="ai-opts">' + p.options.map(function (o) { return '<span class="x-chip' + (o.action === opt ? " on" : "") + '" data-dopt="' + o.action + '">' + E(o.label) + "</span>"; }).join("")
+      + (p.options.some(function (o) { return o.action === "pass"; }) ? "" : '<span class="x-chip' + (opt === "pass" ? " on" : "") + '" data-dopt="pass">Передать</span>') + "</div>";
+    h += '<div class="ai-dbody">' + optBody(it, opt) + "</div>";
+    h += '<div class="ai-dfoot"><a href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><span class="ai-lnk" data-dplan="' + E(tid) + '">Обновить решение</span><span class="ai-lnk" data-dno="' + E(tid) + '">Не надо</span></div>';
+    return h + "</div>";
+  }
+  function edited(tid, key, dflt) { var k = tid + "|" + key; return S.edit[k] != null ? S.edit[k] : (dflt || ""); }
+  function optBody(it, opt) {
+    var p = it.plan, tid = it.thread_id;
+    if (opt === "reply" || opt === "questions") {
+      var dflt = opt === "questions" ? (p.questions || p.reply) : p.reply;
+      return '<textarea class="ai-dtext" data-dedit="' + opt + '" rows="7">' + E(edited(tid, opt, dflt)) + "</textarea>"
+        + '<div class="ai-acts"><button class="x-btn primary" data-dsend="' + opt + '">' + (opt === "questions" ? "Отправить вопросы" : "Отправить ответ") + "</button></div>";
+    }
+    if (opt === "kp") {
+      var k = S.kp[tid];
+      if (S.kpBusy[tid]) return '<div class="x-empty">Собираю КП по прайсу…</div>';
+      if (!k) return '<p class="ai-dreq">Что в КП: ' + E(p.kp_request || "—") + '</p><div class="ai-acts"><button class="x-btn primary" data-dkp="1">Собрать КП по прайсу</button></div>';
+      if (k.error) return '<p class="ai-dwarn">' + E(k.error) + '</p><div class="ai-acts"><button class="x-btn ghost" data-dkp="1">Попробовать ещё раз</button></div>';
+      return '<div class="ai-kpd"><div class="ai-kph"><b>КП № ' + E(k.saved.num || "—") + " · черновик</b><b>" + money(k.total) + "</b></div>"
+        + '<div class="ai-kpt">' + E(k.text || "") + "</div>"
+        + (k.notes.length ? '<small class="ai-dctx">' + E(k.notes.join(" · ")) + "</small>" : "")
+        + (k.missing.length ? '<div class="ai-dwarn">Не хватает — отправить нельзя, пока не заполните в конструкторе:<br>' + k.missing.map(E).join("<br>") + "</div>" : "")
+        + "</div>"
+        + '<span class="ai-lbl">Письмо к КП</span><textarea class="ai-dtext" data-dedit="kpl" rows="5">' + E(edited(tid, "kpl", p.reply)) + "</textarea>"
+        + '<div class="ai-acts"><button class="x-btn primary" data-dkpsend="1"' + (k.ok ? "" : " disabled") + '>Отправить КП с письмом</button><button class="x-btn ghost" data-dkpedit="1">Редактировать в конструкторе</button><button class="x-btn ghost" data-dkp="1">Пересобрать</button></div>';
+    }
+    if (opt === "pass") {
+      var pl = (S.people || []).filter(function (x) { return x.role !== "engineer"; }), cur = edited(tid, "passto", p.pass_to);
+      return '<div class="ai-two2"><select class="ai-dsel" data-dedit="passto">' + pl.map(function (x) { return "<option" + (x.name === cur ? " selected" : "") + ">" + E(x.name) + "</option>"; }).join("")
+        + '</select><input class="ai-dinp" data-dedit="passnote" placeholder="Пометка сотруднику" value="' + E(edited(tid, "passnote", p.pass_note)) + '"></div>'
+        + '<div class="ai-acts"><button class="x-btn primary" data-dpass="1">Передать</button></div>';
+    }
+    if (opt === "task") {
+      return '<p class="ai-dreq">' + E(p.task || "Поручение по этому письму") + '</p><div class="ai-acts"><button class="x-btn primary" data-dtask="1">Открыть в «Поручить»</button></div>';
+    }
+    return "";
+  }
+  function money(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
+  function b64(blob) { return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = bad; r.readAsDataURL(blob); }); }
+  function repaintCard(tid) {
+    var it = decById(tid), el = null;
+    document.querySelectorAll("#ai-app .ai-dc").forEach(function (x) { if (x.dataset.tid === tid) el = x; });
+    if (!it || !el) { paint(); return; }
+    var tmp = document.createElement("div"); tmp.innerHTML = decCard(it); el.replaceWith(tmp.firstChild);
+  }
+  function makeKp(tid) {
+    var it = decById(tid); if (!it || !it.plan) return;
+    if (!window.MPBP || !MPBP.kpDraft) { U.toast("Модуль КП не загружен — обновите страницу"); return; }
+    S.kpBusy[tid] = 1; repaintCard(tid);
+    MPBP.kpDraft(it.plan.kp_request || it.text).then(function (k) {
+      if (k.empty) k = { error: "ИИ не понял, какие услуги включить в КП. Уточните у клиента или соберите КП вручную." };
+      S.kp[tid] = k;
+    }).catch(function (e) { S.kp[tid] = { error: String(e) }; }).then(function () { delete S.kpBusy[tid]; repaintCard(tid); });
+  }
+  function decDone(tid, msg) { U.toast(msg); delete S.kp[tid]; if (C.fast) C.fast(); setTimeout(load, 600); }
+  document.addEventListener("input", function (e) {
+    var f = e.target.closest ? e.target.closest("#ai-app [data-dedit]") : null; if (!f) return;
+    S.edit[f.closest(".ai-dc").dataset.tid + "|" + f.dataset.dedit] = f.value;
+  });
+  document.addEventListener("change", function (e) {
+    var f = e.target.closest ? e.target.closest("#ai-app select[data-dedit]") : null; if (!f) return;
+    S.edit[f.closest(".ai-dc").dataset.tid + "|" + f.dataset.dedit] = f.value;
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("#ai-app [data-dplan],#ai-app [data-dno],#ai-app [data-dopt],#ai-app [data-dsend],#ai-app [data-dkp],#ai-app [data-dkpsend],#ai-app [data-dkpedit],#ai-app [data-dpass],#ai-app [data-dtask]");
+    if (!b) return;
+    var card = b.closest(".ai-dc"), tid = card ? card.dataset.tid : "", it = decById(tid), enc = encodeURIComponent(tid);
+    if (!it) return;
+    if (b.hasAttribute("data-dplan")) {
+      if (S.planBusy[tid]) return;
+      S.planBusy[tid] = 1; repaintCard(tid);
+      C.call("/decisions/" + enc + "/plan", { body: {} }).then(function (r) { it.plan = r.plan; it.plan_stale = false; delete S.sel[tid]; delete S.kp[tid]; })
+        .catch(function (er) { U.toast(String(er)); }).then(function () { delete S.planBusy[tid]; repaintCard(tid); if (it.plan && it.plan.action === "kp" && !it.plan_stale) makeKp(tid); });
+      return;
+    }
+    if (b.hasAttribute("data-dno")) {
+      if (!confirm("Убрать из «Ждут решения»? Клиенту ничего не уйдёт. Новое сообщение от него снова появится здесь.")) return;
+      C.call("/decisions/" + enc + "/mark", { body: { status: "dismissed" } }).then(function () { decDone(tid, "Убрано из решений"); }).catch(function (er) { U.toast(String(er)); });
+      return;
+    }
+    if (b.dataset.dopt) {
+      S.sel[tid] = b.dataset.dopt; repaintCard(tid);
+      if (b.dataset.dopt === "kp" && !S.kp[tid] && !S.kpBusy[tid]) makeKp(tid);
+      if (b.dataset.dopt === "pass" && !S.people) people().then(function () { repaintCard(tid); });
+      return;
+    }
+    if (b.dataset.dsend) {
+      var ta = card.querySelector("textarea[data-dedit]"), txt = ta ? ta.value.trim() : "";
+      if (!txt) { U.toast("Текст пустой"); return; }
+      if (!window.__chatSend) { U.toast("Переписка не подключена на этом устройстве — откройте «Переписку» и проверьте мост"); return; }
+      if (!confirm("Отправить клиенту «" + (it.title || it.peer) + "»?\n\n" + txt.slice(0, 300) + (txt.length > 300 ? "…" : ""))) return;
+      b.disabled = true;
+      window.__chatSend(tid, txt).then(function () { delete S.edit[tid + "|" + b.dataset.dsend]; decDone(tid, "Отправлено клиенту"); })
+        .catch(function (er) { b.disabled = false; U.toast("Не отправлено: " + er); });
+      return;
+    }
+    if (b.hasAttribute("data-dkp")) { delete S.kp[tid]; makeKp(tid); return; }
+    if (b.hasAttribute("data-dkpedit")) {
+      var k = S.kp[tid]; if (!k || !k.saved || !window.__kpc) return;
+      window.__kpc.load(k.saved);
+      if (window.MPBP) MPBP.thread = { id: tid, title: it.title || it.peer };
+      location.hash = "#/kpc";
+      setTimeout(function () { U.toast("Поправьте КП и нажмите «Отправить в чат» — уйдёт в диалог «" + (it.title || it.peer) + "»"); }, 300);
+      return;
+    }
+    if (b.hasAttribute("data-dkpsend")) {
+      var kp = S.kp[tid], letter = card.querySelector('textarea[data-dedit="kpl"]').value.trim();
+      if (!kp || !kp.ok) return;
+      if (!window.__chatSendFile) { U.toast("Переписка не подключена на этом устройстве — откройте «Переписку» и проверьте мост"); return; }
+      if (!confirm("Отправить КП № " + kp.saved.num + " на " + money(kp.total) + " клиенту «" + (it.title || it.peer) + "» — письмо и PDF?")) return;
+      b.disabled = true;
+      var withText = it.channel !== "mail" && it.channel !== "tg";                 // в Max файл не уходит — добавим текст КП
+      window.__kpc.pdf(kp.saved).then(function (pdf) {
+        return b64(pdf.blob).then(function (data) { return window.__chatSendFile(tid, (letter + (withText ? "\n\n" + kp.text : "")).trim(), pdf.name, data); });
+      }).then(function () {
+        var info = { name: kp.saved.object, address: kp.saved.address, total: kp.total, num: kp.saved.num, phone: it.peer || "", owner: (C.me && C.me.name) || "" };
+        var jobs = [C.call("/kp/versions", { body: { num: String(kp.saved.num || ""), object: kp.saved.object || "", total: kp.total, state: kp.saved, note: "Отправлено из «Ждут решения»: " + (it.title || it.peer), status: "sent" } })];
+        if (window.MPBK && MPBK.registerKp) jobs.push(MPBK.registerKp(info));
+        return Promise.all(jobs.map(function (j) { return j.catch(function () {}); }));
+      }).then(function () { decDone(tid, "КП № " + kp.saved.num + " отправлено клиенту, записано в реестр"); })
+        .catch(function (er) { b.disabled = false; U.toast("Не отправлено: " + er); });
+      return;
+    }
+    if (b.hasAttribute("data-dpass")) {
+      var name = card.querySelector('[data-dedit="passto"]').value, note = card.querySelector('[data-dedit="passnote"]').value.trim();
+      var u = (S.people || []).filter(function (x) { return x.name === name; })[0]; if (!u) return;
+      b.disabled = true;
+      C.call("/mail/assign", { body: { thread_id: tid, user_id: u.id, note: note, message_id: it.msg_id } })
+        .then(function () { return C.call("/decisions/" + enc + "/mark", { body: { status: "done" } }); })
+        .then(function () { decDone(tid, "Передано: " + name); }).catch(function (er) { b.disabled = false; U.toast(String(er)); });
+      return;
+    }
+    if (b.hasAttribute("data-dtask")) { open(it.plan.task || ""); return; }
+  });
+
   /* ================================================================ счётчик в меню */
   function badge(cn) {
     if (cn) S.counts = cn;
-    var n = S.counts ? (S.counts.mine || 0) + (S.counts.check || 0) : 0;
+    var n = S.counts ? (S.counts.mine || 0) + (S.counts.check || 0) + (S.counts.decide || 0) : 0;
     document.querySelectorAll('#topnav button[data-goto="#/ai"], #bottomnav button[data-goto="#/ai"]').forEach(function (b) {
       var o = b.querySelector(".chat-badge"); if (o) o.remove();
       if (n) { var s = document.createElement("span"); s.className = "chat-badge"; s.textContent = n; b.appendChild(s); }
@@ -128,7 +302,8 @@
     if (!s || !s.orders) return;
     var was = S.counts ? JSON.stringify(S.counts) : "";
     badge(s.orders);
-    if (was && was !== JSON.stringify(s.orders) && location.hash.indexOf("#/ai") === 0) load();
+    var ae = document.activeElement, typing = ae && ae.closest && ae.closest("#ai-app") && /TEXTAREA|INPUT|SELECT/.test(ae.tagName);
+    if (was && was !== JSON.stringify(s.orders) && location.hash.indexOf("#/ai") === 0 && !typing && !Object.keys(S.kpBusy).length) load();
   });
 
   /* ================================================================ окно «Поручить или спросить» */
