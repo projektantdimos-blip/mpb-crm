@@ -9,7 +9,7 @@
   var U = T.util, E = U.E, ic = U.ic;
   var TASK_KEYS = ["customer", "address", "contractNo", "workType", "startDate", "dueDate", "stage", "deadline", "siteContact", "siteContactPhone", "comment", "closed", "manager"];
   var S = { data: null, dec: null, people: null, tasks: null, tasksTs: 0, ctx: 0, busy: false, P: null, A: null, counts: null,
-    sel: {}, edit: {}, kp: {}, kpBusy: {}, planBusy: {}, ctl: null, ctlArea: "", ctlEdit: {}, ctlAi: {} };
+    sel: {}, edit: {}, kp: {}, kpBusy: {}, planBusy: {}, passOpen: {}, ctl: null, ctlArea: "", ctlEdit: {}, ctlAi: {} };
   var EX = [
     ["Поручить", "Скажи Игорю, чтобы сделал закрывающие по Северу до пятницы"],
     ["Напомнить себе", "Напомни мне позвонить заказчику завтра в 10:00"],
@@ -152,7 +152,9 @@
       var busy = S.planBusy[tid];
       h += (it.plan_stale ? '<p class="ai-dwarn">Пришло новое сообщение — решение нужно обновить</p>' : "")
         + '<div class="ai-acts"><button class="x-btn primary" data-dplan="' + E(tid) + '"' + (busy ? " disabled" : "") + ">" + (busy ? "Готовлю…" : it.plan_stale ? "Обновить решение" : "Подготовить решение") + "</button>"
-        + '<a class="x-btn ghost" href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><button class="x-btn ghost" data-dno="' + E(tid) + '">Не надо</button></div>';
+        + '<button class="x-btn ghost" data-dpassopen="1">Передать</button>'
+        + '<a class="x-btn ghost" href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><button class="x-btn ghost" data-dno="' + E(tid) + '">Не надо</button></div>'
+        + (S.passOpen[tid] ? '<div class="ai-dbody ai-dpass">' + passForm(it) + "</div>" : "");
       return h + "</div>";
     }
     h += '<div class="ai-opts">' + p.options.map(function (o) { return '<span class="x-chip' + (o.action === opt ? " on" : "") + '" data-dopt="' + o.action + '">' + E(o.label) + "</span>"; }).join("")
@@ -182,16 +184,22 @@
         + '<span class="ai-lbl">Письмо к КП</span><textarea class="ai-dtext" data-dedit="kpl" rows="5">' + E(edited(tid, "kpl", p.reply)) + "</textarea>"
         + '<div class="ai-acts"><button class="x-btn primary" data-dkpsend="1"' + (k.ok ? "" : " disabled") + '>Отправить КП с письмом</button><button class="x-btn ghost" data-dkpedit="1">Редактировать в конструкторе</button><button class="x-btn ghost" data-dkp="1">Пересобрать</button></div>';
     }
-    if (opt === "pass") {
-      var pl = (S.people || []).filter(function (x) { return x.role !== "engineer"; }), cur = edited(tid, "passto", p.pass_to);
-      return '<div class="ai-two2"><select class="ai-dsel" data-dedit="passto">' + pl.map(function (x) { return "<option" + (x.name === cur ? " selected" : "") + ">" + E(x.name) + "</option>"; }).join("")
-        + '</select><input class="ai-dinp" data-dedit="passnote" placeholder="Пометка сотруднику" value="' + E(edited(tid, "passnote", p.pass_note)) + '"></div>'
-        + '<div class="ai-acts"><button class="x-btn primary" data-dpass="1">Передать</button></div>';
-    }
+    if (opt === "pass") return passForm(it);
     if (opt === "task") {
       return '<p class="ai-dreq">' + E(p.task || "Поручение по этому письму") + '</p><div class="ai-acts"><button class="x-btn primary" data-dtask="1">Открыть в «Поручить»</button></div>';
     }
     return "";
+  }
+  function passForm(it) {                                          // кому передать письмо: по решению ИИ, по разбору или руководителю
+    var tid = it.thread_id, p = it.plan || {}, tr = it.triage || {};
+    var pl = (S.people || []).filter(function (x) { return x.role !== "engineer"; });
+    var cur = edited(tid, "passto", p.pass_to || tr.route_to || (it.assigned || [])[0] || "");
+    if (!pl.length) { people().then(function () { repaintCard(tid); }); return '<div class="x-empty">Загружаю список сотрудников…</div>'; }
+    return '<span class="ai-lbl">Передать специалисту</span><div class="ai-two2"><select class="ai-dsel" data-dedit="passto">'
+      + (cur ? "" : '<option value="">Кому передать?</option>') + pl.map(function (x) { return "<option" + (x.name === cur ? " selected" : "") + ">" + E(x.name) + "</option>"; }).join("")
+      + '</select><input class="ai-dinp" data-dedit="passnote" placeholder="Пометка: что сделать" value="' + E(edited(tid, "passnote", p.pass_note || tr.need || "")) + '"></div>'
+      + '<div class="ai-acts"><button class="x-btn primary" data-dpass="1">Передать</button>' + (it.plan ? "" : '<button class="x-btn ghost" data-dpassopen="1">Отмена</button>') + "</div>"
+      + '<small class="ai-dctx">Сотрудник получит уведомление и письмо в «Мне передали»; из «Ждут решения» карточка уйдёт</small>';
   }
   function money(n) { return Math.round(n || 0).toLocaleString("ru-RU") + " ₽"; }
   function b64(blob) { return new Promise(function (ok, bad) { var r = new FileReader(); r.onload = function () { ok(String(r.result).split(",")[1]); }; r.onerror = bad; r.readAsDataURL(blob); }); }
@@ -220,10 +228,11 @@
     S.edit[f.closest(".ai-dc").dataset.tid + "|" + f.dataset.dedit] = f.value;
   });
   document.addEventListener("click", function (e) {
-    var b = e.target.closest("#ai-app [data-dplan],#ai-app [data-dno],#ai-app [data-dopt],#ai-app [data-dsend],#ai-app [data-dkp],#ai-app [data-dkpsend],#ai-app [data-dkpedit],#ai-app [data-dpass],#ai-app [data-dtask]");
+    var b = e.target.closest("#ai-app [data-dpassopen],#ai-app [data-dplan],#ai-app [data-dno],#ai-app [data-dopt],#ai-app [data-dsend],#ai-app [data-dkp],#ai-app [data-dkpsend],#ai-app [data-dkpedit],#ai-app [data-dpass],#ai-app [data-dtask]");
     if (!b) return;
     var card = b.closest(".ai-dc"), tid = card ? card.dataset.tid : "", it = decById(tid), enc = encodeURIComponent(tid);
     if (!it) return;
+    if (b.hasAttribute("data-dpassopen")) { S.passOpen[tid] = !S.passOpen[tid]; repaintCard(tid); return; }
     if (b.hasAttribute("data-dplan")) {
       if (S.planBusy[tid]) return;
       S.planBusy[tid] = 1; repaintCard(tid);
@@ -281,11 +290,11 @@
     }
     if (b.hasAttribute("data-dpass")) {
       var name = card.querySelector('[data-dedit="passto"]').value, note = card.querySelector('[data-dedit="passnote"]').value.trim();
-      var u = (S.people || []).filter(function (x) { return x.name === name; })[0]; if (!u) return;
+      var u = (S.people || []).filter(function (x) { return x.name === name; })[0]; if (!u) { U.toast("Выберите, кому передать"); return; }
       b.disabled = true;
       C.call("/mail/assign", { body: { thread_id: tid, user_id: u.id, note: note, message_id: it.msg_id } })
         .then(function () { return C.call("/decisions/" + enc + "/mark", { body: { status: "done" } }); })
-        .then(function () { decDone(tid, "Передано: " + name); }).catch(function (er) { b.disabled = false; U.toast(String(er)); });
+        .then(function () { delete S.passOpen[tid]; decDone(tid, "Передано: " + name); }).catch(function (er) { b.disabled = false; U.toast(String(er)); });
       return;
     }
     if (b.hasAttribute("data-dtask")) { open(it.plan.task || ""); return; }
