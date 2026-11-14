@@ -1953,3 +1953,23 @@ body.kb-open .bottomnav{display:none!important}
 #ai-app .ai-flash{box-shadow:0 0 0 3px var(--blue)!important;transition:box-shadow .3s}
 @media (max-width:1180px){#ai-app .ai-ctl{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media (max-width:760px){#ai-app .ai-ctl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 14.11 — скорость на телефоне: без размытия под нижним меню и окнами и без закреплённого фона страницы
+   (их телефон перерисовывал на каждом кадре прокрутки). Вид почти тот же: плотный фон вместо полупрозрачного. */
+@media (max-width:900px){
+  html body .bottomnav.bottomnav{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:var(--card)!important}
+  body{background-attachment:scroll!important}
+  .x-veil,.x-mveil,#apiModal{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:rgba(9,20,38,.58)!important}
+}
+.sbrand img{aspect-ratio:396/372}
+
+/* ИИ-менеджер — главный экран: показатели 2×2 на телефоне */
+#ai-app .ai-kpis .kpi{cursor:pointer}
+#ai-app .ai-kpis .kpi .ic svg{width:20px;height:20px}
+@media (max-width:760px){
+  #ai-app .ai-kpis{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;overflow:visible!important;margin:0 0 14px!important;padding:0!important}
+  #ai-app .ai-kpis .kpi{min-width:0!important;width:auto!important;padding:12px 14px}
+  #ai-app .ai-kpis .kpi .v{font-size:1.4rem}
+  #ai-app .ai-kpis .kpi .ic{width:32px;height:32px;margin-bottom:8px}
+}
+@media (max-width:760px){#ai-app .ai-ph{flex-wrap:wrap}#ai-app .ai-ph h3{flex:1 1 100%}#ai-app .ai-ph>.x-btn{width:100%;justify-content:center}}

@@ -72,7 +72,7 @@
     S.roomsJ = "";
     var q = /[?&]room=([^&]+)/.exec(location.hash); S.deep = !!q; if (q) S.cur = decodeURIComponent(q[1]);
     el.innerHTML = head("Команда", sub, '<div class="x-chips"><span class="x-chip on" id="tUrgChip">' + ic("flame") + 'Срочное <b id="tUrgN">0</b></span></div>')
-      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs"></div><div class="hd"><button class="x-btn primary" id="tTopic" style="justify-content:center">' + ic("plus") + 'Новый чат</button><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("tasks") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
+      + '<div class="wrap"><div class="x-chat"><div class="x-dlgs"><div class="x-tabs" id="tTabs">' + [["all", "Все"], ["chan", "Каналы"], ["task", "Задачи"]].map(function (t) { return '<button type="button" data-t="' + t[0] + '" class="' + ((S.tab || "all") === t[0] ? "on" : "") + '">' + t[1] + "</button>"; }).join("") + '</div><div class="hd"><button class="x-btn primary" id="tTopic" style="justify-content:center">' + ic("plus") + 'Новый чат</button><button class="x-btn ghost" id="tNew" style="justify-content:center">' + ic("tasks") + 'Диалог по задаче</button></div><div class="sc" id="tRooms"></div></div><div class="x-thread" id="tThread"></div><div class="x-info" id="tInfo"></div></div></div>';
     $("tNew").onclick = newTaskRoom;
     $("tTopic").onclick = topicDialog;
     if (C.me && C.me.role === "engineer") el.querySelector(".x-dlgs .hd").style.display = "none";   // инженер ТО — только свой чат

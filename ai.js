@@ -42,12 +42,33 @@
 
   /* ================================================================ раздел «ИИ-менеджер»: поручения */
   function render() {
-    var el = $("ai-app"), sub = "Письма на решение и поручения — подготовлю ответ и КП, напомню исполнителю и прослежу, чтобы вы не забыли проверить";
+    var el = $("ai-app"), sub = greet() + ": что ждёт решения, что горит и что вы поручили";
     if (!U.gate(el, "ИИ-менеджер", sub, render)) return;
     el.innerHTML = U.head("ИИ-менеджер", sub, '<button class="x-btn primary" data-qt>' + ic("plus") + "Поручить</button>")
       + '<div class="wrap" id="aiBody"><div class="x-panel"><div class="x-empty">Загрузка…</div></div></div>';
     load();
   }
+  function greet() {
+    var d = new Date(), h = d.getHours(), name = C.me ? String(C.me.name).split(" ")[0] : "";
+    var hi = h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
+    var dd = d.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
+    return hi + (name && name !== "Руководитель" ? ", " + name : "") + " · " + dd;
+  }
+  function kpiRow() {                                              // главный экран: четыре цифры — нажатие ведёт к блоку
+    var dec = (S.dec && S.dec.items) ? S.dec.items.length : null, ctl = (S.ctl && S.ctl.items) ? S.ctl.items.filter(function (x) { return x.when === "today"; }).length : null;
+    var d = S.data || { by_me: [], mine: [] }, check = d.by_me.filter(function (o) { return o.status === "done"; }).length;
+    var mine = d.mine.filter(function (o) { return o.status !== "done"; }).length;
+    var T = [];
+    if (dec != null) T.push(["aiDecP", "hero", "chat", dec, "Ждут вашего решения"]);
+    if (ctl != null) T.push(["aiCtlP", "", "alert", ctl, "Горит сегодня", "c-bad"]);
+    T.push(["aiOrdP", "", "check", d.by_me.length, "Я поручил — жду" + (check ? " · на проверку " + check : ""), "c-blue"]);
+    T.push(["aiOrdP", "", "tasks", mine, "Мне поручили", "c-warn"]);
+    return '<div class="kpis ai-kpis">' + T.map(function (t) { return '<div class="kpi ' + t[1] + '" data-kgo="' + t[0] + '"><div class="ic ' + (t[5] || "") + '">' + ic(t[2]) + '</div><div class="v">' + t[3] + '</div><div class="l">' + E(t[4]) + "</div></div>"; }).join("") + "</div>";
+  }
+  document.addEventListener("click", function (e) {
+    var k = e.target.closest("#ai-app [data-kgo]"); if (!k) return;
+    var el = $(k.dataset.kgo); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   function load(force) {
     var dec = C.isEngineer() ? Promise.resolve(null) : C.call("/decisions").catch(function (e) { return { error: String(e), items: [], other: 0 }; });
     var ctl = C.call("/control" + (force ? "?force=1" : "")).catch(function () { return null; });
@@ -89,7 +110,7 @@
       if (it.plan && !it.plan_stale && it.plan.action === "kp" && !S.sel[it.thread_id] && !S.kp[it.thread_id] && !S.kpBusy[it.thread_id]) setTimeout(function () { makeKp(it.thread_id); }, 50);
     });
     var check = d.by_me.filter(function (o) { return o.status === "done"; }).length;
-    b.innerHTML = decPanel() + ctlPanel() + '<div class="ai-grid2">'
+    b.innerHTML = kpiRow() + decPanel() + ctlPanel() + '<div class="ai-grid2" id="aiOrdP">'
       + '<div class="x-panel pad"><div class="ai-ph"><h3>Я поручил — жду · ' + d.by_me.length + "</h3>" + (check ? '<span class="x-pill ok">на проверку: ' + check + "</span>" : "") + "</div>"
       + '<p class="x-sub">Слежу за сроком и напоминаю исполнителю. Отметит «Выполнено» — подтвердите здесь</p>'
       + (d.by_me.length ? d.by_me.map(byMeHtml).join("") : '<div class="x-empty">Никому ничего не поручено — нажмите «Поручить»</div>')
@@ -131,7 +152,7 @@
   function decPanel() {
     var d = S.dec; if (!d) return "";
     var items = d.items || [];
-    return '<div class="x-panel pad ai-decp"><div class="ai-ph"><h3>Ждут вашего решения · ' + items.length + '</h3><a class="ai-lnk" href="#/chat">Вся переписка →</a></div>'
+    return '<div class="x-panel pad ai-decp" id="aiDecP"><div class="ai-ph"><h3>Ждут вашего решения · ' + items.length + '</h3><a class="ai-lnk" href="#/chat">Вся переписка →</a></div>'
       + '<p class="x-sub">Письма и сообщения клиентов без ответа: ИИ разобрал, что хотят, и подготовил варианты — ничего не уйдёт без вашей кнопки</p>'
       + (d.error ? '<div class="x-empty">' + E(d.error) + "</div>" : items.length ? '<div class="ai-decg">' + items.map(decCard).join("") + "</div>" : '<div class="x-empty">Все клиенты получили ответ — решений не ждёт</div>')
       + (d.other ? '<small class="ai-dother">Ещё без ответа: ' + d.other + " — реклама, поставщики и сообщения, на которые отвечать не нужно</small>" : "")
@@ -315,7 +336,7 @@
     var load = Object.keys(c.load || {}).filter(function (n) { return (S.people || []).some(function (p) { return p.name === n && p.role !== "engineer"; }) || !(S.people || []).length; })
       .map(function (n) { var l = c.load[n]; return '<span class="ai-lc' + (l.hot ? " hot" : "") + '"><b>' + E(n) + "</b> " + l.orders + (l.hot ? " · горит " + l.hot : "") + "</span>"; }).join("");
     var shown = items.filter(function (x) { return !f || x.area === f; });
-    return '<div class="x-panel pad ai-ctlp"><div class="ai-ph"><h3>Контроль · предлагаю сделать · ' + items.length + "</h3>"
+    return '<div class="x-panel pad ai-ctlp" id="aiCtlP"><div class="ai-ph"><h3>Контроль · предлагаю сделать · ' + items.length + "</h3>"
       + (today ? '<button class="x-btn primary" data-callday="1">Поставить все на сегодня · ' + today + "</button>" : "") + "</div>"
       + '<p class="x-sub">Проверяю сроки задач, ТО, КП, переписку, оплаты и поручения. Что скоро уйдёт в просрочку — предлагаю, кому поручить, с готовым текстом</p>'
       + '<div class="ai-ctl">' + tiles + "</div>"

@@ -792,9 +792,16 @@ function doLogin(){
 $("pinBtn").onclick=doLogin;
 $("pinIn").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin()});
 $("logout").onclick=function(){setPin("");pending=[];data={objects:[],specialists:[],nextId:1};$("view").innerHTML="";showLogin()};
-setInterval(function(){ // подтягиваем изменения других пользователей
-  if(me&&!pending.length&&!busy&&!typingNow()&&!reqForm)loadData(true).catch(function(){});
-},60000);
+/* подтягиваем изменения других пользователей — только пока «ТО МПБ» на экране (14.11: раньше вкладка, открытая один раз,
+   раз в минуту перекачивала все данные и перерисовывала таблицу, даже когда сотрудник был в другом разделе) */
+var lastLoad=Date.now();
+function toShown(){try{return !document.hidden&&(!window.frameElement||window.frameElement.offsetParent!==null)}catch(e){return !document.hidden}}
+window.__toRefresh=function(force){
+  if(!me||pending.length||busy||typingNow()||reqForm)return;
+  if(!force&&Date.now()-lastLoad<60000)return;
+  lastLoad=Date.now();loadData(true).catch(function(){});
+};
+setInterval(function(){if(toShown())window.__toRefresh(false)},60000);
 
 /* ====== События (без перерисовки таблицы при выборе статусов) ====== */
 function find(el){var tr=el.closest("[data-id]");return tr&&data.objects.filter(function(o){return o.id==tr.dataset.id})[0]}
