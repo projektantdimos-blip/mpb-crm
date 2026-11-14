@@ -1920,3 +1920,36 @@ body.kb-open .bottomnav{display:none!important}
 #ai-app .ai-dother{display:block;color:var(--muted);font-size:.78rem;margin-top:10px}
 @media (max-width:1100px){#ai-app .ai-decg{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){#ai-app .ai-two2{grid-template-columns:minmax(0,1fr)}}
+
+/* ИИ-менеджер, этап 3: «Контроль — предлагаю сделать» */
+#ai-app .ai-ctlp{margin-bottom:18px}
+#ai-app .ai-ctl{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin-top:6px}
+#ai-app .ai-ct{display:flex;gap:8px;align-items:center;text-align:left;padding:9px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink);font:inherit;min-width:0}
+#ai-app .ai-ct b{font-size:1.15rem;font-weight:800;flex:none;min-width:18px;text-align:center}
+#ai-app .ai-ct span{font-size:.78rem;font-weight:700;min-width:0;line-height:1.2}
+#ai-app .ai-ct small{display:block;font-weight:500;color:var(--muted);font-size:.7rem}
+#ai-app .ai-ct.bad b{color:var(--bad)}
+#ai-app .ai-ct.ok b{color:var(--ok)}
+#ai-app .ai-ct.ok{opacity:.75}
+#ai-app .ai-ct.on{border-color:var(--blue);box-shadow:0 0 0 3px color-mix(in srgb,var(--blue) 18%,transparent);opacity:1}
+#ai-app .ai-flt{margin-top:10px;font-size:.82rem;color:var(--muted)}
+#ai-app .ai-load{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:.78rem}
+#ai-app .ai-ll{color:var(--muted);font-weight:600}
+#ai-app .ai-lc{padding:4px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);white-space:nowrap}
+#ai-app .ai-lc b{color:var(--ink)}
+#ai-app .ai-lc.hot{border-color:color-mix(in srgb,var(--bad) 35%,transparent);color:var(--bad)}
+#ai-app .ai-pg{margin-top:16px}
+#ai-app .ai-pgh{font-size:.72rem;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);font-weight:800;margin-bottom:8px}
+#ai-app .ai-who{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px 10px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line)}
+#ai-app .ai-who>div{flex:1;min-width:0}
+#ai-app .ai-who b{display:block;font-size:.86rem}
+#ai-app .ai-who small{display:block;color:var(--muted);font-size:.76rem}
+#ai-app .ai-who .due{font-size:.78rem;font-weight:700;white-space:nowrap}
+#ai-app .ai-ctext{margin-top:8px;padding:9px 11px;border:1px solid var(--line);border-radius:12px;font-size:.84rem;white-space:pre-line;line-height:1.45;background:var(--card)}
+#ai-app .ai-ctext a{color:var(--blue);font-weight:700;text-decoration:none;white-space:nowrap}
+#ai-app .ai-cform{margin-top:10px;display:grid;gap:8px}
+#ai-app .ai-omine{margin-top:6px;font-size:.8rem}
+#ai-app .ai-odet{margin-top:6px;padding-top:6px}
+#ai-app .ai-flash{box-shadow:0 0 0 3px var(--blue)!important;transition:box-shadow .3s}
+@media (max-width:1180px){#ai-app .ai-ctl{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:760px){#ai-app .ai-ctl{grid-template-columns:repeat(2,minmax(0,1fr))}}

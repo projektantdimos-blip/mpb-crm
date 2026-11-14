@@ -9,7 +9,7 @@
   var U = T.util, E = U.E, ic = U.ic;
   var TASK_KEYS = ["customer", "address", "contractNo", "workType", "startDate", "dueDate", "stage", "deadline", "siteContact", "siteContactPhone", "comment", "closed", "manager"];
   var S = { data: null, dec: null, people: null, tasks: null, tasksTs: 0, ctx: 0, busy: false, P: null, A: null, counts: null,
-    sel: {}, edit: {}, kp: {}, kpBusy: {}, planBusy: {} };
+    sel: {}, edit: {}, kp: {}, kpBusy: {}, planBusy: {}, ctl: null, ctlArea: "", ctlEdit: {}, ctlAi: {} };
   var EX = [
     ["Поручить", "Скажи Игорю, чтобы сделал закрывающие по Северу до пятницы"],
     ["Напомнить себе", "Напомни мне позвонить заказчику завтра в 10:00"],
@@ -48,9 +48,10 @@
       + '<div class="wrap" id="aiBody"><div class="x-panel"><div class="x-empty">Загрузка…</div></div></div>';
     load();
   }
-  function load() {
+  function load(force) {
     var dec = C.isEngineer() ? Promise.resolve(null) : C.call("/decisions").catch(function (e) { return { error: String(e), items: [], other: 0 }; });
-    return Promise.all([C.call("/orders"), dec]).then(function (r) { S.data = r[0]; S.dec = r[1]; badge(r[0].counts); paint(); })
+    var ctl = C.call("/control" + (force ? "?force=1" : "")).catch(function () { return null; });
+    return Promise.all([C.call("/orders"), dec, ctl]).then(function (r) { S.data = r[0]; S.dec = r[1]; S.ctl = r[2]; badge(r[0].counts); paint(); })
       .catch(function (e) { var b = $("aiBody"); if (b) b.innerHTML = '<div class="x-panel"><div class="x-empty">' + E(e) + "</div></div>"; });
   }
   function steps(o) {
@@ -68,6 +69,7 @@
       : '<button class="x-btn ' + (o.over ? "primary" : "ghost") + '" data-oa="ping" data-id="' + o.id + '">Напомнить</button><button class="x-btn ghost" data-oa="cancel" data-id="' + o.id + '">Отменить</button>';
     return '<div class="ai-dt' + (o.status === "done" ? " chk" : "") + (o.over ? " over" : "") + '">' + U.ava(o.to_name)
       + '<div class="t"><b>' + E(DAT(o.to_name)) + " · " + E(o.what) + "</b><small>" + meta(o) + (o.over ? ' · <em class="bad">просрочено, не отметил</em>' : "") + "</small>" + steps(o)
+      + (o.details ? '<details class="ai-det ai-odet"><summary>Подробности</summary><div class="ai-ctext">' + telify(o.details) + "</div></details>" : "")
       + (o.note ? '<div class="ai-note">«' + E(o.note) + "»</div>" : "") + "</div>"
       + '<div class="ai-dact">' + acts + "</div></div>";
   }
@@ -75,18 +77,19 @@
     var self = o.from_id === o.to_id, wait = o.status === "done";
     return '<div class="ai-dt' + (wait ? " wait" : "") + (o.over ? " over" : "") + '">' + (self ? '<span class="x-ava ai-me">Я</span>' : U.ava(o.from_name))
       + '<div class="t"><b>' + E(o.what) + "</b><small>" + (self ? "себе" : "от " + E(o.from_name)) + " · " + meta(o) + (o.over ? ' · <em class="bad">срок прошёл</em>' : "") + "</small>"
+      + (o.details ? '<div class="ai-ctext ai-omine">' + telify(o.details) + "</div>" : "")
       + (o.note && !wait ? '<div class="ai-note">«' + E(o.note) + "»</div>" : "")
       + (wait ? '<div class="ai-note">Отмечено «Выполнено» — ждёт проверки: ' + E(o.from_name) + "</div>" : "") + "</div>"
       + '<div class="ai-dact">' + (wait ? "" : '<button class="x-btn primary" data-oa="done" data-id="' + o.id + '">Выполнено</button>') + "</div></div>";
   }
   function paint() {
     var d = S.data, b = $("aiBody"); if (!d || !b) return;
-    if (S.dec && S.dec.items && S.dec.items.length && !S.people) people().then(function () { if ($("aiBody")) paint(); });
+    if (((S.dec && S.dec.items && S.dec.items.length) || (S.ctl && S.ctl.items && S.ctl.items.length)) && !S.people) people().then(function () { if ($("aiBody")) paint(); });
     ((S.dec && S.dec.items) || []).forEach(function (it) {           // рекомендовано «КП» — собираем черновик сразу
       if (it.plan && !it.plan_stale && it.plan.action === "kp" && !S.sel[it.thread_id] && !S.kp[it.thread_id] && !S.kpBusy[it.thread_id]) setTimeout(function () { makeKp(it.thread_id); }, 50);
     });
     var check = d.by_me.filter(function (o) { return o.status === "done"; }).length;
-    b.innerHTML = decPanel() + '<div class="ai-grid2">'
+    b.innerHTML = decPanel() + ctlPanel() + '<div class="ai-grid2">'
       + '<div class="x-panel pad"><div class="ai-ph"><h3>Я поручил — жду · ' + d.by_me.length + "</h3>" + (check ? '<span class="x-pill ok">на проверку: ' + check + "</span>" : "") + "</div>"
       + '<p class="x-sub">Слежу за сроком и напоминаю исполнителю. Отметит «Выполнено» — подтвердите здесь</p>'
       + (d.by_me.length ? d.by_me.map(byMeHtml).join("") : '<div class="x-empty">Никому ничего не поручено — нажмите «Поручить»</div>')
@@ -288,10 +291,131 @@
     if (b.hasAttribute("data-dtask")) { open(it.plan.task || ""); return; }
   });
 
+
+  /* ================================================================ «Контроль — предлагаю сделать» */
+  var GROUPS = [["today", "Сегодня"], ["tomorrow", "Завтра"], ["week", "На неделе"]];
+  function telify(s) { return E(s).replace(/\+7[\d\s()-]{10,16}\d/g, function (t) { return '<a href="tel:' + t.replace(/[^\d+]/g, "") + '">' + t + "</a>"; }); }
+  function ctlItems() { var c = S.ctl; return c && c.items ? c.items : []; }
+  function ctlByKey(k) { return ctlItems().filter(function (x) { return x.key === k; })[0]; }
+  function ctlPanel() {
+    var c = S.ctl; if (!c) return "";
+    var items = ctlItems(), f = S.ctlArea, today = items.filter(function (x) { return x.when === "today" && x.act === "order"; }).length;
+    var tiles = c.areas.map(function (a) {
+      return '<button class="ai-ct' + (a.n ? " bad" : " ok") + (f === a.id ? " on" : "") + '" data-carea="' + a.id + '"><b>' + (a.n || "✓") + "</b><span>" + E(a.label) + "<small>" + (a.n ? E(a.hint) : "в порядке") + "</small></span></button>";
+    }).join("");
+    var load = Object.keys(c.load || {}).filter(function (n) { return (S.people || []).some(function (p) { return p.name === n && p.role !== "engineer"; }) || !(S.people || []).length; })
+      .map(function (n) { var l = c.load[n]; return '<span class="ai-lc' + (l.hot ? " hot" : "") + '"><b>' + E(n) + "</b> " + l.orders + (l.hot ? " · горит " + l.hot : "") + "</span>"; }).join("");
+    var shown = items.filter(function (x) { return !f || x.area === f; });
+    return '<div class="x-panel pad ai-ctlp"><div class="ai-ph"><h3>Контроль · предлагаю сделать · ' + items.length + "</h3>"
+      + (today ? '<button class="x-btn primary" data-callday="1">Поставить все на сегодня · ' + today + "</button>" : "") + "</div>"
+      + '<p class="x-sub">Проверяю сроки задач, ТО, КП, переписку, оплаты и поручения. Что скоро уйдёт в просрочку — предлагаю, кому поручить, с готовым текстом</p>'
+      + '<div class="ai-ctl">' + tiles + "</div>"
+      + (f ? '<div class="ai-flt">Показано: <b>' + E((c.areas.filter(function (a) { return a.id === f; })[0] || {}).label || "") + '</b> · <span class="ai-lnk" data-carea="">показать всё</span></div>' : "")
+      + (load ? '<div class="ai-load"><span class="ai-ll">В работе поручений:</span>' + load + "</div>" : "")
+      + (c.errors && c.errors.length ? '<small class="ai-dother">Не удалось проверить: ' + E(c.errors.join(", ")) + "</small>" : "")
+      + (shown.length ? GROUPS.map(function (g) {
+          var l = shown.filter(function (x) { return x.when === g[0]; });
+          return l.length ? '<div class="ai-pg"><div class="ai-pgh">' + g[1] + '</div><div class="ai-decg">' + l.map(ctlCard).join("") + "</div></div>" : "";
+        }).join("") : '<div class="x-empty">' + (f ? "В этой области всё в порядке" : "Всё под контролем — ближайшие сроки распределены") + "</div>")
+      + "</div>";
+  }
+  function ctlCard(it) {
+    var ed = S.ctlEdit[it.key], who = (ed && ed.who) || it.who, l = (S.ctl.load || {})[who] || {};
+    var main = it.act === "reply" ? '<button class="x-btn primary" data-cgo="1">Открыть решение</button>'
+      : it.act === "ping" ? '<button class="x-btn primary" data-cping="1">Напомнить ' + E(DAT(it.assignee || "")) + "</button>"
+      : it.act === "open" ? '<a class="x-btn primary" href="#/pay">Открыть «Оплаты»</a>'
+      : '<button class="x-btn primary" data-cset="1">' + (isMeName(who) ? "Поставить себе" : "Поставить " + E(DAT(who))) + "</button>";
+    var lnk = it.link || {}, open = lnk.type === "task" ? '<a href="#/task/' + lnk.row + '">Открыть задачу</a>' : lnk.type === "lead" ? '<a href="#/kpreg/lead/' + lnk.row + '">Открыть заявку</a>'
+      : lnk.type === "thread" ? '<a href="#/chat?t=' + encodeURIComponent(lnk.id) + '">Открыть переписку</a>' : lnk.type === "to" ? '<a href="#/to">Открыть «ТО МПБ»</a>' : "";
+    var h = '<div class="ai-card ai-dc ai-cc" data-ckey="' + E(it.key) + '"><div class="ai-dtop"><span class="x-pill ' + (it.risk === "bad" ? "over" : it.risk === "warn" ? "soon" : "") + '">' + E(it.risk_text) + "</span><small>" + E(cut(it.tag, 50)) + "</small></div>"
+      + "<b>" + E(it.title) + '</b><small class="ai-dctx">Почему сейчас: ' + E(it.why) + "</small>";
+    if (ed && ed.open) {
+      var pl = (S.people || []).filter(function (x) { return x.role !== "engineer"; });
+      h += '<div class="ai-cform"><div class="ai-two2"><select class="ai-dsel" data-cf="who">' + pl.map(function (p) { return "<option" + (p.name === who ? " selected" : "") + ">" + E(p.name) + "</option>"; }).join("")
+        + '</select><input class="ai-dinp" type="date" data-cf="due" value="' + E(ed.due || it.due || "") + '"></div>'
+        + '<textarea class="ai-dtext" data-cf="text" rows="6">' + E(ed.text != null ? ed.text : it.text) + "</textarea>"
+        + '<div class="ai-acts"><button class="x-btn primary" data-csave="1">Готово</button><button class="x-btn ghost" data-cai="1"' + (S.ctlAi[it.key] ? " disabled" : "") + ">" + (S.ctlAi[it.key] ? "ИИ пишет…" : "ИИ: написать подробнее") + "</button></div></div>";
+    } else {
+      h += '<div class="ai-who">' + U.ava(who) + '<div><b>' + E(who) + (isMeName(who) ? " (вы)" : "") + "</b><small>" + E(it.who_reason) + (l.orders != null ? " · в работе " + l.orders : "") + "</small></div>"
+        + (ed && ed.due || it.due ? '<span class="due">до ' + E(ddmm((ed && ed.due) || it.due)) + "</span>" : "") + "</div>"
+        + '<div class="ai-ctext">' + telify(ed && ed.text != null ? ed.text : it.text) + "</div>";
+    }
+    h += '<div class="ai-acts">' + main + (it.act === "order" && !(ed && ed.open) ? '<button class="x-btn ghost" data-cedit="1">Изменить</button>' : "")
+      + '<button class="x-btn ghost" data-chide="1">Не надо</button></div>'
+      + (open ? '<div class="ai-dfoot">' + open + "</div>" : "") + "</div>";
+    return h;
+  }
+  function isMeName(n) { return C.me && C.me.name === n; }
+  function repaintCtl(key) {
+    var it = ctlByKey(key), el = null;
+    document.querySelectorAll("#ai-app .ai-cc").forEach(function (x) { if (x.dataset.ckey === key) el = x; });
+    if (!it || !el) { paint(); return; }
+    var tmp = document.createElement("div"); tmp.innerHTML = ctlCard(it); el.replaceWith(tmp.firstChild);
+  }
+  function ctlOrder(it) {
+    var ed = S.ctlEdit[it.key] || {}, who = ed.who || it.who, p = (S.people || []).filter(function (x) { return x.name === who; })[0];
+    if (!p) return Promise.reject("Сотрудник «" + who + "» не найден");
+    var lnk = it.link || {};
+    return C.call("/orders", { body: { to_id: p.id, what: cut(it.title, 300), details: ed.text != null ? ed.text : it.text, due: ed.due || it.due || "", tm: "",
+      task_row: lnk.type === "task" ? +lnk.row : 0, task_label: lnk.type === "task" ? cut(it.tag, 160) : "", remind: "before2h", wait: true, src: "control:" + it.key } });
+  }
+  document.addEventListener("input", function (e) {
+    var f = e.target.closest ? e.target.closest("#ai-app [data-cf]") : null; if (!f) return;
+    var k = f.closest(".ai-cc").dataset.ckey, ed = S.ctlEdit[k] = S.ctlEdit[k] || {}; ed[f.dataset.cf] = f.value;
+  });
+  document.addEventListener("change", function (e) {
+    var f = e.target.closest ? e.target.closest("#ai-app [data-cf]") : null; if (!f) return;
+    var k = f.closest(".ai-cc").dataset.ckey, ed = S.ctlEdit[k] = S.ctlEdit[k] || {}; ed[f.dataset.cf] = f.value;
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("#ai-app [data-carea]");
+    if (t) { S.ctlArea = S.ctlArea === t.dataset.carea ? "" : t.dataset.carea; paint(); return; }
+    var all = e.target.closest("#ai-app [data-callday]");
+    if (all) {
+      var l = ctlItems().filter(function (x) { return x.when === "today" && x.act === "order"; });
+      if (!l.length || !confirm("Поставить " + l.length + " поручений на сегодня — каждому его исполнителю?")) return;
+      all.disabled = true;
+      (S.people ? Promise.resolve() : people()).then(function () { return Promise.all(l.map(function (it) { return ctlOrder(it).catch(function () { return null; }); })); })
+        .then(function (r) { U.toast("Поставлено поручений: " + r.filter(Boolean).length + " — жду подтверждения"); if (C.fast) C.fast(); load(true); });
+      return;
+    }
+    var b = e.target.closest("#ai-app .ai-cc [data-cset],#ai-app .ai-cc [data-cedit],#ai-app .ai-cc [data-csave],#ai-app .ai-cc [data-cai],#ai-app .ai-cc [data-chide],#ai-app .ai-cc [data-cping],#ai-app .ai-cc [data-cgo]");
+    if (!b) return;
+    var key = b.closest(".ai-cc").dataset.ckey, it = ctlByKey(key); if (!it) return;
+    if (b.hasAttribute("data-cedit")) { var ed = S.ctlEdit[key] = S.ctlEdit[key] || {}; ed.open = true; (S.people ? Promise.resolve() : people()).then(function () { repaintCtl(key); }); return; }
+    if (b.hasAttribute("data-csave")) { S.ctlEdit[key].open = false; repaintCtl(key); return; }
+    if (b.hasAttribute("data-cai")) {
+      S.ctlAi[key] = 1; repaintCtl(key);
+      C.call("/control/text", { body: { key: key } }).then(function (r) { var ed2 = S.ctlEdit[key] = S.ctlEdit[key] || {}; ed2.text = r.text; ed2.open = true; })
+        .catch(function (er) { U.toast(String(er)); }).then(function () { delete S.ctlAi[key]; repaintCtl(key); });
+      return;
+    }
+    if (b.hasAttribute("data-cset")) {
+      b.disabled = true;
+      (S.people ? Promise.resolve() : people()).then(function () { return ctlOrder(it); })
+        .then(function (o) { U.toast(isMeName(o.to_name) ? "Поставлено себе" : "Поручено: " + o.to_name + " — жду подтверждения"); delete S.ctlEdit[key]; if (C.fast) C.fast(); load(true); })
+        .catch(function (er) { b.disabled = false; U.toast(String(er)); });
+      return;
+    }
+    if (b.hasAttribute("data-chide")) {
+      C.call("/control/hide", { body: { key: key, days: 3 } }).then(function () { U.toast("Убрано на 3 дня"); S.ctl.items = ctlItems().filter(function (x) { return x.key !== key; }); paint(); })
+        .catch(function (er) { U.toast(String(er)); });
+      return;
+    }
+    if (b.hasAttribute("data-cping")) { act(it.order_id, "ping", ""); return; }
+    if (b.hasAttribute("data-cgo")) {
+      var tid = (it.link || {}).id, card = null;
+      document.querySelectorAll("#ai-app .ai-dc").forEach(function (x) { if (x.dataset.tid === tid) card = x; });
+      if (card) { card.scrollIntoView({ behavior: "smooth", block: "start" }); card.classList.add("ai-flash"); setTimeout(function () { card.classList.remove("ai-flash"); }, 1600); }
+      else location.hash = "#/chat?t=" + encodeURIComponent(tid);
+      return;
+    }
+  });
+
   /* ================================================================ счётчик в меню */
   function badge(cn) {
     if (cn) S.counts = cn;
-    var n = S.counts ? (S.counts.mine || 0) + (S.counts.check || 0) + (S.counts.decide || 0) : 0;
+    var n = S.counts ? (S.counts.mine || 0) + (S.counts.check || 0) + (S.counts.decide || 0) + (S.counts.control || 0) : 0;
     document.querySelectorAll('#topnav button[data-goto="#/ai"], #bottomnav button[data-goto="#/ai"]').forEach(function (b) {
       var o = b.querySelector(".chat-badge"); if (o) o.remove();
       if (n) { var s = document.createElement("span"); s.className = "chat-badge"; s.textContent = n; b.appendChild(s); }
