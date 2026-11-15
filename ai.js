@@ -174,14 +174,15 @@
       h += (it.plan_stale ? '<p class="ai-dwarn">Пришло новое сообщение — решение нужно обновить</p>' : "")
         + '<div class="ai-acts"><button class="x-btn primary" data-dplan="' + E(tid) + '"' + (busy ? " disabled" : "") + ">" + (busy ? "Готовлю…" : it.plan_stale ? "Обновить решение" : "Подготовить решение") + "</button>"
         + '<button class="x-btn ghost" data-dpassopen="1">Передать</button>'
-        + '<a class="x-btn ghost" href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><button class="x-btn ghost" data-dno="' + E(tid) + '">Не надо</button></div>'
+        + '<a class="x-btn ghost" href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a></div>'
+        + '<div class="ai-acts"><button class="x-btn ghost" data-dsnooze="1">Перенести на 3 дня</button><button class="x-btn ghost" data-dno="' + E(tid) + '">Не требуется ответа</button></div>'
         + (S.passOpen[tid] ? '<div class="ai-dbody ai-dpass">' + passForm(it) + "</div>" : "");
       return h + "</div>";
     }
     h += '<div class="ai-opts">' + p.options.map(function (o) { return '<span class="x-chip' + (o.action === opt ? " on" : "") + '" data-dopt="' + o.action + '">' + E(o.label) + "</span>"; }).join("")
       + (p.options.some(function (o) { return o.action === "pass"; }) ? "" : '<span class="x-chip' + (opt === "pass" ? " on" : "") + '" data-dopt="pass">Передать</span>') + "</div>";
     h += '<div class="ai-dbody">' + optBody(it, opt) + "</div>";
-    h += '<div class="ai-dfoot"><a href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><span class="ai-lnk" data-dplan="' + E(tid) + '">Обновить решение</span><span class="ai-lnk" data-dno="' + E(tid) + '">Не надо</span></div>';
+    h += '<div class="ai-dfoot"><a href="#/chat?t=' + encodeURIComponent(tid) + '">Открыть переписку</a><span class="ai-lnk" data-dplan="' + E(tid) + '">Обновить решение</span><span class="ai-lnk" data-dsnooze="1">Перенести на 3 дня</span><span class="ai-lnk" data-dno="' + E(tid) + '">Не требуется ответа</span></div>';
     return h + "</div>";
   }
   function edited(tid, key, dflt) { var k = tid + "|" + key; return S.edit[k] != null ? S.edit[k] : (dflt || ""); }
@@ -249,7 +250,7 @@
     S.edit[f.closest(".ai-dc").dataset.tid + "|" + f.dataset.dedit] = f.value;
   });
   document.addEventListener("click", function (e) {
-    var b = e.target.closest("#ai-app [data-dpassopen],#ai-app [data-dplan],#ai-app [data-dno],#ai-app [data-dopt],#ai-app [data-dsend],#ai-app [data-dkp],#ai-app [data-dkpsend],#ai-app [data-dkpedit],#ai-app [data-dpass],#ai-app [data-dtask]");
+    var b = e.target.closest("#ai-app [data-dpassopen],#ai-app [data-dsnooze],#ai-app [data-dplan],#ai-app [data-dno],#ai-app [data-dopt],#ai-app [data-dsend],#ai-app [data-dkp],#ai-app [data-dkpsend],#ai-app [data-dkpedit],#ai-app [data-dpass],#ai-app [data-dtask]");
     if (!b) return;
     var card = b.closest(".ai-dc"), tid = card ? card.dataset.tid : "", it = decById(tid), enc = encodeURIComponent(tid);
     if (!it) return;
@@ -261,9 +262,10 @@
         .catch(function (er) { U.toast(String(er)); }).then(function () { delete S.planBusy[tid]; repaintCard(tid); if (it.plan && it.plan.action === "kp" && !it.plan_stale) makeKp(tid); });
       return;
     }
-    if (b.hasAttribute("data-dno")) {
-      if (!confirm("Убрать из «Ждут решения»? Клиенту ничего не уйдёт. Новое сообщение от него снова появится здесь.")) return;
-      C.call("/decisions/" + enc + "/mark", { body: { status: "dismissed" } }).then(function () { decDone(tid, "Убрано из решений"); }).catch(function (er) { U.toast(String(er)); });
+    if (b.hasAttribute("data-dno") || b.hasAttribute("data-dsnooze")) {          // клиенту ничего не уходит; новое сообщение вернёт карточку
+      var snz = b.hasAttribute("data-dsnooze");
+      C.call("/decisions/" + enc + "/mark", { body: { status: snz ? "snoozed" : "dismissed", days: 3 } })
+        .then(function () { decDone(tid, snz ? "Перенесено на 3 дня" : "Закрыто: ответ не требуется"); }).catch(function (er) { U.toast(String(er)); });
       return;
     }
     if (b.dataset.dopt) {
@@ -371,7 +373,7 @@
         + '<div class="ai-ctext">' + telify(ed && ed.text != null ? ed.text : it.text) + "</div>";
     }
     h += '<div class="ai-acts">' + main + (it.act === "order" && !(ed && ed.open) ? '<button class="x-btn ghost" data-cedit="1">Изменить</button>' : "")
-      + '<button class="x-btn ghost" data-chide="1">Не надо</button></div>'
+      + '<button class="x-btn ghost" data-chide="3">Перенести на 3 дня</button><button class="x-btn ghost" data-cclose="1">Не требуется</button></div>'
       + (open ? '<div class="ai-dfoot">' + open + "</div>" : "") + "</div>";
     return h;
   }
@@ -409,7 +411,7 @@
         .then(function (r) { U.toast("Поставлено поручений: " + r.filter(Boolean).length + " — жду подтверждения"); if (C.fast) C.fast(); load(true); });
       return;
     }
-    var b = e.target.closest("#ai-app .ai-cc [data-cset],#ai-app .ai-cc [data-cedit],#ai-app .ai-cc [data-csave],#ai-app .ai-cc [data-cai],#ai-app .ai-cc [data-chide],#ai-app .ai-cc [data-cping],#ai-app .ai-cc [data-cgo]");
+    var b = e.target.closest("#ai-app .ai-cc [data-cset],#ai-app .ai-cc [data-cedit],#ai-app .ai-cc [data-csave],#ai-app .ai-cc [data-cai],#ai-app .ai-cc [data-chide],#ai-app .ai-cc [data-cclose],#ai-app .ai-cc [data-cping],#ai-app .ai-cc [data-cgo]");
     if (!b) return;
     var key = b.closest(".ai-cc").dataset.ckey, it = ctlByKey(key); if (!it) return;
     if (b.hasAttribute("data-cedit")) { var ed = S.ctlEdit[key] = S.ctlEdit[key] || {}; ed.open = true; (S.people ? Promise.resolve() : people()).then(function () { repaintCtl(key); }); return; }
@@ -427,8 +429,10 @@
         .catch(function (er) { b.disabled = false; U.toast(String(er)); });
       return;
     }
-    if (b.hasAttribute("data-chide")) {
-      C.call("/control/hide", { body: { key: key, days: 3 } }).then(function () { U.toast("Убрано на 3 дня"); S.ctl.items = ctlItems().filter(function (x) { return x.key !== key; }); paint(); })
+    if (b.hasAttribute("data-chide") || b.hasAttribute("data-cclose")) {    // «Не требуется» — пока ситуация не изменится (новый срок, письмо, контакт)
+      var close = b.hasAttribute("data-cclose");
+      C.call("/control/hide", { body: { key: key, days: 3, forever: close } })
+        .then(function () { U.toast(close ? "Закрыто: действий не требуется" : "Перенесено на 3 дня"); S.ctl.items = ctlItems().filter(function (x) { return x.key !== key; }); paint(); if (close && C.fast) C.fast(); })
         .catch(function (er) { U.toast(String(er)); });
       return;
     }
