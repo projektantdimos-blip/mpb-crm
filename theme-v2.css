@@ -1973,3 +1973,8 @@ body.kb-open .bottomnav{display:none!important}
   #ai-app .ai-kpis .kpi .ic{width:32px;height:32px;margin-bottom:8px}
 }
 @media (max-width:760px){#ai-app .ai-ph{flex-wrap:wrap}#ai-app .ai-ph h3{flex:1 1 100%}#ai-app .ai-ph>.x-btn{width:100%;justify-content:center}}
+
+/* «Контроль»: кому поставить — выбор прямо рядом с кнопкой */
+#ai-app .ai-cassign{display:inline-flex;gap:6px;align-items:stretch;flex-wrap:wrap;max-width:100%}
+#ai-app .ai-cassign select{width:auto;min-width:0;max-width:170px;padding:7px 10px;font-size:.84rem;border-radius:11px}
+@media (max-width:760px){#ai-app .ai-cassign{display:flex;width:100%}#ai-app .ai-cassign select{flex:1 1 40%;max-width:none;font-size:16px}#ai-app .ai-cassign .x-btn{flex:1 1 50%;justify-content:center}}

@@ -356,7 +356,7 @@
     var main = it.act === "reply" ? '<button class="x-btn primary" data-cgo="1">Открыть решение</button>'
       : it.act === "ping" ? '<button class="x-btn primary" data-cping="1">Напомнить ' + E(DAT(it.assignee || "")) + "</button>"
       : it.act === "open" ? '<a class="x-btn primary" href="#/pay">Открыть «Оплаты»</a>'
-      : '<button class="x-btn primary" data-cset="1">' + (isMeName(who) ? "Поставить себе" : "Поставить " + E(DAT(who))) + "</button>";
+      : assignBox(it, who);
     var lnk = it.link || {}, open = lnk.type === "task" ? '<a href="#/task/' + lnk.row + '">Открыть задачу</a>' : lnk.type === "lead" ? '<a href="#/kpreg/lead/' + lnk.row + '">Открыть заявку</a>'
       : lnk.type === "thread" ? '<a href="#/chat?t=' + encodeURIComponent(lnk.id) + '">Открыть переписку</a>' : lnk.type === "to" ? '<a href="#/to">Открыть «ТО МПБ»</a>' : "";
     var h = '<div class="ai-card ai-dc ai-cc" data-ckey="' + E(it.key) + '"><div class="ai-dtop"><span class="x-pill ' + (it.risk === "bad" ? "over" : it.risk === "warn" ? "soon" : "") + '">' + E(it.risk_text) + "</span><small>" + E(cut(it.tag, 50)) + "</small></div>"
@@ -378,6 +378,14 @@
     return h;
   }
   function isMeName(n) { return C.me && C.me.name === n; }
+  function assignBox(it, who) {                                    // кому поставить: предложенный ИИ или любой сотрудник
+    var pl = (S.people || []).filter(function (x) { return x.role !== "engineer" || x.name === who; });
+    if (!pl.some(function (x) { return x.name === who; }) && who) pl.unshift({ name: who });
+    var btn = '<button class="x-btn primary" data-cset="1">' + (isMeName(who) ? "Поставить себе" : "Поставить " + E(DAT(who))) + "</button>";
+    if (pl.length < 2) return btn;
+    return '<span class="ai-cassign"><select class="ai-dsel" data-cf="who" aria-label="Кому поставить">' + pl.map(function (x) {
+      return "<option" + (x.name === who ? " selected" : "") + ">" + E(x.name) + (isMeName(x.name) ? " (я)" : "") + "</option>"; }).join("") + "</select>" + btn + "</span>";
+  }
   function repaintCtl(key) {
     var it = ctlByKey(key), el = null;
     document.querySelectorAll("#ai-app .ai-cc").forEach(function (x) { if (x.dataset.ckey === key) el = x; });
@@ -397,7 +405,9 @@
   });
   document.addEventListener("change", function (e) {
     var f = e.target.closest ? e.target.closest("#ai-app [data-cf]") : null; if (!f) return;
-    var k = f.closest(".ai-cc").dataset.ckey, ed = S.ctlEdit[k] = S.ctlEdit[k] || {}; ed[f.dataset.cf] = f.value;
+    var k = f.closest(".ai-cc").dataset.ckey, ed = S.ctlEdit[k] = S.ctlEdit[k] || {};
+    ed[f.dataset.cf] = f.dataset.cf === "who" ? f.value.replace(/ \(я\)$/, "") : f.value;
+    if (f.dataset.cf === "who") repaintCtl(k);
   });
   document.addEventListener("click", function (e) {
     var t = e.target.closest("#ai-app [data-carea]");
