@@ -39,7 +39,7 @@
   function xmodal(html, wide) {
     var v = $("xModalVeil"); if (!v) { v = document.createElement("div"); v.id = "xModalVeil"; v.className = "x-mveil"; document.body.appendChild(v); }
     v.className = "x-mveil on"; v.innerHTML = '<div class="x-modal' + (wide ? " wide" : "") + '">' + html + "</div>";
-    v.onclick = function (e) { if (e.target === v) T.closeModal(); };
+    v.onclick = function (e) { if (window.mpbBgClick ? mpbBgClick(e, v) : e.target === v) T.closeModal(); };
     return v;
   }
   T.closeModal = function () { var v = $("xModalVeil"); if (v) { v.className = "x-mveil"; v.innerHTML = ""; } };

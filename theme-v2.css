@@ -1978,3 +1978,19 @@ body.kb-open .bottomnav{display:none!important}
 #ai-app .ai-cassign{display:inline-flex;gap:6px;align-items:stretch;flex-wrap:wrap;max-width:100%}
 #ai-app .ai-cassign select{width:auto;min-width:0;max-width:170px;padding:7px 10px;font-size:.84rem;border-radius:11px}
 @media (max-width:760px){#ai-app .ai-cassign{display:flex;width:100%}#ai-app .ai-cassign select{flex:1 1 40%;max-width:none;font-size:16px}#ai-app .ai-cassign .x-btn{flex:1 1 50%;justify-content:center}}
+
+/* «Кто за что отвечает» (руководителю) */
+#ai-app .ai-owners{margin-top:16px}
+#ai-app .ai-ownrow{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+#ai-app .ai-ownrow span{font-weight:700;font-size:.86rem;flex:1 1 260px}
+#ai-app .ai-ownrow small{display:block;color:var(--muted);font-weight:500;font-size:.76rem}
+#ai-app .ai-ownrow select{width:auto;min-width:180px}
+
+/* 16.11: прикреплённый файл в «Переписке» на телефоне — отдельной строкой над полем ввода (раньше вытеснял поле и кнопку за край экрана) */
+@media (max-width:900px){
+  #chat-app .chat-wrap.has-sel.has-sel #chatComposer{flex-wrap:wrap!important}
+  #chat-app .chat-wrap.has-sel.has-sel #chatComposer .chat-filebar{flex:1 1 100%!important;order:-1;min-width:0;max-width:100%}
+  #chat-app .chat-wrap.has-sel.has-sel #chatComposer textarea{flex:1 1 0!important}
+  #chat-app .chat-fchip{min-width:0}
+  #chat-app .chat-fchip .fn{max-width:none;flex:1 1 auto;min-width:0}
+}

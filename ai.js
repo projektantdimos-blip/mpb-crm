@@ -343,13 +343,13 @@
       + '<p class="x-sub">Проверяю сроки задач, ТО, КП, переписку, оплаты и поручения. Что скоро уйдёт в просрочку — предлагаю, кому поручить, с готовым текстом</p>'
       + '<div class="ai-ctl">' + tiles + "</div>"
       + (f ? '<div class="ai-flt">Показано: <b>' + E((c.areas.filter(function (a) { return a.id === f; })[0] || {}).label || "") + '</b> · <span class="ai-lnk" data-carea="">показать всё</span></div>' : "")
-      + (load ? '<div class="ai-load"><span class="ai-ll">В работе поручений:</span>' + load + "</div>" : "")
+      + (load && C.me && C.me.role === "admin" ? '<div class="ai-load"><span class="ai-ll">В работе поручений:</span>' + load + "</div>" : "")
       + (c.errors && c.errors.length ? '<small class="ai-dother">Не удалось проверить: ' + E(c.errors.join(", ")) + "</small>" : "")
       + (shown.length ? GROUPS.map(function (g) {
           var l = shown.filter(function (x) { return x.when === g[0]; });
           return l.length ? '<div class="ai-pg"><div class="ai-pgh">' + g[1] + '</div><div class="ai-decg">' + l.map(ctlCard).join("") + "</div></div>" : "";
         }).join("") : '<div class="x-empty">' + (f ? "В этой области всё в порядке" : "Всё под контролем — ближайшие сроки распределены") + "</div>")
-      + "</div>";
+      + ownersBlock() + "</div>";
   }
   function ctlCard(it) {
     var ed = S.ctlEdit[it.key], who = (ed && ed.who) || it.who, l = (S.ctl.load || {})[who] || {};
@@ -358,7 +358,7 @@
       : it.act === "open" ? '<a class="x-btn primary" href="#/pay">Открыть «Оплаты»</a>'
       : assignBox(it, who);
     var lnk = it.link || {}, open = lnk.type === "task" ? '<a href="#/task/' + lnk.row + '">Открыть задачу</a>' : lnk.type === "lead" ? '<a href="#/kpreg/lead/' + lnk.row + '">Открыть заявку</a>'
-      : lnk.type === "thread" ? '<a href="#/chat?t=' + encodeURIComponent(lnk.id) + '">Открыть переписку</a>' : lnk.type === "to" ? '<a href="#/to">Открыть «ТО МПБ»</a>' : "";
+      : lnk.type === "thread" ? '<a href="#/chat?t=' + encodeURIComponent(lnk.id) + '">Открыть переписку</a>' : lnk.type === "to" ? '<a href="#/to">Открыть «ТО МПБ»</a>' : lnk.type === "toreq" ? '<a href="#/to?req=' + lnk.id + '">Открыть заявку</a>' : "";
     var h = '<div class="ai-card ai-dc ai-cc" data-ckey="' + E(it.key) + '"><div class="ai-dtop"><span class="x-pill ' + (it.risk === "bad" ? "over" : it.risk === "warn" ? "soon" : "") + '">' + E(it.risk_text) + "</span><small>" + E(cut(it.tag, 50)) + "</small></div>"
       + "<b>" + E(it.title) + '</b><small class="ai-dctx">Почему сейчас: ' + E(it.why) + "</small>";
     if (ed && ed.open) {
@@ -378,6 +378,26 @@
     return h;
   }
   function isMeName(n) { return C.me && C.me.name === n; }
+  function ownersBlock() {                                         // руководителю: кто отвечает за деньги/документы и ТО
+    if (!C.me || C.me.role !== "admin") return "";
+    var o = S.owners || {}, pl = S.people || [];
+    if (!S.owners) { S.owners = {}; C.call("/control/owners").then(function (r) { S.owners = r.owners || {}; paint(); }).catch(function () {}); }
+    if (!pl.length) return "";
+    function sel(k) { return '<select class="ai-dsel" data-own="' + k + '"><option value="">— руководитель —</option>' + pl.map(function (p) { return "<option" + (o[k] === p.name ? " selected" : "") + ">" + E(p.name) + "</option>"; }).join("") + "</select>"; }
+    return '<details class="ai-det ai-owners"' + (S.ownOpen ? " open" : "") + '><summary>Кто за что отвечает</summary>'
+      + '<p class="ai-dctx">По этой настройке пункты «Контроля» и письма в «Ждут решения» расходятся по людям — у каждого в его ИИ-менеджере только своё.</p>'
+      + '<div class="ai-ownrow"><span>Деньги и документы<small>оплаты из 1С, неоплаченное ТО, счета и закрывающие, письма про счета и акты</small></span>' + sel("money") + "</div>"
+      + '<div class="ai-ownrow"><span>ТО и заявки<small>ТО без отметки, окна ТО, заявки по ТО, если специалиста объекта нет в CRM</small></span>' + sel("to") + "</div>"
+      + '<div class="ai-acts"><button class="x-btn primary" data-ownsave="1">Сохранить</button></div></details>';
+  }
+  document.addEventListener("toggle", function (e) { if (e.target.classList && e.target.classList.contains("ai-owners")) S.ownOpen = e.target.open; }, true);
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("#ai-app [data-ownsave]"); if (!b) return;
+    var body = {}; document.querySelectorAll("#ai-app [data-own]").forEach(function (x) { body[x.dataset.own] = x.value; });
+    b.disabled = true;
+    C.call("/control/owners", { body: body }).then(function (r) { S.owners = r.owners; U.toast("Сохранено — «Контроль» пересобирается"); load(true); })
+      .catch(function (er) { b.disabled = false; U.toast(String(er)); });
+  });
   function assignBox(it, who) {                                    // кому поставить: предложенный ИИ или любой сотрудник
     var pl = (S.people || []).filter(function (x) { return x.role !== "engineer" || x.name === who; });
     if (!pl.some(function (x) { return x.name === who; }) && who) pl.unshift({ name: who });
@@ -685,7 +705,7 @@
 
   function wire(v) {
     v.addEventListener("click", function (e) {
-      if (e.target === v || e.target.closest("[data-qx]")) { close(); return; }
+      if ((window.mpbBgClick ? mpbBgClick(e, v) : e.target === v) || e.target.closest("[data-qx]")) { close(); return; }
       if (e.target.closest("[data-qback]")) { step("qtS1"); $("qtText").focus(); return; }
       var ex = e.target.closest("[data-qex]");
       if (ex) { var s = ex.dataset.qex; $("qtText").value = s; step("qtS1"); if (s.indexOf("…") < 0) go(); else { $("qtText").focus(); var i = s.indexOf("…"); $("qtText").setSelectionRange(i, i + 1); } }

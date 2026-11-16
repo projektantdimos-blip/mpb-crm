@@ -143,7 +143,7 @@
         + '<div class="x-row"><button class="x-btn ghost" id="xLCancel">Отмена</button><button class="x-btn primary" id="xLGo">Войти</button></div></div>';
       function close() { v.className = "x-mveil"; v.innerHTML = ""; }
       $("xLCancel").onclick = function () { close(); reject("cancel"); };
-      v.onclick = function (e) { if (e.target === v) { close(); reject("cancel"); } };
+      v.onclick = function (e) { if (window.mpbBgClick ? mpbBgClick(e, v) : e.target === v) { close(); reject("cancel"); } };
       C.call("/auth/users", { auth: false }).then(function (names) {
         C.users = names;
         $("xLName").innerHTML = names.length ? names.map(function (n) { return "<option>" + E(n) + "</option>"; }).join("") : "<option value=''>Нет сотрудников</option>";

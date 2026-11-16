@@ -9,7 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="МПБ">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
-<script>window.MPB_VERSION="20261115b";</script>
+<script>window.MPB_VERSION="20261116b";
+/* окно закрывается кликом по фону, только если и нажали, и отпустили на фоне: выделение текста мышью с уходом за край окна его не закрывает */
+(function(){var d=null;document.addEventListener("pointerdown",function(e){d=e.target;},true);window.mpbBgClick=function(e,v){return e.target===v&&(d===null||d===v);};})();</script>
 <script>
 /* Запросы к мосту: таймаут (на плохой сети кнопка не висит без конца) и полоска «Нет связи» */
 (function(){
@@ -298,7 +300,7 @@ textarea{resize:vertical;min-height:64px}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Onest:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="theme-v2.css?v=20261115b">
+<link rel="stylesheet" href="theme-v2.css?v=20261116b">
 <script>try{var __t=localStorage.getItem("mpb_theme");if(__t)document.documentElement.setAttribute("data-theme",__t)}catch(e){}</script>
 </head>
 <body>
@@ -822,9 +824,9 @@ function renderTopNav(){
     document.body.classList.toggle("shell", cur === "team");
     var be = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+'<span>'+t+'</span></button>'; };
     var bne = function(go, ic, t, on){ return '<button data-goto="'+go+'" class="'+(on?"active":"")+'">'+icon(ic)+t+'</button>'; };
-    document.getElementById("topnav").innerHTML = '<div class="nav-label">Работа</div>' + be("#/to","wrench","ТО МПБ",cur==="to") + be("#/team","team","Команда",cur==="team") + be("#/ai","zap","Поручения",cur==="ai")
+    document.getElementById("topnav").innerHTML = '<div class="nav-label">Работа</div>' + be("#/to","wrench","ТО МПБ",cur==="to") + be("#/team","team","Команда",cur==="team") + be("#/ai","zap","ИИ-менеджер",cur==="ai")
       + '<button data-notif="1">'+icon("bell")+'<span>Уведомления</span></button>' + be("#/me","user","Личный кабинет",cur==="me");
-    document.getElementById("bottomnav").innerHTML = bne("#/to","wrench","ТО МПБ",cur==="to") + bne("#/team","team","Команда",cur==="team") + bne("#/ai","zap","Поручения",cur==="ai") + bne("#/me","user","Кабинет",cur==="me");
+    document.getElementById("bottomnav").innerHTML = bne("#/to","wrench","ТО МПБ",cur==="to") + bne("#/team","team","Команда",cur==="team") + bne("#/ai","zap","ИИ",cur==="ai") + bne("#/me","user","Кабинет",cur==="me");
     document.getElementById("subnavM").innerHTML = "";
     document.querySelectorAll("#topnav button[data-goto], #bottomnav button[data-goto]").forEach(function(btn){ btn.onclick = function(){ location.hash = btn.dataset.goto; }; });
     if (window.MPBAI && window.MPBAI.badge) window.MPBAI.badge();
@@ -2524,7 +2526,7 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
 #apiModal button{padding:9px 16px;border-radius:8px;font:inherit;cursor:pointer;border:1px solid #b9c4d0;background:var(--card);color:var(--ink)}
 #apiModal button.ok{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 </style>
-<script src="chat.js?v=20261115b"></script>
+<script src="chat.js?v=20261116b"></script>
 <button id="apiGear" title="Настройки подключения" aria-label="Настройки">⚙</button>
 <div id="apiModal"><div class="box">
   <h2>Подключение к таблице</h2>
@@ -2611,16 +2613,16 @@ document.addEventListener('DOMContentLoaded', () => { if (sectionForHash(locatio
   if (!apiCfg().key && !moved) openApiSettings();          // после переноса данных ключ таблицы не нужен — только мост
 })();
 </script>
-<script src="crm.js?v=20261115b"></script>
-<script src="extras.js?v=20261115b"></script>
-<script src="team.js?v=20261115b"></script>
-<script src="auto.js?v=20261115b"></script>
-<script src="stages.js?v=20261115b"></script>
-<script src="clients.js?v=20261115b"></script>
-<script src="pay.js?v=20261115b"></script>
-<script src="ai.js?v=20261115b"></script>
-<script src="kpv.js?v=20261115b"></script>
-<script src="chatpanel.js?v=20261115b"></script>
+<script src="crm.js?v=20261116b"></script>
+<script src="extras.js?v=20261116b"></script>
+<script src="team.js?v=20261116b"></script>
+<script src="auto.js?v=20261116b"></script>
+<script src="stages.js?v=20261116b"></script>
+<script src="clients.js?v=20261116b"></script>
+<script src="pay.js?v=20261116b"></script>
+<script src="ai.js?v=20261116b"></script>
+<script src="kpv.js?v=20261116b"></script>
+<script src="chatpanel.js?v=20261116b"></script>
 <script>
 (function(){
   var KEY = "mpb_theme", t = "light";
