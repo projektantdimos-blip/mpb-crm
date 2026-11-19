@@ -13,7 +13,7 @@
 }
 html{font-size:15px}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.4;overflow-x:hidden}
 .wrap{width:100%;padding:14px 18px 30px}
 h2.title{margin:0 0 4px;font-size:1.3rem}
 .hint{color:var(--muted);font-size:.85rem;margin:0 0 12px}
@@ -81,6 +81,7 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 .torow:last-child{border-bottom:0}
 .torow:hover{background:var(--surface-2)}
 .torow.urgent{box-shadow:inset 3px 0 0 var(--bad)}
+.torow.selected{background:var(--blue-l);box-shadow:inset 3px 0 0 var(--blue)}
 .to-main-head{display:grid;grid-template-columns:minmax(190px,1.5fr) 92px 116px minmax(105px,1fr) 54px 100px;gap:8px;align-items:center;min-width:680px;padding:8px 12px;background:var(--surface-2);color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.65px;font-weight:700;border-bottom:1px solid var(--line)}
 .to-object{min-width:0}
 .to-object>b{display:block;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -101,12 +102,21 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 .to-reason{display:grid;grid-template-columns:150px 1fr;gap:8px;margin-top:8px}
 .to-reason label{display:flex;flex-direction:column;font-size:.68rem;color:var(--muted);gap:3px}
 .to-reason input{width:100%;padding:7px 8px!important;font-size:16px!important;border-radius:9px!important}
+.to-work{display:block}
+.to-work>#view{min-width:0}
+.to-work.has-drawer{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;align-items:start}
+.to-work.has-drawer>.tdrawer{min-width:0}
 .tdrawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--card);border-left:1px solid var(--line);box-shadow:var(--shadow-m);z-index:80;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .22s ease}
 .tdrawer.on{transform:none}
+.tdrawer.dock{position:static;width:auto;transform:none;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-s);overflow:hidden;max-height:none}
+.tdrawer.dock .tdrawer-head{display:none}
+.tdrawer.dock .tdrawer-body{padding:13px 14px;overflow:visible}
+.tdrawer.dock .tdrawer-body h2{margin:0 0 12px;font-size:1rem;line-height:1.25}
 .tdrawer-head{display:flex;justify-content:flex-end;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
 .tdrawer-body{padding:15px 16px;overflow:auto}
 .tdrawer-body h2{margin:0 0 16px;font-size:1.18rem;line-height:1.25}
 .tcontact-row{display:grid;grid-template-columns:18px 116px minmax(0,1fr);gap:7px;align-items:center;padding:6px 0;font-size:.76rem}
+.tdrawer.dock .tcontact-row{grid-template-columns:16px 102px minmax(0,1fr);gap:6px;padding:5px 0;font-size:.72rem}
 .tcontact-row svg{width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .tcontact-row>span{color:var(--muted)}
 .tcontact-row>b{font-weight:600;overflow-wrap:anywhere}
@@ -134,6 +144,14 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 .map-popup{font:13px Onest,sans-serif;min-width:190px}.map-popup b{display:block;font-size:14px;margin-bottom:3px}.map-popup small{display:block;color:#6a768c;margin:2px 0}
 .leaflet-container{font-family:Onest,sans-serif}
 .tmap-fallback{padding:30px;text-align:center;color:var(--muted)}
+@media(max-width:1150px){
+  .to-work.has-drawer{grid-template-columns:minmax(0,1fr) 285px;gap:10px}
+  .to-work.has-drawer .to-main-head,.to-work.has-drawer .torow{grid-template-columns:minmax(145px,1.4fr) 98px minmax(90px,1fr) 92px;min-width:500px;gap:7px}
+  .to-work.has-drawer .to-person,.to-work.has-drawer .to-photo{display:none}
+  .to-work.has-drawer .to-reason{grid-column:1/-1}
+  .tdrawer.dock .tdrawer-body{padding:12px}
+  .tdrawer.dock .tcontact-row{grid-template-columns:16px 96px minmax(0,1fr);font-size:.7rem}
+}
 
 /* ---- телефон: строки таблиц превращаются в карточки ---- */
 @media(max-width:760px){
@@ -189,7 +207,9 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
   .to-tail{grid-column:1/-1}.to-photo{grid-column:1}.to-actions{grid-column:2;grid-row:3/5}
   .to-action{width:36px;height:36px}
   .to-reason{grid-template-columns:1fr}
-  .tdrawer{width:100%;border-left:0}
+  .to-work.has-drawer{display:block}
+  .tdrawer:not(.dock){width:100%;border-left:0}
+  .tdrawer.dock{margin-top:10px}
   .tcontact-row{grid-template-columns:18px 125px minmax(0,1fr)}
   .tmap-shell{grid-template-columns:1fr;min-height:0}
   .tmap-canvas{min-height:430px;flex:none}
@@ -238,8 +258,8 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
 
   <div class="toolbar">
     <div class="tabs" id="tabs">
-      <button class="tab" data-v="req">Заявки</button>
       <button class="tab" data-v="month">Контроль ТО</button>
+      <button class="tab" data-v="req">Заявки</button>
       <button class="tab" data-v="control">График на год</button>
       <button class="tab" data-v="map">Карта</button>
       <button class="tab" data-v="acc">Бухгалтерия</button>
@@ -252,9 +272,11 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
     <input type="file" id="file" accept=".json" hidden>
   </div>
 
-  <div id="view"></div>
+  <div class="to-work" id="toWork">
+    <div id="view"></div>
+    <aside class="tdrawer" id="tdrawer" aria-hidden="true"></aside>
+  </div>
 </div>
-<div class="tdrawer" id="tdrawer" aria-hidden="true"></div>
 <div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50">
   <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px 28px;width:min(340px,92vw);box-shadow:0 4px 20px rgba(20,40,70,.12)">
     <h2 style="margin:0 0 4px;font-size:1.2rem">Контроль ТО МПБ</h2>
@@ -526,7 +548,7 @@ function monthRow(o,m){
   var st=s==="yes"?["Проведено","ok"]:s==="no"?["Не проведено","bad"]:due?["Нет отметки","warn"]:["Хвосты","blue"];
   var tail=tails.length?'<span class="to-tail bad">'+tails.map(function(x){return MONTHS[x-1]}).join(", ")+' · '+tails.length+'</span>':'<span class="to-tail">Нет задолженности</span>';
   var photo=s==="yes"&&!phOf(o,m).length?'<span class="to-photo missing">'+ico("camera")+'!</span>':'<span class="to-photo">'+ico("camera")+(s?phOf(o,m).length||"—":"—")+'</span>';
-  return '<div class="torow '+(tails.length>1?"urgent":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
+  return '<div class="torow '+(tails.length>1?"urgent":"")+(drawerObj===o.id?" selected":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
    +'<div class="to-object"><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div>'
    +'<div class="to-person"><i class="to-ava">'+esc((o.spec||"?").charAt(0))+'</i><span>'+esc(o.spec||"без специалиста")+'</span></div>'
    +'<div class="to-current"><span class="to-pill '+st[1]+'">'+st[0]+'</span></div><div>'+tail+'</div><div>'+photo+'</div>'
@@ -534,22 +556,26 @@ function monthRow(o,m){
    +(s==="no"?'<div class="to-reason"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
    +'</div>';
 }
-var drawerObj=0;
+function monthObjects(){var m=mSel();return filtered().slice().sort(function(a,b){return monthRank(a,m)-monthRank(b,m)||String(a.name).localeCompare(String(b.name),"ru")})}
+var drawerObj=0,drawerForce=false;
 function renderDrawer(){
-  var d=$("tdrawer"),o=drawerObj&&data.objects.filter(function(x){return x.id===drawerObj})[0];
-  if(!o){d.className="tdrawer";d.setAttribute("aria-hidden","true");d.innerHTML="";return}
+  var d=$("tdrawer"),pinned=view==="month",show=pinned||drawerForce;
+  if(pinned){var list=monthObjects(),cur=list.filter(function(x){return x.id===drawerObj})[0];drawerObj=(cur||list[0]||{}).id||0}
+  var o=drawerObj&&data.objects.filter(function(x){return x.id===drawerObj})[0],dock=pinned&&!!o;
+  $("toWork").classList.toggle("has-drawer",dock);
+  if(!show||!o){d.className="tdrawer";d.setAttribute("aria-hidden","true");d.innerHTML="";fitParent();return}
   var name=clientNameOf(o),phone=clientPhoneOf(o);
-  d.className="tdrawer on";d.setAttribute("aria-hidden","false");
-  d.innerHTML='<div class="tdrawer-head"><button class="to-action" data-close-drawer="1" title="Закрыть">'+ico("x")+'</button></div><div class="tdrawer-body"><h2>'+esc(o.name)+'</h2>'
+  d.className="tdrawer"+(dock?" dock":"")+" on";d.setAttribute("aria-hidden","false");
+  d.innerHTML=(dock?"":'<div class="tdrawer-head"><button class="to-action" data-close-drawer="1" title="Закрыть">'+ico("x")+'</button></div>')+'<div class="tdrawer-body"><h2>'+esc(o.name)+'</h2>'
    +'<div class="tcontact-row">'+ico("wrench")+'<span>Адрес</span><b>'+esc(fullAddress(o))+'</b></div>'
    +'<div class="tcontact-row">'+ico("user")+'<span>ФИО заказчика</span><b>'+esc(name||"—")+'</b></div>'
    +'<div class="tcontact-row">'+ico("phone")+'<span>Телефон заказчика</span><b>'+(phone?'<a href="tel:'+esc(phone.replace(/[^\d+]/g,""))+'">'+esc(phone)+'</a>':"—")+'</b></div></div>';
   fitParent();
 }
-function openObjDrawer(id){drawerObj=+id;renderDrawer()}
-function closeObjDrawer(){drawerObj=0;renderDrawer()}
+function openObjDrawer(id){drawerObj=+id;if(view!=="month")drawerForce=true;renderDrawer()}
+function closeObjDrawer(){drawerObj=0;drawerForce=false;renderDrawer()}
 function renderMonth(){
-  var m=mSel(),list=filtered().slice().sort(function(a,b){return monthRank(a,m)-monthRank(b,m)||String(a.name).localeCompare(String(b.name),"ru")});
+  var m=mSel(),list=monthObjects();
   var done=list.filter(function(o){return planned(o,m)&&Y(o).to[m]==="yes"});
   var active=list.filter(function(o){return !(planned(o,m)&&Y(o).to[m]==="yes")});
   var noN=list.filter(function(o){return Y(o).to[m]==="no"}).length, emptyN=list.filter(function(o){return planned(o,m)&&!Y(o).to[m]}).length, tailN=list.reduce(function(n,o){return n+tailsBefore(o,m).length},0);
@@ -923,6 +949,7 @@ function fitParent(){try{if(window.frameElement&&parent.toFrameFit)parent.toFram
 document.addEventListener("toggle",fitParent,true);window.addEventListener("resize",fitParent);window.addEventListener("load",fitParent);try{document.fonts.ready.then(fitParent)}catch(e){}
 function render(){
   fillYears();
+  if(view==="month"){var ml=monthObjects();if(!ml.some(function(x){return x.id===drawerObj}))drawerObj=(ml[0]||{}).id||0}
   if(mapInstance){mapInstance.remove();mapInstance=null;mapMarkerLayer=null;mapRouteLayer=null}
   $("view").innerHTML=view==="req"?renderReq():view==="month"?renderMonth():view==="control"?renderControl():view==="map"?renderMap():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
   labelize();
@@ -1082,7 +1109,7 @@ $("view").addEventListener("change",function(e){
   }
 });
 document.addEventListener("click",function(e){if(e.target.closest("[data-close-drawer]"))closeObjDrawer()});
-document.addEventListener("keydown",function(e){if(e.key==="Escape"&&drawerObj)closeObjDrawer()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&drawerObj&&view!=="month")closeObjDrawer()});
 $("tabs").addEventListener("click",function(e){
   var b=e.target.closest(".tab");if(!b)return;
   view=b.dataset.v;ls("mpb_to_view",view);[].forEach.call(this.children,function(c){c.classList.toggle("active",c===b)});render();
