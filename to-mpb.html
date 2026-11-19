@@ -76,6 +76,65 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:8px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 
+/* ---- компактный контроль ТО, карточка объекта и карта ---- */
+.torow{display:grid;grid-template-columns:minmax(190px,1.5fr) 92px 116px minmax(105px,1fr) 54px 100px;gap:8px;align-items:center;min-width:680px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--card);cursor:pointer;position:relative}
+.torow:last-child{border-bottom:0}
+.torow:hover{background:var(--surface-2)}
+.torow.urgent{box-shadow:inset 3px 0 0 var(--bad)}
+.to-main-head{display:grid;grid-template-columns:minmax(190px,1.5fr) 92px 116px minmax(105px,1fr) 54px 100px;gap:8px;align-items:center;min-width:680px;padding:8px 12px;background:var(--surface-2);color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.65px;font-weight:700;border-bottom:1px solid var(--line)}
+.to-object{min-width:0}
+.to-object>b{display:block;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.to-object>small{display:block;color:var(--muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.to-person{display:flex;align-items:center;gap:6px;font-size:.78rem;min-width:0}
+.to-ava{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:var(--blue-l);color:var(--blue);font-size:.63rem;font-weight:800;flex:none}
+.to-person span{overflow:hidden;text-overflow:ellipsis}
+.to-pill{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 8px;border-radius:20px;font-size:.68rem;font-weight:700;white-space:nowrap;background:var(--surface-2);color:var(--muted);border:1px solid transparent}
+.to-pill.ok{background:var(--ok-l);color:var(--ok)}.to-pill.bad{background:var(--bad-l);color:var(--bad)}.to-pill.warn{background:var(--warn-l);color:var(--warn)}.to-pill.blue{background:var(--blue-l);color:var(--blue)}
+.to-tail{font-size:.72rem;color:var(--muted);line-height:1.35}.to-tail.bad{color:var(--bad);font-weight:700}
+.to-photo{display:inline-flex;align-items:center;gap:3px;color:var(--muted);font-size:.72rem}.to-photo.missing{color:var(--bad)}
+.to-actions{display:flex;gap:5px;justify-content:flex-end}
+.to-action{width:31px;height:31px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--muted);display:grid;place-items:center;padding:0}
+.to-action:hover{border-color:var(--blue);color:var(--blue)}
+.to-action.yes:hover{background:var(--ok-l);border-color:var(--ok);color:var(--ok)}
+.to-action.no:hover{background:var(--bad-l);border-color:var(--bad);color:var(--bad)}
+.to-action svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.to-reason{display:grid;grid-template-columns:150px 1fr;gap:8px;margin-top:8px}
+.to-reason label{display:flex;flex-direction:column;font-size:.68rem;color:var(--muted);gap:3px}
+.to-reason input{width:100%;padding:7px 8px!important;font-size:16px!important;border-radius:9px!important}
+.tdrawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,100%);background:var(--card);border-left:1px solid var(--line);box-shadow:var(--shadow-m);z-index:80;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .22s ease}
+.tdrawer.on{transform:none}
+.tdrawer-head{display:flex;justify-content:flex-end;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line)}
+.tdrawer-body{padding:15px 16px;overflow:auto}
+.tdrawer-body h2{margin:0 0 16px;font-size:1.18rem;line-height:1.25}
+.tcontact-row{display:grid;grid-template-columns:18px 116px minmax(0,1fr);gap:7px;align-items:center;padding:6px 0;font-size:.76rem}
+.tcontact-row svg{width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.tcontact-row>span{color:var(--muted)}
+.tcontact-row>b{font-weight:600;overflow-wrap:anywhere}
+.tcontact-row a{color:var(--blue);text-decoration:none}
+.tmap-shell{display:grid;grid-template-columns:minmax(0,1fr) 285px;min-height:570px}
+.tmap-main{min-width:0;display:flex;flex-direction:column}
+.tmap-canvas{flex:1;min-height:520px;background:var(--surface-2);z-index:1}
+.tmap-legend{display:flex;align-items:center;gap:13px;flex-wrap:wrap;padding:9px 13px;border-top:1px solid var(--line);background:var(--card);font-size:.7rem;color:var(--muted)}
+.tmap-legend span{display:inline-flex;align-items:center;gap:5px}.tmap-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.tmap-side{border-left:1px solid var(--line);background:var(--card);padding:13px;display:flex;flex-direction:column;min-width:0}
+.tmap-side h3{font-size:.94rem;margin:0 0 3px}
+.tmap-side .hint{font-size:.72rem;color:var(--muted);margin:0 0 10px}
+.tmap-start{font-size:.7rem;color:var(--muted);display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+.tmap-start select{width:100%;padding:8px 9px!important;border-radius:10px!important;font-size:.78rem}
+.troute-list{display:flex;flex-direction:column;gap:5px;overflow:auto;max-height:280px;padding-right:2px}
+.troute-object{display:flex;align-items:flex-start;gap:8px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);cursor:pointer;font-size:inherit}
+.troute-object input{margin:2px 0 0;accent-color:var(--blue)}
+.troute-object b{display:block;font-size:.73rem;line-height:1.25}.troute-object small{display:block;color:var(--muted);font-size:.65rem;margin-top:2px}
+.troute-actions{display:flex;gap:6px;margin-top:10px}
+.troute-actions button{flex:1;justify-content:center;padding:9px 8px;font-size:.72rem}
+.troute-summary{display:none;margin-top:10px;padding:9px 10px;border-radius:11px;background:var(--blue-l);color:var(--blue);font-size:.73rem}
+.troute-summary.on{display:block}.troute-summary b{display:block;font-size:.86rem;margin-bottom:3px}.troute-summary ol{margin:5px 0 0;padding-left:20px;color:var(--ink)}.troute-summary li{margin:3px 0}
+.map-pin{width:29px;height:29px;display:grid;place-items:center;border-radius:50% 50% 50% 5px;transform:rotate(-45deg);background:var(--mc,#3a86d6);color:#fff;border:2px solid #fff;box-shadow:0 2px 7px rgba(13,39,70,.35);font:800 11px Onest,sans-serif}
+.map-pin>span{transform:rotate(45deg)}
+.map-popup{font:13px Onest,sans-serif;min-width:190px}.map-popup b{display:block;font-size:14px;margin-bottom:3px}.map-popup small{display:block;color:#6a768c;margin:2px 0}
+.leaflet-container{font-family:Onest,sans-serif}
+.tmap-fallback{padding:30px;text-align:center;color:var(--muted)}
+
 /* ---- телефон: строки таблиц превращаются в карточки ---- */
 @media(max-width:760px){
   html{font-size:14px}
@@ -122,6 +181,20 @@ td input[type=text],td input[type=date],td select:not(.st){width:100%;min-width:
   td button{width:100%;margin-top:4px}
   td .pin{width:60%!important;display:inline-block}
   td .pin+button{width:36%;display:inline-block}
+  .to-main-head{display:none}
+  .torow{min-width:0;grid-template-columns:minmax(0,1fr) auto;gap:7px;border:1px solid var(--line);border-radius:13px;margin:8px;padding:11px 12px}
+  .to-object{grid-column:1/-1;padding-right:4px}.to-object>b{font-size:.92rem}.to-object>small{font-size:.75rem}
+  .to-person{grid-column:1}
+  .to-current{grid-column:2;grid-row:2}
+  .to-tail{grid-column:1/-1}.to-photo{grid-column:1}.to-actions{grid-column:2;grid-row:3/5}
+  .to-action{width:36px;height:36px}
+  .to-reason{grid-template-columns:1fr}
+  .tdrawer{width:100%;border-left:0}
+  .tcontact-row{grid-template-columns:18px 125px minmax(0,1fr)}
+  .tmap-shell{grid-template-columns:1fr;min-height:0}
+  .tmap-canvas{min-height:430px;flex:none}
+  .tmap-side{border-left:0;border-top:1px solid var(--line)}
+  .troute-list{max-height:230px}
 }
 .tc-ph{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
 .tbtn.ph{flex:0 0 auto;font-weight:600}
@@ -166,8 +239,9 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
   <div class="toolbar">
     <div class="tabs" id="tabs">
       <button class="tab" data-v="req">Заявки</button>
-      <button class="tab" data-v="month">Этот месяц</button>
+      <button class="tab" data-v="month">Контроль ТО</button>
       <button class="tab" data-v="control">График на год</button>
+      <button class="tab" data-v="map">Карта</button>
       <button class="tab" data-v="acc">Бухгалтерия</button>
       <button class="tab" data-v="obj">Объекты</button>
       <button class="tab" data-v="spec">Специалисты</button>
@@ -180,6 +254,7 @@ try{if(window.parent!==window)new MutationObserver(ap).observe(parent.document.d
 
   <div id="view"></div>
 </div>
+<div class="tdrawer" id="tdrawer" aria-hidden="true"></div>
 <div id="login" style="position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:50">
   <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px 28px;width:min(340px,92vw);box-shadow:0 4px 20px rgba(20,40,70,.12)">
     <h2 style="margin:0 0 4px;font-size:1.2rem">Контроль ТО МПБ</h2>
@@ -247,7 +322,7 @@ var data={objects:[],specialists:[],nextId:1}, me=null, pins={}, accPin=false;
 var photos=[], photoOn=false;      // фото журнала ТО — только когда ТО в CRM (мост); в таблицу фото не пишутся
 function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v)}catch(e){return null}}
 var view=ls("mpb_to_view")||"month", year=new Date().getFullYear();
-var TABS_BY_ROLE={admin:["month","control","acc","obj","spec","req"],eng:["month","control","acc","obj","spec","req"],spec:["month","control","req"],acc:["acc","req"]};   // «Заявки» — только когда ТО в CRM
+var TABS_BY_ROLE={admin:["month","control","map","acc","obj","spec","req"],eng:["month","control","map","acc","obj","spec","req"],spec:["month","control","map","req"],acc:["acc","req"]};   // «Заявки» — только когда ТО в CRM
 var fullYear=ls("mpb_to_full")==="1", selM=0;          // таблица: 3 месяца вокруг текущего или весь год; «Этот месяц»: выбранный месяц
 
 function Y(o){return o.years[year]||(o.years[year]=emptyYear())}
@@ -302,6 +377,14 @@ function status(o){
   return ["НЕТ ОТМЕТКИ","warn"];
 }
 function specPhone(name){var s=data.specialists.filter(function(x){return x.name===name})[0];return s?s.phone:""}
+function prettyPhone(v){var d=String(v||"").replace(/\D/g,"");if(d.length===11&&d.charAt(0)==="8")d="7"+d.slice(1);if(d.length===11&&d.charAt(0)==="7")return "+7 ("+d.slice(1,4)+") "+d.slice(4,7)+"-"+d.slice(7,9)+"-"+d.slice(9,11);return v||""}
+function clientPhoneOf(o){var m=/(?:\+?7|8)[\s(]*\d{3}[\s)\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}/.exec(String(o.client||""));return m?prettyPhone(m[0]):""}
+function clientNameOf(o){var s=String(o.client||""),m=/(?:\+?7|8)[\s(]*\d{3}[\s)\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}/.exec(s);if(m)s=s.replace(m[0]," ");return s.replace(/[(),;]/g," ").replace(/\s{2,}/g," ").trim()}
+function composeClient(name,phone){name=String(name||"").trim();phone=String(phone||"").trim();return name&&phone?name+" ("+phone+")":name||phone}
+function fullAddress(o){return /санкт/i.test(String(o.address||""))?o.address:"г. Санкт-Петербург, "+(o.address||"")}
+var IC={wrench:'<path d="M14.7 6.3a4 4 0 005 5l-9.4 9.4a2.1 2.1 0 01-3-3l9.4-9.4a4 4 0 00-2-2z"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>',phone:'<path d="M5 4h4l2 5-2.5 1.5a15 15 0 006 6L16 14l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',check:'<path d="M20 6L9 17l-5-5"/>',x:'<path d="M18 6L6 18M6 6l12 12"/>',more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3z"/><circle cx="12" cy="13" r="3"/>'};
+function ico(n){return '<svg viewBox="0 0 24 24">'+(IC[n]||"")+"</svg>"}
+function mapColor(o){var s=status(o);return s[1]==="bad"?"#d8453a":s[1]==="warn"?"#c98412":"#1f9d63"}
 function fillSpecs(){
   var sel=$("specf"),v=sel.value;
   sel.innerHTML='<option value="">Все специалисты</option>'+data.specialists.map(function(s){return '<option>'+esc(s.name)+'</option>'}).join("");
@@ -436,46 +519,46 @@ $("phGrid").addEventListener("click",function(e){
   }).catch(function(er){toast(er.message)});
 });
 
-function tcard(o,m,tail){
-  var y=Y(o),s=y.to[m]||"";
-  return '<div class="tcard '+(s==="yes"?"yes":s==="no"?"no":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
-   +'<div class="tc-top"><div><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div>'+(tail?'<span class="pill '+(s==="no"?"bad":"warn")+'">'+MFULL[m-1]+'</span>':'')+'</div>'
-   +'<div class="tc-meta">'+esc(o.spec||"без специалиста")+' · '+esc(o.period||"")+(o.kind?' · '+esc(o.kind):'')+'</div>'
-   +'<div class="tc-acts"><button class="tbtn yes'+(s==="yes"?" on":"")+'" data-set="yes">✓ Проведено</button><button class="tbtn no'+(s==="no"?" on":"")+'" data-set="no">✕ Не проведено</button>'
-   +(s?'<button class="tbtn clr" data-set="" title="Убрать отметку">Сбросить</button>':'')+'</div>'
-   +phRow(o,m)
-   +(s==="no"?'<div class="tc-no"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
+function tailsBefore(o,m){var y=Y(o),out=[];for(var k=1;k<m;k++)if(planned(o,k)&&y.to[k]!=="yes")out.push(k);return out}
+function monthRank(o,m){var y=Y(o),s=y.to[m]||"",t=tailsBefore(o,m).length;if(s==="no")return 0;if(planned(o,m)&&!s)return 1;if(t)return 2;if(s==="yes")return 3;return 4}
+function monthRow(o,m){
+  var y=Y(o),s=y.to[m]||"",tails=tailsBefore(o,m),due=planned(o,m)||!!s;
+  var st=s==="yes"?["Проведено","ok"]:s==="no"?["Не проведено","bad"]:due?["Нет отметки","warn"]:["Хвосты","blue"];
+  var tail=tails.length?'<span class="to-tail bad">'+tails.map(function(x){return MONTHS[x-1]}).join(", ")+' · '+tails.length+'</span>':'<span class="to-tail">Нет задолженности</span>';
+  var photo=s==="yes"&&!phOf(o,m).length?'<span class="to-photo missing">'+ico("camera")+'!</span>':'<span class="to-photo">'+ico("camera")+(s?phOf(o,m).length||"—":"—")+'</span>';
+  return '<div class="torow '+(tails.length>1?"urgent":"")+'" data-id="'+o.id+'" data-tm="'+m+'">'
+   +'<div class="to-object"><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div>'
+   +'<div class="to-person"><i class="to-ava">'+esc((o.spec||"?").charAt(0))+'</i><span>'+esc(o.spec||"без специалиста")+'</span></div>'
+   +'<div class="to-current"><span class="to-pill '+st[1]+'">'+st[0]+'</span></div><div>'+tail+'</div><div>'+photo+'</div>'
+   +'<div class="to-actions"><button class="to-action yes" data-set="yes" title="Проведено">'+ico("check")+'</button><button class="to-action no" data-set="no" title="Не проведено">'+ico("x")+'</button><button class="to-action" data-open-detail="1" title="Карточка объекта">'+ico("more")+'</button></div>'
+   +(s==="no"?'<div class="to-reason"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
    +'</div>';
 }
-function tailCard(o,ms){
-  var y=Y(o),anyNo=ms.some(function(m){return y.to[m]==="no"});
-  return '<div class="tcard tail '+(anyNo?"no":"")+'" data-id="'+o.id+'">'
-   +'<div class="tc-top"><div><b>'+esc(o.name)+'</b>'+(o.address?'<small>'+esc(o.address)+'</small>':'')+'</div><span class="pill bad">'+ms.length+'</span></div>'
-   +'<div class="tc-meta">'+esc(o.spec||"без специалиста")+' · '+esc(o.period||"")+'</div>'
-   +ms.map(function(m){var st=y.to[m]||"";return '<div class="tl-row" data-tm="'+m+'"><span class="tl-m">'+MFULL[m-1]+'</span><span class="tl-st '+(st==="no"?"bad":"")+'">'+(st==="no"?"не проведено":"нет отметки")+'</span>'
-     +'<button class="tbtn sm yes" data-set="yes" title="Проведено">✓</button><button class="tbtn sm no'+(st==="no"?" on":"")+'" data-set="no" title="Не проведено">✕</button></div>'}).join("")
-   +(anyNo?'<div class="tc-no"><label>Провести до<input type="date" data-f="deadline" value="'+esc(y.deadline)+'"></label><label>Причина<input type="text" data-f="reason" value="'+esc(y.reason)+'" placeholder="Почему не проведено"></label></div>':'')
-   +'</div>';
+var drawerObj=0;
+function renderDrawer(){
+  var d=$("tdrawer"),o=drawerObj&&data.objects.filter(function(x){return x.id===drawerObj})[0];
+  if(!o){d.className="tdrawer";d.setAttribute("aria-hidden","true");d.innerHTML="";return}
+  var name=clientNameOf(o),phone=clientPhoneOf(o);
+  d.className="tdrawer on";d.setAttribute("aria-hidden","false");
+  d.innerHTML='<div class="tdrawer-head"><button class="to-action" data-close-drawer="1" title="Закрыть">'+ico("x")+'</button></div><div class="tdrawer-body"><h2>'+esc(o.name)+'</h2>'
+   +'<div class="tcontact-row">'+ico("wrench")+'<span>Адрес</span><b>'+esc(fullAddress(o))+'</b></div>'
+   +'<div class="tcontact-row">'+ico("user")+'<span>ФИО заказчика</span><b>'+esc(name||"—")+'</b></div>'
+   +'<div class="tcontact-row">'+ico("phone")+'<span>Телефон заказчика</span><b>'+(phone?'<a href="tel:'+esc(phone.replace(/[^\d+]/g,""))+'">'+esc(phone)+'</a>':"—")+'</b></div></div>';
+  fitParent();
 }
+function openObjDrawer(id){drawerObj=+id;renderDrawer()}
+function closeObjDrawer(){drawerObj=0;renderDrawer()}
 function renderMonth(){
-  var m=mSel(),list=filtered(),tails=[];
-  list.forEach(function(o){var y=Y(o);for(var k=1;k<m;k++)if(planned(o,k)&&y.to[k]!=="yes")tails.push({o:o,m:k})});
-  tails.sort(function(a,b){return a.m-b.m});
-  var due=list.filter(function(o){return planned(o,m)||Y(o).to[m]});
-  var todo=due.filter(function(o){return Y(o).to[m]!=="yes"}),done=due.filter(function(o){return Y(o).to[m]==="yes"});
-  todo.sort(function(a,b){return (Y(a).to[m]==="no")-(Y(b).to[m]==="no")});          // сначала без отметки
-  var nNo=todo.filter(function(o){return Y(o).to[m]==="no"}).length;
+  var m=mSel(),list=filtered().slice().sort(function(a,b){return monthRank(a,m)-monthRank(b,m)||String(a.name).localeCompare(String(b.name),"ru")});
+  var done=list.filter(function(o){return planned(o,m)&&Y(o).to[m]==="yes"});
+  var active=list.filter(function(o){return !(planned(o,m)&&Y(o).to[m]==="yes")});
+  var noN=list.filter(function(o){return Y(o).to[m]==="no"}).length, emptyN=list.filter(function(o){return planned(o,m)&&!Y(o).to[m]}).length, tailN=list.reduce(function(n,o){return n+tailsBefore(o,m).length},0);
   var h='<div class="mhead"><button class="ghost" data-mm="-1"'+(m<=1?" disabled":"")+'>‹</button><b>'+MFULL[m-1]+' '+year+'</b><button class="ghost" data-mm="1"'+(m>=12?" disabled":"")+'>›</button>'
-   +'<span class="mstat">По плану: '+due.length+' · проведено: '+done.length+' · не проведено: '+nNo+' · без отметки: '+(todo.length-nNo)+'</span></div>';
-  h+='<h3 class="sec">Нужно провести в '+MFULL[m-1].toLowerCase().replace(/ь$|й$/,"е").replace(/т$/,"те")+' ('+todo.length+')</h3>';
-  h+=todo.length?'<div class="cards">'+todo.map(function(o){return tcard(o,m,false)}).join("")+'</div>':'<div class="empty-msg">'+(due.length?"Все ТО этого месяца проведены ✓":"В этом месяце ТО по графику нет")+'</div>';
-  if(tails.length){                                                                  // хвосты — после текущего месяца, по объектам
-    var by={},order=[];
-    tails.forEach(function(t){if(!by[t.o.id]){by[t.o.id]={o:t.o,ms:[]};order.push(t.o.id)}by[t.o.id].ms.push(t.m)});
-    h+='<h3 class="sec bad">Хвосты — не закрыто в прошлых месяцах: '+tails.length+' по '+order.length+' объект'+(order.length%10===1&&order.length%100!==11?"у":"ам")+'</h3>'
-      +'<div class="cards">'+order.map(function(id){return tailCard(by[id].o,by[id].ms)}).join("")+'</div>';
-  }
-  if(done.length)h+='<details class="donebox"><summary>Проведено в этом месяце ('+done.length+')</summary><div class="cards">'+done.map(function(o){return tcard(o,m,false)}).join("")+'</div></details>';
+   +'<span class="mstat">Активных: '+active.length+' · проведено: '+done.length+' · не проведено: '+noN+' · без отметки: '+emptyN+' · хвостов: '+tailN+'</span></div>';
+  h+='<div class="tblwrap"><div class="to-main-head"><div>Объект</div><div>Специалист</div><div>'+MONTHS[m-1]+'</div><div>Прошлые месяцы</div><div>Фото</div><div>Действия</div></div>';
+  h+=active.length?active.map(function(o){return monthRow(o,m)}).join(""):'<div class="empty-msg">Все ТО этого месяца проведены ✓</div>';
+  h+='</div>';
+  if(done.length)h+='<details class="donebox"><summary>Проведено в '+MFULL[m-1].toLowerCase()+' ('+done.length+')</summary><div class="tblwrap">'+done.map(function(o){return monthRow(o,m)}).join("")+'</div></details>';
   return h;
 }
 
@@ -506,6 +589,110 @@ function renderAcc(){
   return h+'</tbody></table></div>';
 }
 
+/* ====== Карта объектов и маршрут ====== */
+var mapInstance=null,mapAssetsPromise=null,mapMarkerLayer=null,mapRouteLayer=null,mapObjects=[],routeSnapshot=null,routeSelection={},routeInit=false,geocodeBusy=false;
+function ensureMapAssets(){
+ if(window.L)return Promise.resolve();
+ if(mapAssetsPromise)return mapAssetsPromise;
+ mapAssetsPromise=new Promise(function(resolve,reject){
+  var css=document.createElement("link");css.rel="stylesheet";css.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";document.head.appendChild(css);
+  var script=document.createElement("script");script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";script.onload=resolve;script.onerror=function(){reject(new Error("Не удалось загрузить библиотеку карты"))};document.head.appendChild(script);
+ });
+ return mapAssetsPromise;
+}
+function geoCache(){try{return JSON.parse(localStorage.getItem("mpb_to_geo")||"{}")}catch(e){return {}}}
+function saveGeo(k,v){var c=geoCache();c[k]=v;try{localStorage.setItem("mpb_to_geo",JSON.stringify(c))}catch(e){}}
+function objectPoint(o){
+ var la=Number(o.lat),ln=Number(o.lng);if(isFinite(la)&&isFinite(ln)&&Math.abs(la)<=90&&Math.abs(ln)<=180)return {lat:la,lng:ln};
+ var g=geoCache()[fullAddress(o)];return g&&!g.fail?g:null;
+}
+function renderMap(){
+ var list=filtered();
+ if(!routeInit){list.forEach(function(o){if(status(o)[1]!=="ok")routeSelection[o.id]=true});routeInit=true}
+ return '<div class="tblwrap" style="padding:0"><div class="tmap-shell"><div class="tmap-main"><div class="to-map-canvas tmap-canvas" id="tmapCanvas"><div class="tmap-fallback">Загружаем карту Санкт-Петербурга…</div></div>'
+  +'<div class="tmap-legend"><span><i style="background:#d8453a"></i>Требуют действия</span><span><i style="background:#c98412"></i>Нет отметки</span><span><i style="background:#1f9d63"></i>В порядке</span><span id="tgeoStatus">Адреса определяются автоматически и кешируются</span></div></div>'
+  +'<aside class="tmap-side"><h3>Маршрут по объектам</h3><p class="hint">Отметьте адреса. Порядок объезда рассчитается по близости, линия — по автомобильным дорогам.</p>'
+  +'<label class="tmap-start">Начало маршрута<select id="trouteStart"><option value="">С первого выбранного объекта</option>'+list.map(function(o){return '<option value="'+o.id+'">'+esc(o.name)+'</option>'}).join("")+'</select></label>'
+  +'<div class="troute-list">'+list.map(function(o){return '<label class="troute-object"><input type="checkbox" data-route-check="'+o.id+'"'+(routeSelection[o.id]?" checked":"")+'><span><b>'+esc(o.name)+'</b><small>'+esc(fullAddress(o))+'</small></span></label>'}).join("")+'</div>'
+  +'<div class="troute-actions"><button class="primary" id="trouteGo">Построить маршрут</button><button class="ghost" id="trouteClear">Сбросить</button></div><div class="troute-summary" id="trouteSummary"></div></aside></div></div>';
+}
+function refreshMapObjects(){
+ if(!mapInstance)return;
+ var list=filtered();mapObjects=[];
+ mapMarkerLayer.clearLayers();
+ list.forEach(function(o,i){var p=objectPoint(o);if(!p)return;mapObjects.push({o:o,p:p});
+  var icon=L.divIcon({className:"",html:'<div class="map-pin" style="--mc:'+mapColor(o)+'"><span>'+(i+1)+'</span></div>',iconSize:[30,30],iconAnchor:[15,28],popupAnchor:[0,-25]});
+  L.marker([p.lat,p.lng],{icon:icon}).addTo(mapMarkerLayer).bindPopup('<div class="map-popup"><b>'+esc(o.name)+'</b><small>'+esc(fullAddress(o))+'</small><small>'+esc(clientNameOf(o)||"—")+'</small><small>'+esc(clientPhoneOf(o)||"—")+'</small><br><button data-map-route="'+o.id+'">Добавить в маршрут</button> <button data-map-detail="'+o.id+'">Карточка</button></div>');
+ });
+ var pts=mapObjects.map(function(x){return [x.p.lat,x.p.lng]});
+ if(pts.length)mapInstance.fitBounds(pts,{padding:[28,28]});
+ var st=$("tgeoStatus");if(st)st.textContent=mapObjects.length===list.length?"Все адреса на карте: "+mapObjects.length:"На карте: "+mapObjects.length+" из "+list.length+". Остальные ищутся по адресу…";
+ fitParent();
+}
+function initMap(){
+ ensureMapAssets().then(function(){
+  if(view!=="map"||!$("tmapCanvas"))return;
+  $("tmapCanvas").innerHTML="";mapInstance=L.map("tmapCanvas",{scrollWheelZoom:true}).setView([59.93,30.34],10);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(mapInstance);
+  mapMarkerLayer=L.layerGroup().addTo(mapInstance);refreshMapObjects();
+  mapInstance.on("popupopen",function(ev){var b=ev.popup.getElement();if(!b)return;
+   var rb=b.querySelector("[data-map-route]");if(rb)rb.onclick=function(){routeSelection[+this.dataset.mapRoute]=true;var ch=document.querySelector('[data-route-check="'+this.dataset.mapRoute+'"]');if(ch)ch.checked=true;mapInstance.closePopup();toast("Объект добавлен в маршрут")};
+   var db=b.querySelector("[data-map-detail]");if(db)db.onclick=function(){mapInstance.closePopup();openObjDrawer(+this.dataset.mapDetail)};
+  });
+  initRouteControls();geocodeMissing(filtered());if(routeSnapshot)drawRouteSnapshot();
+ }).catch(function(){if($("tmapCanvas"))$("tmapCanvas").innerHTML='<div class="tmap-fallback">Не удалось загрузить карту. Проверьте доступ к unpkg.com и OpenStreetMap, затем откройте вкладку заново.</div>'});
+}
+function geocodeMissing(list){
+ if(geocodeBusy)return;
+ var missing=list.filter(function(o){return !objectPoint(o)});
+ if(!missing.length){refreshMapObjects();return}
+ geocodeBusy=true;var i=0,ok=0;
+ function status(t){var e=$("tgeoStatus");if(e)e.textContent=t}
+ status("Определяю адреса: 0 из "+missing.length+"…");
+ function next(){
+  if(view!=="map"){geocodeBusy=false;return}
+  if(i>=missing.length){geocodeBusy=false;status(ok===missing.length?"Все адреса найдены и сохранены в кеше":"На карте: "+mapObjects.length+" из "+list.length+". Не найдено адресов: "+(missing.length-ok));refreshMapObjects();return}
+  var o=missing[i++],url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=ru&q="+encodeURIComponent(fullAddress(o));
+  fetch(url,{headers:{"Accept":"application/json"}}).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+   if(j&&j[0]&&j[0].lat){saveGeo(fullAddress(o),{lat:+j[0].lat,lng:+j[0].lon});ok++;status("Определяю адреса: "+i+" из "+missing.length+"…");refreshMapObjects()}
+   else saveGeo(fullAddress(o),{fail:1});
+  }).catch(function(){}).then(function(){setTimeout(next,1100)});
+ }
+ next();
+}
+function initRouteControls(){
+ document.querySelectorAll("[data-route-check]").forEach(function(ch){ch.addEventListener("change",function(){routeSelection[+this.dataset.routeCheck]=this.checked})});
+ var go=$("trouteGo");if(go)go.onclick=buildMapRoute;
+ var clear=$("trouteClear");if(clear)clear.onclick=function(){routeSelection={};routeSnapshot=null;if(mapRouteLayer&&mapInstance){mapInstance.removeLayer(mapRouteLayer);mapRouteLayer=null}document.querySelectorAll("[data-route-check]").forEach(function(ch){ch.checked=false});var s=$("trouteSummary");if(s){s.className="troute-summary";s.innerHTML=""}};
+}
+function geoDist(a,b){var r=Math.PI/180,la1=a.lat*r,la2=b.lat*r,dl=(b.lat-a.lat)*r,dg=(b.lng-a.lng)*r,h=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(la1)*Math.cos(la2)*Math.sin(dg/2)*Math.sin(dg/2);return 6371*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h))}
+function orderRoute(points,start){var rem=points.slice(),out=[],cur=objectPoint(start||points[0]);while(rem.length){rem.sort(function(a,b){return geoDist(cur,objectPoint(a))-geoDist(cur,objectPoint(b))});var n=rem.shift();out.push(n);cur=objectPoint(n)}return out}
+function drawRouteSnapshot(){
+ if(!mapInstance||!routeSnapshot)return;
+ if(mapRouteLayer){mapInstance.removeLayer(mapRouteLayer);mapRouteLayer=null}
+ mapRouteLayer=routeSnapshot.geometry?L.geoJSON(routeSnapshot.geometry,{style:{color:"#1f5c99",weight:5,opacity:.85}}).addTo(mapInstance):L.polyline(routeSnapshot.line,{color:"#1f5c99",weight:4,opacity:.85,dashArray:"8 7"}).addTo(mapInstance);
+ mapInstance.fitBounds(mapRouteLayer.getBounds(),{padding:[28,28]});
+ var s=$("trouteSummary");if(s){s.innerHTML=routeSnapshot.html;s.className="troute-summary on"}
+ fitParent();
+}
+function buildMapRoute(){
+ var list=filtered(),sel=list.filter(function(o){return routeSelection[o.id]&&objectPoint(o)});
+ if(!sel.length){toast("Выберите хотя бы один объект с определённым адресом");return}
+ var startEl=$("trouteStart"),start=startEl&&startEl.value?list.filter(function(o){return String(o.id)===startEl.value})[0]:null;
+ if(start&&!objectPoint(start)){toast("У начального объекта ещё не определён адрес");return}
+ var ordered=orderRoute(sel,start),pts=ordered.map(objectPoint);
+ if(pts.length===1){routeSnapshot={line:[[pts[0].lat,pts[0].lng]],html:"<b>Выбран один объект</b><ol><li>"+esc(ordered[0].name)+"</li></ol>"};drawRouteSnapshot();return}
+ var coords=pts.map(function(p){return p.lng+","+p.lat}).join(";"),url="https://router.project-osrm.org/route/v1/driving/"+coords+"?overview=full&geometries=geojson&steps=false";
+ var go=$("trouteGo");if(go){go.disabled=true;go.textContent="Строю маршрут…"}
+ fetch(url).then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(j){
+  if(!j.routes||!j.routes[0])throw 0;var rt=j.routes[0],km=(rt.distance/1000).toFixed(1),min=Math.round(rt.duration/60);
+  routeSnapshot={geometry:rt.geometry,html:"<b>"+km+" км · примерно "+min+" мин</b>Порядок объезда:<ol>"+ordered.map(function(o){return "<li>"+esc(o.name)+"</li>"}).join("")+"</ol>"};drawRouteSnapshot();
+ }).catch(function(){
+  var km=pts.slice(1).reduce(function(s,p,i){return s+geoDist(pts[i],p)},0).toFixed(1);
+  routeSnapshot={line:pts.map(function(p){return [p.lat,p.lng]}),html:"<b>"+km+" км по прямой · резервная схема</b>Дорожный сервис недоступен. Порядок объектов:<ol>"+ordered.map(function(o){return "<li>"+esc(o.name)+"</li>"}).join("")+"</ol>"};drawRouteSnapshot();
+ }).then(function(){if(go){go.disabled=false;go.textContent="Построить маршрут"}});
+}
+
 /* ====== Объекты ====== */
 function renderObj(){
   var list=filtered();
@@ -513,7 +700,7 @@ function renderObj(){
   var tx=function(k,o,w){return '<td><input type="text" data-o="'+k+'" value="'+esc(o[k])+'" style="min-width:'+(w||110)+'px"></td>'};
   var specOpts=function(o){return '<select data-o="spec"><option value=""></option>'+data.specialists.map(function(s){return '<option'+(o.spec===s.name?" selected":"")+'>'+esc(s.name)+'</option>'}).join("")+'</select>'};
   var h='<div class="toolbar"><button class="primary" id="add">+ Добавить объект</button></div><p class="hint">Данные об объекте вводятся здесь один раз — «Контроль ТО» и «Бухгалтерия» берут их отсюда. Плановые месяцы считаются из «Периодичности» и «Первого месяца».</p>';
-  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик</th><th>Адрес</th><th>Вид ТО</th><th>Договор</th><th>Подписан?</th><th>Периодичность</th><th>Первый месяц</th><th>Стоимость, ₽</th><th>Специалист</th><th>Контакт заказчика</th><th>Шифр проекта</th><th>ППКП</th><th>Акт вх. контроля</th><th>Журнал</th><th>Инструкция и схема</th><th>Примечание</th><th></th></tr></thead><tbody>';
+  h+='<div class="tblwrap"><table><thead><tr><th class="n">№</th><th class="name">Заказчик</th><th>Адрес</th><th>Вид ТО</th><th>Договор</th><th>Подписан?</th><th>Периодичность</th><th>Первый месяц</th><th>Стоимость, ₽</th><th>Специалист</th><th>ФИО заказчика</th><th>Телефон заказчика</th><th>Шифр проекта</th><th>ППКП</th><th>Акт вх. контроля</th><th>Журнал</th><th>Инструкция и схема</th><th>Примечание</th><th></th></tr></thead><tbody>';
   list.forEach(function(o,i){
     h+='<tr data-id="'+o.id+'"><td class="n">'+(i+1)+'</td><td class="name"><input type="text" data-o="name" value="'+esc(o.name)+'"></td>'
      +tx("address",o,220)
@@ -523,7 +710,7 @@ function renderObj(){
      +'<td><select data-o="period">'+["Месяц","Квартал","Полугодие","Год"].map(function(p){return '<option'+(o.period===p?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
      +'<td><select data-o="first">'+MFULL.map(function(p,j){return '<option value="'+(j+1)+'"'+(o.first===j+1?" selected":"")+'>'+p+'</option>'}).join("")+'</select></td>'
      +'<td><input type="number" data-o="cost" value="'+(o.cost||"")+'" style="width:100px"></td>'
-     +'<td>'+specOpts(o)+'</td>'+tx("client",o,180)+tx("code",o,160)+tx("ppkp",o,90)
+     +'<td>'+specOpts(o)+'</td><td><input type="text" data-oc="name" value="'+esc(clientNameOf(o))+'" placeholder="Имя" style="min-width:150px"></td><td><input type="tel" data-oc="phone" value="'+esc(clientPhoneOf(o))+'" placeholder="+7 …" style="min-width:130px"></td>'+tx("code",o,160)+tx("ppkp",o,90)
      +'<td>'+yn("entry",o)+'</td><td>'+yn("journal",o)+'</td><td>'+yn("instr",o)+'</td>'+tx("note",o,200)
      +'<td><button class="danger" data-del="1">Удалить</button></td></tr>';
   });
@@ -736,9 +923,12 @@ function fitParent(){try{if(window.frameElement&&parent.toFrameFit)parent.toFram
 document.addEventListener("toggle",fitParent,true);window.addEventListener("resize",fitParent);window.addEventListener("load",fitParent);try{document.fonts.ready.then(fitParent)}catch(e){}
 function render(){
   fillYears();
-  $("view").innerHTML=view==="req"?renderReq():view==="month"?renderMonth():view==="control"?renderControl():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
+  if(mapInstance){mapInstance.remove();mapInstance=null;mapMarkerLayer=null;mapRouteLayer=null}
+  $("view").innerHTML=view==="req"?renderReq():view==="month"?renderMonth():view==="control"?renderControl():view==="map"?renderMap():view==="acc"?renderAcc():view==="obj"?renderObj():renderSpec();
   labelize();
   rqTabN();if(view==="req")rqAfter();
+  renderDrawer();
+  if(view==="map")setTimeout(initMap,0);
   fitParent();
 }
 /* подписи ячеек для карточек на телефоне */
@@ -810,18 +1000,22 @@ $("view").addEventListener("click",function(e){
   var t=e.target.closest("button")||e.target;
   if(t.id==="winT"){fullYear=!fullYear;ls("mpb_to_full",fullYear?"1":"0");render();return}
   if(t.dataset.mm){var nm=mSel()+(+t.dataset.mm);if(nm>=1&&nm<=12){selM=nm;render()}return}
-  if(t.dataset.set!==undefined&&t.closest(".tcard")){
-    var c=t.closest(".tcard"),oc=find(c),mm=+t.closest("[data-tm]").dataset.tm,v=t.dataset.set;
+  if(t.dataset.set!==undefined&&t.closest(".torow")){
+    var c=t.closest(".torow"),oc=find(c),mm=+t.closest("[data-tm]").dataset.tm,v=t.dataset.set;
     if(!oc)return;
     Y(oc).to[mm]=v;op({k:"cell",id:oc.id,year:year,field:"to",m:mm,v:v});
     render();
     if(v==="yes"&&canPhoto(oc)&&!phOf(oc,mm).length){toast("Сфотографируйте заполненный журнал ТО");phPick(oc,mm)}
-    if(v==="no"){var nc=document.querySelector('.tcard[data-id="'+oc.id+'"] input[data-f="deadline"]');if(nc)nc.focus()}
+    if(v==="no"){var nc=document.querySelector('.torow[data-id="'+oc.id+'"] input[data-f="deadline"]');if(nc)nc.focus()}
     return;
   }
-  if(t.dataset.ph&&t.closest(".tcard")){
-    var pc=t.closest(".tcard"),po=find(pc),pm=+pc.dataset.tm;if(!po)return;
+  if(t.dataset.ph&&t.closest(".torow")){
+    var pc=t.closest(".torow"),po=find(pc),pm=+pc.dataset.tm;if(!po)return;
     if(t.dataset.ph==="add")phPick(po,pm);else phShow(po,pm);
+    return;
+  }
+  if(t.dataset.openDetail){
+    var od=find(t.closest("[data-id]"));if(od)openObjDrawer(od.id);
     return;
   }
   if(t.id==="add"){
@@ -842,6 +1036,7 @@ $("view").addEventListener("click",function(e){
     }return;
   }
   var o=find(t);if(!o)return;
+  if(t.closest(".torow")&&!t.closest("button,input,select,a,textarea")){openObjDrawer(o.id);return}
   if(t.dataset.del&&confirm("Удалить объект «"+o.name+"» со всеми данными?")){data.objects=data.objects.filter(function(x){return x!==o});op({k:"objDel",id:o.id});render()}
 });
 $("view").addEventListener("change",function(e){
@@ -876,12 +1071,18 @@ $("view").addEventListener("change",function(e){
     return;
   }
   if(t.dataset.f){Y(o)[t.dataset.f]=t.value;op({k:"yf",id:o.id,year:year,f:t.dataset.f,v:t.value});return}
+  if(t.dataset.oc){
+    var nm=t.dataset.oc==="name"?t.value:clientNameOf(o),ph=t.dataset.oc==="phone"?t.value:clientPhoneOf(o);
+    o.client=composeClient(nm,ph);op({k:"obj",id:o.id,f:"client",v:o.client});return;
+  }
   if(t.dataset.o){
     var v=t.value,k=t.dataset.o;
     o[k]=(k==="cost"||k==="first")?Number(v)||0:v;op({k:"obj",id:o.id,f:k,v:o[k]});
     if(k==="period"||k==="first")render();
   }
 });
+document.addEventListener("click",function(e){if(e.target.closest("[data-close-drawer]"))closeObjDrawer()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&drawerObj)closeObjDrawer()});
 $("tabs").addEventListener("click",function(e){
   var b=e.target.closest(".tab");if(!b)return;
   view=b.dataset.v;ls("mpb_to_view",view);[].forEach.call(this.children,function(c){c.classList.toggle("active",c===b)});render();
